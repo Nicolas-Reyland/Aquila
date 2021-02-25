@@ -1,0 +1,32 @@
+#name bubble sort
+#use functions.txt
+
+declare l [4,5,1,3,2,0]
+declare i 0
+declare int j
+declare int len
+var len = length(var l)
+
+for (var i = 0, var i < var len, var i = var i + 1)
+	for (var j = 0, var j < var len - var i - 1, var j = var j + 1)
+		if (var l[var j] > var l[var j + 1])
+			var l = swap(var l, var j, var j + 1)
+		end-if
+	end-for
+end-for
+
+return(var l)
+
+// Main flaws:
+// - #use is only one file at a time
+// -
+//
+// Not implemented:
+// - for loops
+// - while loops
+// - external function definitions (working on it tho)
+// - recursivity
+// - bool vars
+// - a lot of otehr things
+// -
+//

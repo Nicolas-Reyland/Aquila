@@ -1,0 +1,77 @@
+/** Proof that Aquila is a turing complete programming language by coding the "Rule 110 cellular automaton"
+	Is pretty slow (because of the prints) tho ... **/
+
+declare total_gen 100
+
+// global vars
+declare l [1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1]
+declare int len
+declare list new_list
+// for-loop incrementation
+declare int i
+// rule 110 vars
+declare int start
+declare int middle
+declare int end
+declare int next_value
+
+var len = length(var l)
+var new_list = copy_list(var l)
+
+// 
+for (declare gen 0, var gen < var total_gen, var gen = var gen + 1)
+	for (var i = 0, var i < var len, var i = var i + 1)
+		// start
+		if (var i ~ 0)
+			var start = var l[var len - 1]
+		else
+			var start = var l[var i - 1]
+		end-if
+		// middle
+		var middle = var l[var i]
+		// end
+		if (var i ~ var len - 1)
+			var end = var l[0]
+		else
+			var end = var l[var i + 1]
+		end-if
+
+		// rule 110 cases
+		if (var start ~ 1)
+			if (var middle ~ 1)
+				if (var end ~ 1)
+					var next_value = 0
+				else
+					var next_value = 1
+				end-if
+			else
+				if (var end ~ 1)
+					var next_value = 1
+				else
+					var next_value = 0
+				end-if
+			end-if
+		else
+			if (var middle ~ 1)
+				var next_value = 1
+			else
+				if (var end ~ 1)
+					var next_value = 1
+				else
+					var next_value = 0
+				end-if
+			end-if
+		end-if
+
+		// apply
+		var new_list[var i] = var next_value
+	end-for
+
+	// print it out
+	print(var new_list)
+	print_endl()
+
+	// new list, let's go !
+	var l = var new_list
+
+end-for

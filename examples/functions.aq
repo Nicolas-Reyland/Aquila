@@ -1,0 +1,6 @@
+function swap (ref list l, int a, int b)
+	declare temp (var l[var a])
+	var l[var a] = var l[var b]
+	var l[var b] = var temp
+	return var l
+end-function
