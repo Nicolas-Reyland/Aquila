@@ -70,7 +70,7 @@ namespace Parser
                 }
             }
 
-            throw Global.aquilaError(); // no return call ?
+            return new TempVar(); // NoReturnCallWarning
         }
     }
 }

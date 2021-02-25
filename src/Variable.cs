@@ -48,6 +48,8 @@ namespace Parser
         public override bool hasSameParent(Variable other) => true;
 
         public override string getTypeString() => throw Global.aquilaError(); // RuntimeError (never supposed to happen whatsoever)
+
+        public override string ToString() => "none";
     }
 
     public class BooleanVar : Variable
@@ -279,6 +281,7 @@ namespace Parser
 
         public override string ToString()
         {
+            if (_list.Count == 0) return "[]";
             string s = "";
             foreach (Variable variable in _list)
             {
@@ -309,13 +312,16 @@ namespace Parser
             Functions.assertFunctionExists(function_name);
         }
 
-        public override dynamic getValue()
+        public Variable call_function()
         {
             _called = true;
             //List<Variable> arg_list = _arg_expr_list.Select(x => x.evaluate()).ToList();
             object[] args = _arg_expr_list.Select(x => (object) x).ToArray();
-            return Functions.callFunctionByName(_function_name, args).getValue();
+            Variable result = Functions.callFunctionByName(_function_name, args);
+            return result;
         }
+
+        public override dynamic getValue() => call_function().getValue();
 
         public override void setValue(Variable other_value)
         {

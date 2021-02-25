@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 // ReSharper disable SuggestVarOrType_SimpleTypes
 
@@ -147,7 +148,7 @@ namespace Parser
             if (!Global.debug) { return; }
             
             // debugging mode is on
-            Console.Write("DEBUG: ");
+            Console.Write("DEBUG ");
             foreach (dynamic arg in args)
             {
                 Console.Write(arg.ToString());
@@ -294,20 +295,34 @@ namespace Parser
         }
     }
 
-    static class Program
+    static class Interpreter
     {
-        // ReSharper disable once InconsistentNaming
-        static void Main()
+        private static List<string> readSourceCode(string path)
         {
-            Global.debug = false;
-            
-            string path = "rule 110.aq"; // there are 3 "simple.txt" files !
             List<string> lines = Parser.readLines(path);
             Debugging.print("lines read");
             lines = StringUtils.purgeLines(lines); // same as "lines = StringUtils.purgeLines(lines);"
             Debugging.print("lines purged");
 
-            //StringUtils.printStringList(lines, true);
+            return lines;
+        }
+
+        public static List<Instruction> buildInstructions(List<RawInstruction> raw_instructions)
+        {
+            List<Instruction> instructions = new List<Instruction>();
+            foreach (RawInstruction raw_instruction in raw_instructions)
+            {
+                Instruction instruction = raw_instruction.toInstr();
+                instructions.Add(instruction);
+            }
+
+            return instructions;
+        }
+        public static Algorithm algorithmFromSrcCode(string path, bool print_src = false, bool pretty_print = false, string default_name = "no-name-given")
+        {
+            List<string> lines = readSourceCode(path);
+
+            if (print_src) StringUtils.printStringList(lines, true);
 
             // extract macros
             Dictionary<string, string> macros = Parser.getMacroPreprocessorValues(lines);
@@ -319,38 +334,63 @@ namespace Parser
             // Pretty-print code
             foreach (RawInstruction instruction in raw_instructions)
             {
-                if (Global.debug) instruction.prettyPrint();
+                if (pretty_print) instruction.prettyPrint();
             }
 
             // Build instructions from the RawInstructions
-            List<Instruction> instructions = new List<Instruction>();
-            foreach (RawInstruction raw_instruction in raw_instructions)
-            {
-                Instruction instruction = raw_instruction.toInstr();
-                instructions.Add(instruction);
-            }
+            List<Instruction> instructions = buildInstructions(raw_instructions);
 
-            string algo_name = macros.ContainsKey("name") ? macros["name"] : "no-name-given";
+            string algo_name = macros.ContainsKey("name") ? macros["name"] : default_name;
             Algorithm algo = new Algorithm(algo_name, instructions);
+
+            return algo;
+        }
+
+        public static Variable runSourceCode(Algorithm algo)
+        {
+            Variable return_value = algo.run();
+            return return_value;
+        }
+    }
+
+    static class Program
+    {
+        // ReSharper disable once InconsistentNaming
+        static void Main(string[] args)
+        {
+            Global.debug = false;
+            
+            Console.WriteLine(args.Length > 0 ? args[0] : "");
+
+            string src_code = args.Length == 1 ? args[0] : "test.aq"; // "bubble sort.aq" // "rule 110.aq";
+
+            Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
 
             /*DynamicList l_list = new DynamicList(new List<Variable>() {new Integer(0), new Integer(1), new Integer(2), new Integer(3)});
             Global.variables.Add("i2", new Integer(-4));
             Global.variables.Add("j2", new Integer(5));
             Global.variables.Add("l2", l_list);*/
             
-            // Global.debug = true;
+            //Global.debug = true;
             
-            /*const string INSTR1_STR = "declare list l3";
-            const string INSTR2_STR = "var l3 = [0, true, [[5 ~ 4]], 1, 2]";
+            /*const string INSTR1_STR = "declare l4 [1, 2, 3, 4, 0]";
+            const string INSTR2_STR = "declare v []";
             Instruction instr1 = new RawInstruction(INSTR1_STR).toInstr();
             Instruction instr2 = new RawInstruction(INSTR2_STR).toInstr();
             //Console.WriteLine(Expression.parse(test).getValue());
             instr1.execute();
             instr2.execute();
-            Console.WriteLine(Global.variables["l3"]);*/
+            Console.WriteLine(Global.variables["v"]);*/
+            
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
 
-            Variable return_value = algo.run();
-            Console.WriteLine( return_value );
+            Variable return_value = Interpreter.runSourceCode(algo);
+            
+            stopwatch.Stop();
+            Console.WriteLine(return_value);
+            
+            Console.WriteLine("Time: {0} ms", stopwatch.Elapsed.Milliseconds);
         }
     }
 }

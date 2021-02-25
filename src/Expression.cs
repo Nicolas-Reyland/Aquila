@@ -175,14 +175,16 @@ namespace Parser
 
                 Debugging.print("creating value function call");
 
-                return new FunctionCall(function_name, arg_list);
+                FunctionCall func_call = new FunctionCall(function_name, arg_list);
+
+                return func_call.call_function();
             }
 
 
             // variable access
             
             // since it is the last possibility for the parse call to return something, assert it is a variable
-            Debugging.print(expr_string, " should be a variable");
+            Debugging.print("variable by name: ", expr_string);
             Debugging.assert(expr_string.StartsWith("var "));
             // ReSharper disable once PossibleNullReferenceException
             if (expr_string.Contains("["))
@@ -238,6 +240,7 @@ namespace Parser
         private static Variable applyOperator(Variable v1, Variable v2, char op)
         {
             int comparison;
+            Debugging.print("applyOperator: ", v1.ToString(), " ", op, " ", v2.ToString());
             Debugging.assert(v1.hasSameParent(v2)); // operations between same classes/subclasses
             switch (op)
             {
