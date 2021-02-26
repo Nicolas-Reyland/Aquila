@@ -217,7 +217,7 @@ namespace Parser
         /// It works exactly as the <see cref="findCorrespondingElementIndex(string,int,char,char)"/>, but we are looking for
         /// strings starting with the opening and ending with closing.
         /// <para/>Example:
-        /// <para/>* lines = ["var a = 0", "for (var i, 0, 5, 1)", "if (var i == var j)", "a++", "end-if", "end-for"]
+        /// <para/>* lines = ["$a = 0", "for ($i, 0, 5, 1)", "if ($i == $j)", "a++", "end-if", "end-for"]
         /// <para/>* start_index = 1
         /// <para/>* opening = "if "
         /// <para/>* closing = "end-if"
@@ -258,10 +258,10 @@ namespace Parser
         /// integrity.The integrity is kept by using the section_delimiters delimiters ( '(': ')', '[': ']' ).
         /// Split the string by a character: delimiter
         /// <para/>Example:
-        /// <para/>* line = "(4 + 5) + var l[1 + 2]"
+        /// <para/>* line = "(4 + 5) + $l[1 + 2]"
         /// <para/>* delimiter = '+'
         /// <para/>* section_delimiter = <see cref="Global.base_delimiters"/>
-        /// <para/>* returns: ["(4 + 5)", "var l[1 + 2]"]
+        /// <para/>* returns: ["(4 + 5)", "$l[1 + 2]"]
         /// </summary>
         /// <param name="line"> line of pseudo-code</param>
         /// <param name="delimiter"> </param>
@@ -352,7 +352,7 @@ namespace Parser
         }
 
         /// <summary>
-        /// In the pseudo-code, the variable "x" is accessed with this syntax: "var x".
+        /// In the pseudo-code, the variable "x" is accessed with this syntax: "$x".
         /// Returns the corresponding <see cref="Variable"/> in the <see cref="Global.variables"/> dictionary
         /// </summary>
         /// <param name="s"> pseudo-code variable access</param>
@@ -360,8 +360,8 @@ namespace Parser
         public static Variable variableFromString(string s)
         {
             Debugging.assert(s.Length > 4);
-            Debugging.assert(s.StartsWith("var "));
-            s = s.Substring(4);
+            Debugging.assert(s.StartsWith("$"));
+            s = s.Substring(1);
             s = s.Replace(" ", "");
             Debugging.assert(Global.variables.ContainsKey(s));
             return Global.variables[s];
@@ -385,13 +385,15 @@ namespace Parser
             reunited = reunited.Remove(reunited.Length - symbol.Length);
             return reunited;
         }
-
+ 
         /// <summary>
         /// Takes an expression and removes the parts with lower priority.
         /// this can be described as "simplifying an expresion"
-        /// Example:
-        /// input => "var l[5 + var i] - ((6 + var j) * (1 / 2)) + 4", '+'
+        /// Examples:
+        /// input => "$l[5 + $i] - ((6 + $j) * (1 / 2)) + 4", '+'
         /// output => "EXPR + EXPR"
+        /// input => "$l[5 + $i] - ((6 + $j) * (1 / 2)) + 4", '*'
+        /// output => EXPR
         /// Note that the expressions that are not either simple or "simplified" to the "EXPR" string
         /// This should only be used for expression analysis only, due to data integrity loss.
         /// </summary>

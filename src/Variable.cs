@@ -39,7 +39,7 @@ namespace Parser
         }
     }
 
-    public class TempVar : Variable
+    public class NullVar : Variable
     {
         public override dynamic getValue() => throw Global.aquilaError(); // RuntimeError (never supposed to happen whatsoever)
 
@@ -99,7 +99,7 @@ namespace Parser
             return _bool_value.ToString();
         }
 
-        public override bool hasSameParent(Variable other_value) => other_value is BooleanVar || other_value is TempVar;
+        public override bool hasSameParent(Variable other_value) => other_value is BooleanVar || other_value is NullVar;
 
         public override string getTypeString() => "bool";
     }
@@ -174,7 +174,7 @@ namespace Parser
             return _int_value.ToString();
         }
 
-        public override bool hasSameParent(Variable other_value) => other_value is Integer || other_value is TempVar;
+        public override bool hasSameParent(Variable other_value) => other_value is Integer || other_value is NullVar;
         
         public override string getTypeString() => "int";
     }
@@ -292,7 +292,7 @@ namespace Parser
             return s;
         }
 
-        public override bool hasSameParent(Variable other_value) => other_value is DynamicList || other_value is TempVar;
+        public override bool hasSameParent(Variable other_value) => other_value is DynamicList || other_value is NullVar;
 
         public override string getTypeString() => "list";
     }
@@ -330,7 +330,7 @@ namespace Parser
 
         public bool hasBeenCalled() => _called;
 
-        public override bool hasSameParent(Variable other_value) => other_value is FunctionCall || other_value is TempVar;
+        public override bool hasSameParent(Variable other_value) => other_value is FunctionCall || other_value is NullVar;
 
         public override string getTypeString() => "func";
     }

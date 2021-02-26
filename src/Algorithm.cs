@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 // ReSharper disable SuggestVarOrType_SimpleTypes
 
 namespace Parser
@@ -60,17 +61,22 @@ namespace Parser
                 }
                 catch (System.Reflection.TargetInvocationException out_exception)
                 {
-                    AquilaExceptions.ReturnValueException exception = (AquilaExceptions.ReturnValueException) out_exception.InnerException;
+                    // normal TargetInvocationException
+                    if (out_exception.InnerException is not AquilaExceptions.ReturnValueException) throw;
+                    // casted ReturnValueException
+                    AquilaExceptions.ReturnValueException exception =
+                        (AquilaExceptions.ReturnValueException) out_exception.InnerException;
                     if (exception == null)
                     {
                         throw Global.aquilaError(); // something went wrong
                     }
+
                     _return_value = new Expression(exception.getExpr());
                     return _return_value.evaluate();
                 }
             }
 
-            return new TempVar(); // NoReturnCallWarning
+            return new NullVar(); // NoReturnCallWarning
         }
     }
 }

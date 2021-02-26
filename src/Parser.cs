@@ -79,8 +79,8 @@ namespace Parser
         /// Those are the delimiters that 'cut off' arithmetic, logical or
         /// programming-related expressions. Some examples:
         ///     - "420 + (6 * 7)" -> mathematical expression. delimiter is '('
-        ///     - "!(var i == 0)" -> logical expression. delimiter is '('
-        ///     - "var l[50 - 6]" -> prog.-related expression. delimiter is '['
+        ///     - "!($i == 0)" -> logical expression. delimiter is '('
+        ///     - "$l[50 - 6]" -> prog.-related expression. delimiter is '['
         /// The keys are the opening-delimiters (e.g. '[') and the values are
         /// the closing delimiters (e.g. ']').
         /// </summary>
@@ -362,7 +362,7 @@ namespace Parser
             
             Console.WriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : "test.aq"; // "bubble sort.aq" // "rule 110.aq";
+            string src_code = args.Length == 1 ? args[0] : "rule 110.aq"; // "test.aq" // "bubble sort.aq" // "rule 110.aq";
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
 

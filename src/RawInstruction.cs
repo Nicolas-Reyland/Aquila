@@ -196,18 +196,17 @@ namespace Parser
             }
 
             // variable modification
-            if (instr[0] == "var" && instr[2] == "=")
+            if (instr[0][0] == '$' && instr[1] == "=")
             {
-                Debugging.assert(instr.Count > 3); // syntax ?unfinished line?
-                string var_name = "var " + instr[1];
-                instr.RemoveAt(0); // remove "var"
-                instr.RemoveAt(0); // remove "name"
+                Debugging.assert(instr.Count > 2); // syntax ?unfinished line?
+                string var_designation = instr[0];
+                instr.RemoveAt(0); // remove "$name"
                 instr.RemoveAt(0); // remove "="
-                // reunite the right side of the "=" sign
+                // reunite all on the right side of the "=" sign
                 string assignment_string = StringUtils.reuniteBySymbol(instr);
                 // get the Expresion
                 Expression assignment = new Expression(assignment_string);
-                return new Assignment(var_name, assignment);
+                return new Assignment(var_designation, assignment);
             }
 
             // for loop

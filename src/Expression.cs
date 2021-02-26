@@ -14,7 +14,7 @@ namespace Parser
     public class Expression
     {
         /// <summary>
-        /// The literal expresion, as a string (e.g. "var x + 5")
+        /// The literal expresion, as a string (e.g. "$x + 5")
         /// </summary>
         internal readonly string _expr;
 
@@ -37,8 +37,8 @@ namespace Parser
         /// Takes an arithmetical or logical expression and returns the corresponding variable
         /// <para/>Examples:
         /// <para/>* "5 + 6" : returns Integer (11)
-        /// <para/>* "var l[5 * (1 - var i)]" : returns the elements at index 5*(1-i) in the list/array l
-        /// <para/>* "var l" : returns the list variable l
+        /// <para/>* "$l[5 * (1 - $i)]" : returns the elements at index 5*(1-i) in the list/array l
+        /// <para/>* "$l" : returns the list variable l
         /// </summary>
         /// <param name="expr_string"> expression to parse</param>
         /// <returns> Variable object containing the value of the evaluated expression value (at time t)</returns>
@@ -53,7 +53,7 @@ namespace Parser
              * raw float value (not done yet)
              * mathematical or logical operation
              * function call
-             * variable access (e.g. var name or in list by index)
+             * variable access (e.g. $name or in list by index)
              */
             
             // clean expression
@@ -185,22 +185,24 @@ namespace Parser
             
             // since it is the last possibility for the parse call to return something, assert it is a variable
             Debugging.print("variable by name: ", expr_string);
-            Debugging.assert(expr_string.StartsWith("var "));
+            Debugging.assert(expr_string.StartsWith("$"));
             // ReSharper disable once PossibleNullReferenceException
             if (expr_string.Contains("["))
             {
+                Debugging.print("list access");
                 // brackets
-                Debugging.assert(expr_string.EndsWith("]")); // cannot be "var l[0] + 5" bc AL_operations have already been processed
+                Debugging.assert(expr_string.EndsWith("]")); // cannot be "$l[0] + 5" bc AL_operations have already been processed
                 int bracket_start_index = expr_string.IndexOf('[');
-                Debugging.assert(bracket_start_index > 4); // "var [var i - 4]" is not valid
+                Debugging.assert(bracket_start_index > 1); // "$[$i - 4]" is not valid
                 // variable
-                string var_name = expr_string.Substring(4, bracket_start_index - 4);
+                string var_name = expr_string.Substring(1, bracket_start_index - 1);
                 Variable temp_list = variableFromName(var_name);
                 Debugging.assert(temp_list is DynamicList);
                 DynamicList list_var = temp_list as DynamicList;
+                Debugging.print("dynamic-list $", var_name, " exists");
                 // index
                 string index_string = expr_string.Substring(bracket_start_index + 1,
-                    expr_string.Length - bracket_start_index - 2); // "var l[5]" => "5"
+                    expr_string.Length - bracket_start_index - 2); // "$l[5]" => "5"
                 Integer index = parse(index_string) as Integer;
                 list_var.validateIndex(index);
                 // return value
@@ -208,21 +210,23 @@ namespace Parser
             }
             else // only variable name, no brackets
             {
-                string var_name = expr_string.Substring(4);
+                Debugging.print("$simple var access");
+                string var_name = expr_string.Substring(1);
                 Debugging.assert(Global.variables.ContainsKey(var_name));
+                Debugging.print("var $", var_name, " exists");
                 return Global.variables[var_name];
             }
         }
 
         /// <summary>
         /// Get the <see cref="Variable"/> from the <see cref="Global.variables"/> Dictionary.
-        /// You an give the variable name with or without the "var " prefix
+        /// You an give the variable name with or without the "$" prefix
         /// </summary>
-        /// <param name="var_name"> The variable name (with or without the "var " as a prefix)</param>
+        /// <param name="var_name"> The variable name (with or without the "$" as a prefix)</param>
         /// <returns> the corresponding <see cref="Variable"/></returns>
         public static Variable variableFromName(string var_name)
         {
-            if (var_name.StartsWith("var ")) var_name = var_name.Substring(4);
+            if (var_name.StartsWith("$")) var_name = var_name.Substring(1);
             Debugging.assert(Global.variables.ContainsKey(var_name));
             Variable variable = Global.variables[var_name];
             return variable;

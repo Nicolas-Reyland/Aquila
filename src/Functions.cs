@@ -83,36 +83,54 @@ namespace Parser
             // this Exception will stop the function/algorithm from executing
             throw new AquilaExceptions.ReturnValueException(expr._expr);
         }
-        
-        // print functions
-        private static TempVar printFunction(Expression value)
+
+        /// <summary>
+        /// Prints the value of an <see cref="Expression"/> to the stdout. Doesn't add a return '\n' symbol
+        /// </summary>
+        /// <param name="value"> Expression you want to print (its evaluated value)</param>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
+        private static NullVar printFunction(Expression value)
         {
             Debugging.print("begin printing to console");
             Console.Write(value.evaluate().ToString());
             Debugging.print("end printing to console");
-            
-            return new TempVar();
+
+            return new NullVar();
         }
 
-        private static TempVar printEndlFunction()
+        /// <summary>
+        /// Prints a new-line-char to the stdout
+        /// </summary>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
+        private static NullVar printEndlFunction()
         {
             Debugging.print("begin printing to console");
             Console.Write('\n');
             Debugging.print("end printing to console");
-            
-            return new TempVar();
+
+            return new NullVar();
         }
 
-        private static TempVar printStrFunction(Expression expr)
+        /// <summary>
+        /// Prints the string of the Expression
+        /// </summary>
+        /// <param name="expr"> <see cref="NullVar"/> (equivalent of null/void)</param>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
+        private static NullVar printStrFunction(Expression expr)
         {
             Debugging.print("begin printing to console");
             Console.Write(expr._expr);
             Debugging.print("end printing to console");
-            
-            return new TempVar();
+
+            return new NullVar();
         }
 
-        private static TempVar deleteVarFunction(Expression expr)
+        /// <summary>
+        /// Remove a <see cref="Variable"/> from the <see cref="Global.variables"/> dictionary
+        /// </summary>
+        /// <param name="expr"> <see cref="Expression"/> resulting in a <see cref="Variable"/> from <see cref="Global.variables"/></param>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
+        private static NullVar deleteVarFunction(Expression expr)
         {
             // evaluate every expression
             Variable variable = expr.evaluate();
@@ -122,20 +140,20 @@ namespace Parser
             KeyValuePair<string, Variable> item = Global.variables.First(kvp => kvp.Value == variable);
             // remove the variable by key (cannot remove by value)
             Global.variables.Remove(item.Key);
-            
-            return new TempVar();
+
+            return new NullVar();
         }
-        
+
         // float2int
-        
-        
-        
+
+
+
 
         // int2float
 
-        
 
-        
+
+
         /// <summary>
         /// Holds all the non-void value_functions. There are some default value_functions, but you can add your
         /// own through the <see cref="Functions.addValueFunction"/> static method.
@@ -153,11 +171,11 @@ namespace Parser
         /// </summary>
         private static readonly Dictionary<string, Delegate> void_functions = new Dictionary<string, Delegate>
         {
-            {"return", new Func<Expression, Variable>(returnFunction)}, // TempVar is equivalent of Void or None
-            {"print", new Func<Expression, TempVar>(printFunction)},
-            {"print_endl", new Func<TempVar>(printEndlFunction)},
-            {"print_str", new Func<Expression, TempVar>(printStrFunction)},
-            {"delete_var", new Func<Expression, TempVar>(deleteVarFunction)},
+            {"return", new Func<Expression, Variable>(returnFunction)}, // NullVar is equivalent of void, null or none
+            {"print", new Func<Expression, NullVar>(printFunction)},
+            {"print_endl", new Func<NullVar>(printEndlFunction)},
+            {"print_str", new Func<Expression, NullVar>(printStrFunction)},
+            {"delete_var", new Func<Expression, NullVar>(deleteVarFunction)},
         };
 
         /// <summary>
@@ -171,7 +189,7 @@ namespace Parser
             Debugging.assert(!value_functions.ContainsKey(function_name)); // UnknownFunctionNameException
             value_functions.Add(function_name, function);
         }
-        
+
         /// <summary>
         /// Add your own value_functions to the <see cref="void_functions"/> dictionary. If the function
         /// already exists in it, please use the <see cref="Functions.addFunctionOverwrite"/> method instead

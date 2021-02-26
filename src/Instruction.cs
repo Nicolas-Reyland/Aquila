@@ -90,18 +90,18 @@ namespace Parser
         }
         
         /*
-        for (decl_index(), var index < 5, var index = var index + 1)
+        for (decl_index(), $index < 5, $index = $index + 1)
             instruction 1
             instruction 2
             instruction 3
         end-for
         ==
         decl_index()
-        while (var index < 5)
+        while ($index < 5)
             instruction 1
             instruction 2
             instruction 3
-            var index = var index + 1
+            $index = $index + 1
         */
 
         public override void execute()
@@ -157,7 +157,7 @@ namespace Parser
             // add variable to dictionary
             Debugging.assert(!Global.variables.ContainsKey(var_name)); // DeclaredExistingVarException
             Variable temp_value = _var_type == "auto"
-                ? new TempVar() // temporary variable. doesn't have any real value
+                ? new NullVar() // temporary variable. doesn't have any real value
                 : (Variable) Global.default_values_by_var_type[var_type].evaluate();
             Global.variables.Add(var_name, temp_value);
         }
@@ -183,10 +183,11 @@ namespace Parser
         private readonly string _var_name;
         private readonly Expression _var_value;
 
-        public Assignment(string var_name, Expression var_value) // doesn't work with "var l[0]"
+        public Assignment(string var_name, Expression var_value)
         {
             _var_name = var_name;
             _var_value = var_value;
+            Debugging.assert(_var_name != "");
         }
 
         public override void execute()
