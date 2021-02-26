@@ -1,0 +1,79 @@
+/** Proof that Aquila is a turing complete programming language by coding the "Rule 110 cellular automaton"
+	Is pretty slow (because of the prints) tho ... **/
+
+declare total_gen 100
+
+// global vars
+declare l [1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1]
+declare int len
+declare list new_list
+// for-loop incrementation
+declare int i
+// rule 110 vars
+declare int start
+declare int middle
+declare int end
+declare int next_value
+
+$len = length($l)
+$new_list = copy_list($l)
+
+// 
+for (declare gen 0, $gen < $total_gen, $gen = $gen + 1)
+	for ($i = 0, $i < $len, $i = $i + 1)
+		// start
+		if ($i ~ 0)
+			$start = $l[$len - 1]
+		else
+			$start = $l[$i - 1]
+		end-if
+		// middle
+		$middle = $l[$i]
+		// end
+		if ($i ~ $len - 1)
+			$end = $l[0]
+		else
+			$end = $l[$i + 1]
+		end-if
+
+		// rule 110 cases
+		if ($start ~ 1)
+			if ($middle ~ 1)
+				if ($end ~ 1)
+					$next_value = 0
+				else
+					$next_value = 1
+				end-if
+			else
+				if ($end ~ 1)
+					$next_value = 1
+				else
+					$next_value = 0
+				end-if
+			end-if
+		else
+			if ($middle ~ 1)
+				$next_value = 1
+			else
+				if ($end ~ 1)
+					$next_value = 1
+				else
+					$next_value = 0
+				end-if
+			end-if
+		end-if
+
+		// apply
+		$new_list[$i] = $next_value
+	end-for
+
+	// print it out
+	print($new_list)
+	print_endl()
+
+	// new list, let's go !
+	$l = $new_list
+
+end-for
+
+return(0)

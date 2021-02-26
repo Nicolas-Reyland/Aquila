@@ -62,7 +62,10 @@ namespace Parser
                 catch (System.Reflection.TargetInvocationException out_exception)
                 {
                     // normal TargetInvocationException
-                    if (out_exception.InnerException is not AquilaExceptions.ReturnValueException) throw;
+                    if (!(out_exception.InnerException is AquilaExceptions.ReturnValueException))
+		    {
+			    throw;
+		    }
                     // casted ReturnValueException
                     AquilaExceptions.ReturnValueException exception =
                         (AquilaExceptions.ReturnValueException) out_exception.InnerException;
