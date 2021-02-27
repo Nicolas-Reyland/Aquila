@@ -18,7 +18,7 @@ namespace Parser
 
         // getters
         public string getName() => _name;
-        
+
         // setters
         public void setName(string new_name) => _name = new_name;
 
@@ -55,7 +55,7 @@ namespace Parser
     public class BooleanVar : Variable
     {
         private bool _bool_value;
-        
+
         public BooleanVar(bool bool_value)
         {
             assigned = true;
@@ -73,19 +73,19 @@ namespace Parser
             assertAssignment();
             return new BooleanVar(_bool_value || other.getValue());
         }
-        
+
         public BooleanVar and(BooleanVar other)
         {
             assertAssignment();
             return new BooleanVar(_bool_value && other.getValue());
         }
-        
+
         public BooleanVar xor(BooleanVar other)
         {
             assertAssignment();
             return new BooleanVar(_bool_value ^ other.getValue());
         }
-        
+
         public override dynamic getValue() => assigned ? _bool_value : throw Global.aquilaError(); // AssignmentError
 
         public override void setValue(Variable other_value)
@@ -107,7 +107,7 @@ namespace Parser
     public class Integer : Variable
     {
         private int _int_value;
-        
+
         public Integer(int val)
         {
             assigned = true;
@@ -128,7 +128,7 @@ namespace Parser
             assertAssignment();
             return new Integer(this._int_value + other.getValue());
         }
-        
+
         public Integer subtraction(Integer other)
         {
             assertAssignment();
@@ -175,7 +175,7 @@ namespace Parser
         }
 
         public override bool hasSameParent(Variable other_value) => other_value is Integer || other_value is NullVar;
-        
+
         public override string getTypeString() => "int";
     }
 
@@ -224,7 +224,7 @@ namespace Parser
                 _list = values;
             }
         }
-        
+
         public override dynamic getValue() => _list;
         public Integer length() => assigned ? new Integer(_list.Count) : throw Global.aquilaError(); // AssignmentError
 
@@ -245,13 +245,23 @@ namespace Parser
             _list.Add(x);
             if (!assigned) assign();
         }
-        
+
         public void insertValue(Variable x, Integer index)
         {
             assertAssignment();
             _list.Insert(index.getValue(), x);
         }
-        
+
+        public Variable getValueAt(Integer index)
+        {
+          assertAssignment();
+            int i = index.getValue();
+            if (i < 0) i += _list.Count;
+            if (i < 0) throw Global.aquilaError();
+
+            return _list[i];
+        }
+
         public void removeValue(Integer index)
         {
             assertAssignment();
@@ -266,13 +276,7 @@ namespace Parser
                 throw Global.aquilaError(); // InvalidIndexException
             }
         }
-        
-        /* insertion
-         * get item -> renvoie l'élément à l'indice
-         * set item -> list[indice] = nouvelle-valeur
-         * del item -> list.pop(indice)
-         */
-        
+
         public override void setValue(Variable other_value)
         {
             _list = other_value.getValue();
@@ -287,7 +291,7 @@ namespace Parser
             {
                 s += variable.ToString() + ", "; // ToString() forced by Unity ?
             }
-            
+
             s = "[" + s.Substring(0, s.Length - 2) + "]";
             return s;
         }
@@ -302,7 +306,7 @@ namespace Parser
         private readonly string _function_name;
         private readonly List<Expression> _arg_expr_list;
         private bool _called;
-        
+
         public FunctionCall(string function_name, List<Expression> arg_expr_list)
         {
             _function_name = function_name;
@@ -342,7 +346,7 @@ namespace Parser
             List<Variable> var_list = list.Select(i => new Integer(i)).Cast<Variable>().ToList();
             return new DynamicList(var_list);
         }
-        
+
         public static DynamicList createDynamicList(int[] array)
         {
             List<int> list = array.ToList();

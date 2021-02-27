@@ -147,13 +147,15 @@ namespace Parser
         private readonly string _var_name;
         private readonly Expression _var_expr;
         private readonly string _var_type;
+        private readonly bool _assignment;
         
-        public Declaration(string var_name, Expression var_expr, string var_type = "auto")
+        public Declaration(string var_name, Expression var_expr, string var_type = "auto", bool assignment = true)
         {
             this._var_name = var_name;
             this._var_expr = var_expr;
             this._var_type = var_type;
-            Debugging.print("var expr: ", var_expr._expr); //! remove, or debug == 2 or something, idk
+            this._assignment = assignment;
+            Debugging.print("new declaration: var_name = " + var_name + ", var_expr = " + var_expr._expr + ", var_type = " + var_type + ", assignment = ", assignment);
             // add variable to dictionary
             Debugging.assert(!Global.variables.ContainsKey(var_name)); // DeclaredExistingVarException
             Variable temp_value = _var_type == "auto"
@@ -166,6 +168,7 @@ namespace Parser
         {
             // already in dictionary
             Variable variable = _var_expr.evaluate();
+            variable.assertAssignment();
             if (_var_type != "auto")
             {
                 Debugging.print("checking variable explicit type");
@@ -174,7 +177,9 @@ namespace Parser
             }
             // actually declare it to its value
             Global.variables[_var_name] = variable;
-            Global.variables[_var_name].assign(); // AssignmentError, be sure it worked nicely
+            if (_assignment) Global.variables[_var_name].assign();
+            else Global.variables[_var_name].assigned = false;
+            Debugging.print("finished declaration with value assignment: ", Global.variables[_var_name].assigned);
         }
     }
 
@@ -192,7 +197,10 @@ namespace Parser
 
         public override void execute()
         {
-            Expression.parse(_var_name).setValue( _var_value.evaluate() );
+            Variable val = _var_value.evaluate();
+            Debugging.print("assigning " + _var_name + " with value " + _var_value._expr + " (2nd value assigned: " + val.assigned + ")");
+            val.assertAssignment();
+            Expression.parse(_var_name).setValue(val);
         }
     }
     

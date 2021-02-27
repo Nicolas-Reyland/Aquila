@@ -183,9 +183,9 @@ namespace Parser
                     Expression default_value = Global.default_values_by_var_type[instr[1]];
                     if (type_declared)
                     {
-                        return new Declaration(instr[2], new Expression(instr[3]), instr[1]);
+                        return new Declaration(instr[2], new Expression(instr[3]), instr[1], true);
                     }
-                    return new Declaration(instr[2], default_value);
+                    return new Declaration(instr[2], default_value, "auto", false);
                 }
 
                 // case is: "declare var_name value"

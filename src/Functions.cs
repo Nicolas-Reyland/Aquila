@@ -67,18 +67,31 @@ namespace Parser
         private static Variable copyListFunction(Expression list_expr)
         {
             // evaluate every expression
-            DynamicList list = list_expr.evaluate() as DynamicList;
+            Variable var_ = list_expr.evaluate();
+            Debugging.assert(var_ is DynamicList); // TypeError
+            DynamicList list = var_ as DynamicList;
             // copy list
             List<Variable> copy = list.getValue();
             return new DynamicList(copy);
         }
+        
+        // random number function
+        private static Variable randomNumber()
+        {
+            int rand = new Random().Next();
+            return new Integer(rand);
+        }
+
+
+
+
 
         /// <summary>
         /// Cannot be overwritten. Used to return a value in a function or the main algorithm.
         /// </summary>
         /// <param name="expr"> string value of the returned expression</param>
         /// <exception cref="AquilaExceptions.ReturnValueException"> Exception raised to stop the <see cref="Algorithm"/> from executing any further instructions</exception>
-        private static Variable returnFunction(Expression expr) // Variable return type only for the callFunctionByName compatibility
+        private static NullVar returnFunction(Expression expr) // Variable return type only for the callFunctionByName compatibility
         {
             // this Exception will stop the function/algorithm from executing
             throw new AquilaExceptions.ReturnValueException(expr._expr);
@@ -91,12 +104,26 @@ namespace Parser
         /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
         private static NullVar printFunction(Expression value)
         {
-            Debugging.print("begin printing to console");
+            Debugging.print("begin printing to console: (" + value._expr + ")");
             Console.Write(value.evaluate().ToString());
             Debugging.print("end printing to console");
 
             return new NullVar();
         }
+        
+        /// <summary>
+        /// Prints a line, new-line-char to the stdout
+        /// </summary>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
+        private static NullVar printStrEndlFunction(Expression expr)
+        {
+            Debugging.print("begin printing to console");
+            Console.Write(expr._expr);
+            Console.Write('\n');
+            Debugging.print("end printing to console");
+
+            return new NullVar();
+        } 
 
         /// <summary>
         /// Prints a new-line-char to the stdout
@@ -144,6 +171,53 @@ namespace Parser
             return new NullVar();
         }
 
+
+        private static NullVar deleteValueAt(Expression list_expr, Expression index_expr)
+        {
+            // extract list
+            Variable list_var = list_expr.evaluate();
+            Debugging.assert(list_var is DynamicList); // TypeError
+            DynamicList list = list_var as DynamicList;
+            // extract index
+            Variable index_var = index_expr.evaluate();
+            Debugging.assert(index_var is Integer); // TypeError
+            Integer index = index_var as Integer;
+            // delete
+            list.removeValue(index);
+            return new NullVar();
+        }
+
+
+        private static NullVar insertValueAt(Expression list_expr, Expression index_expr, Expression var_expr)
+        {
+            // extract list
+            Variable list_var = list_expr.evaluate();
+            Debugging.assert(list_var is DynamicList); // TypeError
+            DynamicList list = list_var as DynamicList;
+            // extract index
+            Variable index_var = index_expr.evaluate();
+            Debugging.assert(index_var is Integer);
+            Integer index = index_var as Integer;
+            // extract var
+            Variable var_ = var_expr.evaluate();
+            // insert
+            list.insertValue(var_, index);
+            return new NullVar();
+        }
+
+        private static NullVar appendValue(Expression list_expr, Expression var_expr)
+        {
+            // extract list
+            Variable list_var = list_expr.evaluate();
+            Debugging.assert(list_var is DynamicList); // TypeError
+            DynamicList list = list_var as DynamicList;
+            // index
+            Integer index = list.length();
+            Expression index_expr = new Expression(index.ToString());
+            // insert
+            return insertValueAt(list_expr, index_expr, var_expr);
+        }
+
         // float2int
 
 
@@ -151,6 +225,17 @@ namespace Parser
 
         // int2float
 
+        /*
+        value function:
+          $x = value_function(arg1, arg2, ...)
+        void function:
+          void_function(arg1, arg2, ...)
+        */
+
+        /* $l = copy_list($l2)
+         * $l = delete_value_at($l, 1)
+         * $l = insert_value_at($l, 4, 3.1415)
+         */
 
 
 
@@ -163,6 +248,7 @@ namespace Parser
             {"length", new Func<Expression, Variable>(lengthFunction)},
             {"swap", new Func<Expression, Expression, Expression, Variable>(swapFunction)},
             {"copy_list", new Func<Expression, Variable>(copyListFunction)},
+            {"random", new Func<Variable>(randomNumber)},
         };
 
         /// <summary>
@@ -171,11 +257,15 @@ namespace Parser
         /// </summary>
         private static readonly Dictionary<string, Delegate> void_functions = new Dictionary<string, Delegate>
         {
-            {"return", new Func<Expression, Variable>(returnFunction)}, // NullVar is equivalent of void, null or none
+            {"return", new Func<Expression, NullVar>(returnFunction)}, // NullVar is equivalent of void, null or none
             {"print", new Func<Expression, NullVar>(printFunction)},
-            {"print_endl", new Func<NullVar>(printEndlFunction)},
             {"print_str", new Func<Expression, NullVar>(printStrFunction)},
+            {"print_str_endl", new Func<Expression, NullVar>(printStrEndlFunction)},
+            {"print_endl", new Func<NullVar>(printEndlFunction)},
             {"delete_var", new Func<Expression, NullVar>(deleteVarFunction)},
+            {"delete_value_at", new Func<Expression, Expression, NullVar>(deleteValueAt)},
+            {"insert_value_at", new Func<Expression, Expression, Expression, NullVar>(insertValueAt)},
+            {"append_value", new Func<Expression, Expression, NullVar>(appendValue)},
         };
 
         /// <summary>

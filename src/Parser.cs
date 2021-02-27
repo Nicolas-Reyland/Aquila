@@ -351,6 +351,120 @@ namespace Parser
             Variable return_value = algo.run();
             return return_value;
         }
+
+        private static bool executeLines(List<string> lines)
+        {
+            short depth = 0;
+            foreach (string line in lines)
+            {
+                foreach (KeyValuePair<string,string> nested_instruction_flag in Global.nested_instruction_flags)
+                {
+                    if (line.StartsWith(nested_instruction_flag.Key))
+                    {
+                        depth++;
+                        break;
+                    }
+
+                    if (line == nested_instruction_flag.Value)
+                    {
+                        depth--;
+                        break;
+                    }
+                }
+            }
+
+            return depth == 0;
+        }
+
+        public static void interactiveMode()
+        {
+            bool new_line = true;
+            List<string> current_lines = new List<string>();
+            while (true)
+            {
+                if (new_line) Console.Write(Global.debug ? " (debug) > " : " > ");
+                else Console.Write(Global.debug ? " (debug) - " : " - ");
+                string input = Console.ReadLine();
+                input = StringUtils.purgeLine(input);
+
+                if (input == "") continue;
+
+                if (input == "exit")
+                {
+                    Console.WriteLine("Exiting.");
+                    return;
+                }
+
+                if (input == "clear")
+                {
+                    Console.Clear();
+                    continue;
+                }
+
+                if (input.StartsWith("var "))
+                {
+                    string var_name = input.Substring(4);
+                    var_name = StringUtils.purgeLine(var_name);
+                    if (var_name != "")
+                    {
+                        Variable var_ = Global.variables[var_name];
+                        Console.WriteLine("name     : " + var_.getName());
+                        Console.WriteLine("type     : " + var_.getTypeString());
+                        Console.WriteLine("value    : " + var_.ToString());
+                        Console.WriteLine("assigned : " + var_.assigned);
+                    }
+                    continue;
+                }
+
+                if (input == "vars")
+                {
+                    foreach (KeyValuePair<string, Variable> variable in Global.variables)
+                    {
+                        Console.Write(variable.Key + " : ");
+                        Console.WriteLine(variable.Value.ToString());
+                    }
+                    continue;
+                }
+
+                if (input[0] == '$' && Global.variables.ContainsKey(input.Substring(1)))
+                {
+                    Console.WriteLine(Global.variables[input.Substring(1)].ToString());
+                    continue;
+                }
+
+                if (input == "debug")
+                {
+                    Global.debug = !Global.debug;
+                    continue;
+                }
+
+                current_lines.Add(input);
+                if (executeLines(current_lines))
+                {
+                    // execute line here
+                    try
+                    {
+                        List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(current_lines);
+                        List<Instruction> instructions = buildInstructions(raw_instructions);
+                        foreach (Instruction instr in instructions)
+                        {
+                            instr.execute();
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                    }
+                    
+                    current_lines.Clear();
+                    new_line = true;
+                }
+                else
+                {
+                    new_line = false;
+                }
+            }
+        }
     }
 
     static class Program
@@ -359,6 +473,12 @@ namespace Parser
         static void Main(string[] args)
         {
             Global.debug = false;
+
+            if (true)//args.Length > 0 && args[0] == "interactive")
+            {
+                Interpreter.interactiveMode();
+                return;
+            }
             
             Console.WriteLine(args.Length > 0 ? args[0] : "");
 

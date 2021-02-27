@@ -173,10 +173,14 @@ namespace Parser
                     arg_list.Add(arg_expr);
                 }
 
-                Debugging.print("creating value function call");
+                if (arg_list.Count == 1 && arg_list[0]._expr == "")
+                {
+                    arg_list = new List<Expression>();
+                }
+                
+                Debugging.print("creating value function call with ", arg_list.Count, " parameters");
 
                 FunctionCall func_call = new FunctionCall(function_name, arg_list);
-
                 return func_call.call_function();
             }
 
