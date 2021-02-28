@@ -134,7 +134,7 @@ namespace Parser
         {
             /* Order of operations:
              * variable declaration
-             * variable modification
+             * variable assignment
              * for loop
              * while loop
              * if statement
@@ -146,6 +146,7 @@ namespace Parser
             // split instruction
             List<string> instr = StringUtils.splitStringKeepingStructureIntegrity(raw_instr._instr, ' ', Global.base_delimiters);
 
+            Debugging.print("declare ?");
             // variable declaration
             if (instr[0].StartsWith("declare"))
             {
@@ -195,7 +196,8 @@ namespace Parser
                 return new Declaration(var_name, new Expression(var_value));
             }
 
-            // variable modification
+            Debugging.print("assignment ?");
+            // variable assignment
             if (instr[0][0] == '$' && instr[1] == "=")
             {
                 Debugging.assert(instr.Count > 2); // syntax ?unfinished line?
@@ -208,7 +210,8 @@ namespace Parser
                 Expression assignment = new Expression(assignment_string);
                 return new Assignment(var_designation, assignment);
             }
-
+            
+            Debugging.print("for loop ?");
             // for loop
             if (instr[0] == "for")
             {
@@ -239,7 +242,8 @@ namespace Parser
                 return new ForLoop(start, condition, step, loop_instructions);
 
             }
-            
+
+            Debugging.print("while loop ?");
             // while loop
             if (instr[0] == "while")
             {
@@ -259,7 +263,7 @@ namespace Parser
                 return new WhileLoop(condition, loop_instructions);
             }
             
-            
+            Debugging.print("if statement ?");
             // if statement
             if (instr[0] == "if")
             {
@@ -292,7 +296,8 @@ namespace Parser
 
                 return new IfCondition(condition, if_instructions, else_instructions);
             }
-            
+
+            Debugging.print("function call ?");
             // void function call (no return value, or return value not used)
             if (instr[0].Contains('('))
             {
@@ -321,7 +326,7 @@ namespace Parser
                 return new VoidFunctionCall(function_name, args);
             }
 
-            Debugging.print("unrecognized line: \"", raw_instr._instr, "\"");
+            Debugging.print("!unrecognized line: \"", raw_instr._instr, "\"");
             throw Global.aquilaError();
         }
     }

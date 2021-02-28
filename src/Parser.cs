@@ -134,7 +134,9 @@ namespace Parser
         {
             if (!condition)
             {
-                throw new Exception("Debugging.Assertion Error. CUSTOM ERROR");
+                StackTrace stackTrace = new StackTrace();
+                string call_name = stackTrace.GetFrame(1).GetMethod().Name;
+                throw new Exception(call_name + ": Debugging.Assertion Error. CUSTOM ERROR");
             }
         }
 
@@ -146,9 +148,17 @@ namespace Parser
         {
             // if not in debugging mode, return
             if (!Global.debug) { return; }
+
+            int max_call_name_length = 30;
+            StackTrace stackTrace = new StackTrace();
+            string call_name = stackTrace.GetFrame(1).GetMethod().Name;
+            int missing_spaces = max_call_name_length - call_name.Length;
             
             // debugging mode is on
-            Console.Write("DEBUG ");
+            Console.Write("DEBUG " + call_name);
+            for (int i = 0; i < missing_spaces; i++) { Console.Write(" "); }
+            
+            Console.Write(" : ");
             foreach (dynamic arg in args)
             {
                 Console.Write(arg.ToString());
@@ -295,8 +305,24 @@ namespace Parser
         }
     }
 
+    /// <summary>
+    /// The <see cref="Interpreter"/> class is used to interpret and run your code.
+    /// For example, to run source code from a source file, follow the following steps:
+    /// <para/>* Call <see cref="readSourceCode"/> to get a purged code
+    /// <para/>* Call <see cref="RawInstruction.code2RawInstructions"/> on the purged code
+    /// <para/>* Call <see cref="buildInstructions"/> on the generated raw instructions
+    /// <para/>* Create an <see cref="Algorithm"/> using the generated instructions
+    /// <para/>* Call the <see cref="runAlgorithm"/> function on the generated <see cref="Algorithm"/>
+    /// You an also use the <see cref="algorithmFromSrcCode"/>, then call the <see cref="runAlgorithm"/> on it
+    /// </summary>
     static class Interpreter
     {
+        /// <summary>
+        /// This function is used to read a raw Aquila source code text-based file and
+        /// purge the code (remove comments and all unnecessary spaces and tabs)
+        /// </summary>
+        /// <param name="path"> path to your source code file</param>
+        /// <returns> list of lines containing your purged code</returns>
         private static List<string> readSourceCode(string path)
         {
             List<string> lines = Parser.readLines(path);
@@ -307,6 +333,11 @@ namespace Parser
             return lines;
         }
 
+        /// <summary>
+        /// Build <see cref="Instruction"/>s from <see cref="RawInstruction"/>s
+        /// </summary>
+        /// <param name="raw_instructions"> list of <see cref="RawInstruction"/>s</param>
+        /// <returns> list of corresponding <see cref="Instruction"/>s</returns>
         public static List<Instruction> buildInstructions(List<RawInstruction> raw_instructions)
         {
             List<Instruction> instructions = new List<Instruction>();
@@ -318,6 +349,15 @@ namespace Parser
 
             return instructions;
         }
+        
+        /// <summary>
+        /// Take source code and generate the corresponding <see cref="Algorithm"/>
+        /// </summary>
+        /// <param name="path"> path to your source code</param>
+        /// <param name="print_src"> print the generated purged code</param>
+        /// <param name="pretty_print"> pretty_print the <see cref="RawInstruction"/>s (useful to check nested-instruction priorities)</param>
+        /// <param name="default_name"> give a name to your <see cref="Algorithm"/></param>
+        /// <returns> the generated <see cref="Algorithm"/></returns>
         public static Algorithm algorithmFromSrcCode(string path, bool print_src = false, bool pretty_print = false, string default_name = "no-name-given")
         {
             List<string> lines = readSourceCode(path);
@@ -346,13 +386,30 @@ namespace Parser
             return algo;
         }
 
-        public static Variable runSourceCode(Algorithm algo)
+        /// <summary>
+        /// Run an <see cref="Algorithm"/> and return ints return value (if none is given: <see cref="NullVar"/>
+        /// </summary>
+        /// <param name="algo"> input <see cref="Algorithm"/></param>
+        /// <returns> return value of the <see cref="Algorithm"/></returns>
+        public static Variable runAlgorithm(Algorithm algo)
         {
             Variable return_value = algo.run();
             return return_value;
         }
 
-        private static bool executeLines(List<string> lines)
+        /// <summary>
+        /// Checks if input lines from the <see cref="Interpreter.interactiveMode"/> are executable.
+        /// <para/>Examples:
+        /// <para/>* declare int w // this is executable
+        /// <para/>* if ($x &lt; 4) // this is not executable
+        /// <para/>* for (declare i 0, $i &lt; 5, $i = $i + 1)
+        /// <para/> - print($i)
+        /// <para/> - print_endl()
+        /// <para/> - end-for // this is executable
+        /// </summary>
+        /// <param name="lines"> input list of lines</param>
+        /// <returns> executable lines or not ? (bool value)</returns>
+        private static bool executableLines(List<string> lines)
         {
             short depth = 0;
             foreach (string line in lines)
@@ -376,6 +433,19 @@ namespace Parser
             return depth == 0;
         }
 
+        /// <summary>
+        /// The interactive mode gives you a shell-like environment in which
+        /// you can code in Aquila. It is important to note that comments are not supported
+        /// if written on the same line as code. You comment lines have to start with the "//"
+        /// symbol. Multiple-line comments are not supported
+        /// <para/>There are special keywords that only exist in the interpreter mode:
+        /// <para/>* exit -> exits the interpreter mode
+        /// <para/>* clear -> clears the console output
+        /// <para/>* var var_name -> prints info about the variable named "var_name"
+        /// <para/>* vars -> prints all the existing variables
+        /// <para/>* $var_name -> prints the value of a variable
+        /// <para/>* debug -> switch the debugging mode (true to false, false to true)
+        /// </summary>
         public static void interactiveMode()
         {
             bool new_line = true;
@@ -387,7 +457,7 @@ namespace Parser
                 string input = Console.ReadLine();
                 input = StringUtils.purgeLine(input);
 
-                if (input == "") continue;
+                if (input == "" || input.StartsWith("//")) continue;
 
                 if (input == "exit")
                 {
@@ -439,7 +509,7 @@ namespace Parser
                 }
 
                 current_lines.Add(input);
-                if (executeLines(current_lines))
+                if (executableLines(current_lines))
                 {
                     // execute line here
                     try
@@ -505,7 +575,7 @@ namespace Parser
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            Variable return_value = Interpreter.runSourceCode(algo);
+            Variable return_value = Interpreter.runAlgorithm(algo);
             
             stopwatch.Stop();
             Console.WriteLine(return_value);

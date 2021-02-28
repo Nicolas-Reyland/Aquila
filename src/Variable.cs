@@ -47,7 +47,7 @@ namespace Parser
 
         public override bool hasSameParent(Variable other) => true;
 
-        public override string getTypeString() => throw Global.aquilaError(); // RuntimeError (never supposed to happen whatsoever)
+        public override string getTypeString() => "null"; // RuntimeError (never supposed to happen whatsoever)
 
         public override string ToString() => "none";
     }
