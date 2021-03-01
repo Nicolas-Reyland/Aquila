@@ -27,7 +27,7 @@ On Linux:
 mono program.exe "/path/to/file.aq"
 ```
 
-It will print the return value to the stdout (if there is none, print "none").
+It will print the return value to the stdout (if there is none, prints "none").
 
 To get the interactive mode, start the compiled program with "interactive" as argument.
 
