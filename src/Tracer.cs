@@ -10,7 +10,7 @@ namespace Parser
     {
         public int status;
         public object info;
-        public readonly dynamic additional;
+        public readonly Alteration additional;
 
         public Event(dynamic additional)
         {
@@ -26,6 +26,21 @@ namespace Parser
             string add_str = additional == null ? "null" : additional.ToString();
             return "status: " + status_str + " info: " + info_str + " additional: " + add_str;
         }
+    }
+
+    public class Alteration
+    {
+        public string name;
+        public dynamic main_value;
+        public dynamic[] minor_values;
+
+        public Alteration(string name, dynamic main_value, dynamic[] minor_values)
+        {
+            this.name = name;
+            this.main_value = main_value;
+            this.minor_values = minor_values;
+        }
+
     }
     
     public abstract class Tracer
@@ -52,8 +67,8 @@ namespace Parser
             Debugging.assert(_awaiting_event == null); // cannot have two awaiting events ? (_value of the first one ???)
             _awaiting_event = event_;
         }
-        
-        public void checkAwaiting()
+
+        private void checkAwaiting()
         {
             Debugging.assert(!corrupted);
             if (_awaiting_event != null)
@@ -89,6 +104,34 @@ namespace Parser
             
             // check tracer event stacks
             Debugging.print("checking tracer event stack");
+            foreach (VarTracer tracer in Global.var_tracers)
+            {
+                if (tracer.last_stack_count != tracer.getStackCount())
+                {
+                    Debugging.print("stack count changed for ", tracer.getVar().getName(), " from ", tracer.last_stack_count, " to ", tracer.getStackCount());
+                    
+                    // only one change at a time (traced functions have already be processed)
+                    int diff = tracer.getStackCount() - tracer.last_stack_count;
+                    Debugging.print("stack difference is ", diff);
+                    Debugging.assert(diff == 1);
+                    
+                    // peek at variable change
+                    Event event_ = tracer.peekEvent();
+                    Alteration alter = event_.additional;
+                    Debugging.print(alter);
+                    Debugging.assert(alter != null);
+
+                    if (Global.graphical_function != null)
+                    {
+                        Global.graphical_function(alter);
+                    }
+                    else
+                    {
+                        Debugging.print("Graphical function is none.");
+                        //throw Global.aquilaError();
+                    }
+                }
+            }
 
             Global.current_line_index++;
         }
@@ -139,23 +182,24 @@ namespace Parser
     public class VarTracer : Tracer
     {
         private readonly Variable _traced_var;
-        private bool _has_changed = false;
+        public int last_stack_count;
         
         public VarTracer(Variable traced) : base(traced)
         {
             _traced_var = traced;
             _values.Push(_traced_var.getValue());
-            _events.Push(Global.nullEvent()); // tracer creation event
+            _events.Push(new Event(new Alteration("setValue", _traced_var.getValue(), new dynamic[] { }))); // tracer creation event
+            last_stack_count = getStackCount();
         }
 
-        public bool hasChanged => _has_changed; // get property ?
+        public Variable getVar() => _traced_var;
 
         public override void update(Event event_)
         {
             Debugging.assert(!corrupted);
+            Debugging.assert(event_.additional is Alteration); // variable events can only hold Alterations !
             _values.Push(_traced_var.getValue());
             _events.Push(event_);
-            _has_changed = true;
             Debugging.print("updated (value: " + peekValue().ToString() + ")");
         }
 
@@ -224,10 +268,11 @@ namespace Parser
                 int index = _affected_indexs[i];
                 int num_squeeze_steps = _num_steps[i];
                 Debugging.print("function squeezing args: ", i, " ", index, " ", num_squeeze_steps);
-                Variable affected = event_.additional[index] as Variable;
+                Alteration alter = event_.additional as Alteration;
+                Variable affected = alter.main_value as Variable;
                 Debugging.assert(affected != null);
                 Debugging.assert(affected.isTraced());
-                affected.tracer.squeezeEvents(num_squeeze_steps, new Event(traced_func));
+                affected.tracer.squeezeEvents(num_squeeze_steps, new Event( new Alteration(traced_func, peekValue().main_value, peekValue().minor_values)));
             }
             Debugging.print("updated");
         }

@@ -42,7 +42,7 @@ namespace Parser
             Debugging.assert(index_var is Integer); // TypeError
             Integer index = index_var as Integer;
             // access at index
-            handleFunctionTracing("list_at", new object[]{ (object) list, (object) index });
+            handleFunctionTracing("list_at", list, new dynamic[]{ index });
             return list.atIndex(index);
         }
 
@@ -237,7 +237,7 @@ namespace Parser
             list.removeValue(b);
             list.insertValue(var_a, b);
             // update
-            handleFunctionTracing("swap", new []{ (object) list, (object) a, (object) b });
+            handleFunctionTracing("swap", list, new dynamic[]{ a, b });
             
             return new NullVar();
         }
@@ -365,7 +365,7 @@ namespace Parser
         public static void assertFunctionExists(string function_name) =>
             Debugging.assert(value_functions.ContainsKey(function_name) ^ void_functions.ContainsKey(function_name)); // UnknownFunctionNameException
 
-        private static void handleFunctionTracing(string name, object[] args)
+        private static void handleFunctionTracing(string name, dynamic main_value, dynamic[] minor_values)
         {
             Debugging.print("checking all the " + Global.func_tracers.Count + " function tracers for " + name);
             foreach (FuncTracer tracer in Global.func_tracers)
@@ -373,7 +373,7 @@ namespace Parser
                 if (name == tracer.traced_func)
                 {
                     Debugging.print("found " + name);
-                    tracer.awaitEvent(new Event(args));
+                    tracer.awaitEvent(new Event(new Alteration(name, main_value, minor_values)));
                     return;
                 }
             }

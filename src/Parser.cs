@@ -115,7 +115,7 @@ namespace Parser
         /// <summary>
         /// All the variables that are not NullVar (thus have a graphical representable value)
         /// </summary>
-        public static readonly List<string> usable_variables = new List<string>();
+        public static readonly List<string> usable_variables = new List<string>(); // doesn't support delete_var
 
         /// <summary>
         /// The <see cref="single_line_comment_string"/> is the string that is prefix to all
@@ -226,6 +226,11 @@ namespace Parser
             Event null_event = new Event(null) {status = -1, info = null}; //! Unity compatible ?
             return null_event;
         }
+
+        /// <summary>
+        /// Function called on every tracer change
+        /// </summary>
+        public static Func<Alteration, bool> graphical_function; // example: new Func<Alteration, bool>(graphicalFunction)
     }
 
     /// <summary>
@@ -729,7 +734,7 @@ namespace Parser
             Global.func_tracers.Add(new FuncTracer("list_at", new []{ 0 }, new []{ 0 }));
             Global.func_tracers.Add(new FuncTracer("swap", new []{ 0 }, new []{ 4 }));
 
-            if (true)//args.Length > 0 && args[0] == "interactive")
+            if (false)//args.Length > 0 && args[0] == "interactive")
             {
                 Interpreter.interactiveMode(new List<string>() {"declare l [1, 2, 3, 4]", "trace $l", "swap($l, 0, 2)"} );
                 return;

@@ -17,12 +17,12 @@ namespace Parser
         private string _name;
         public bool assigned;
         public VarTracer tracer;
-        protected bool traced = false;
-
+        private bool _traced = false;
+        
         public string test_data = "none"; // for testing purposes only
 
         // getters
-        public bool isTraced() => traced;
+        public bool isTraced() => _traced;
         public string getName() => _name;
         public abstract string getTypeString();
         public abstract Variable cloneTypeToVal(dynamic value);
@@ -37,12 +37,12 @@ namespace Parser
             Debugging.print("enabling tracing for " + this._name);
             tracer = new VarTracer(this);
             Global.var_tracers.Add(tracer);
-            traced = true;
+            _traced = true;
         }
 
-        public void trace(object add_info, bool check = false)
+        public void trace(string info_name, dynamic value, dynamic[] sub_values, bool check = false)
         {
-            if (!traced) return;
+            if (!_traced) return;
             if (check)
             {
                 Debugging.print("checking if any values have changed");
@@ -52,7 +52,7 @@ namespace Parser
                     return;
                 }
             }
-            tracer.update(new Event(add_info));
+            tracer.update(new Event(new Alteration(info_name, value, sub_values)));
         }
 
         public abstract void setValue(Variable other_value);
@@ -93,7 +93,7 @@ namespace Parser
         public BooleanVar(bool bool_value)
         {
             assigned = true;
-            this._bool_value = bool_value;
+            _bool_value = bool_value;
         }
 
         public BooleanVar not()
@@ -126,9 +126,9 @@ namespace Parser
 
         public override void setValue(Variable other_value)
         {
-            _bool_value = other_value.getValue();
             if (!assigned) assign();
-            trace("setValue");
+            trace("setValue", getValue(), new dynamic[] { other_value.getValue() });
+            _bool_value = other_value.getValue();
         }
 
         public override void forceSetValue(dynamic value) => _bool_value = (bool) value;
@@ -208,9 +208,9 @@ namespace Parser
 
         public override void setValue(Variable other_value)
         {
-            _int_value = other_value.getValue();
             if (!assigned) assign();
-            trace("setValue");
+            trace("setValue", getValue(), new dynamic[] { other_value.getValue() });
+            _int_value = other_value.getValue();
         }
 
         public override void forceSetValue(dynamic value) => _int_value = (int) value;
@@ -229,37 +229,30 @@ namespace Parser
 
     public class FloatVar : Variable
     {
-        public FloatVar(params object[] args) // le "params object[] args" n'est que là pour faire tair le compilateur. A enlever
+        private float _float_value;
+        public FloatVar(float val) // le "params object[] args" n'est que là pour faire tair le compilateur. A enlever
         {
-            throw new NotImplementedException();
+            _float_value = val;
+            assigned = true;
         }
 
         public override Variable cloneTypeToVal(dynamic value) => new FloatVar(value);
 
-        public override dynamic getValue()
-        {
-            throw new NotImplementedException();
-        }
+        public override dynamic getValue() => assigned ? _float_value : throw Global.aquilaError();
 
         public override void setValue(Variable other_value)
         {
-            throw new NotImplementedException();
-            trace("setValue");
+            trace("setValue", getValue(), new dynamic[] { other_value.getValue() });
+            _float_value = other_value.getValue();
         }
 
         public override void forceSetValue(dynamic value) => throw new NotImplementedException();
 
-        public override bool hasSameParent(Variable other_value)
-        {
-            throw new NotImplementedException();
-        }
+        public override bool hasSameParent(Variable other_value) => other_value is FloatVar;
 
-        public override string getTypeString()
-        {
-            throw new NotImplementedException();
-        }
+        public override string getTypeString() => "float";
 
-        public virtual bool Equals(FloatVar other) => throw new NotImplementedException();
+        public virtual bool Equals(FloatVar other) => other.getValue() == _float_value;
     }
 
     public class DynamicList : Variable
@@ -299,16 +292,16 @@ namespace Parser
 
         public void addValue(Variable x)
         {
-            _list.Add(x);
             if (!assigned) assign();
-            trace("addValue");
+            trace("addValue", getValue(), new dynamic[] { x.getValue() });
+            _list.Add(x);
         }
 
         public void insertValue(Variable x, Integer index)
         {
             assertAssignment();
+            trace("insertValue", getValue(), new dynamic[] { x.getValue(), index.getValue() });
             _list.Insert(index.getValue(), x);
-            trace("insertValue");
         }
 
         public Variable getValueAt(Integer index)
@@ -324,6 +317,7 @@ namespace Parser
         public void removeValue(Integer index)
         {
             assertAssignment();
+            trace("removeValue", getValue(), new dynamic[] { index.getValue() });
             int i = index.getValue();
             if (i < 0) i += _list.Count; // if "-1" -> last element of the list
             if (i < _list.Count)
@@ -334,20 +328,19 @@ namespace Parser
             {
                 throw Global.aquilaError(); // InvalidIndexException
             }
-            trace("removeValue");
         }
 
         public override void setValue(Variable other_value)
         {
-            _list = other_value.getValue();
             if (!assigned) assign();
-            trace("setValue");
+            trace("setValue", getValue(), new dynamic[] { other_value.getValue() });
+            _list = other_value.getValue();
         }
 
         public override void forceSetValue(dynamic value)
         {
+            trace("setValue", getValue(), new dynamic[] { value });
             _list = new List<Variable>(value);
-            trace("setValue");
         }
 
         public override string ToString()
@@ -404,9 +397,9 @@ namespace Parser
             _called = true;
             //List<Variable> arg_list = _arg_expr_list.Select(x => x.evaluate()).ToList();
             object[] args = _arg_expr_list.Select(x => (object) x).ToArray();
+            trace("call_function", null, args);
             Variable result = Functions.callFunctionByName(_function_name, args);
             Context.reset();
-            trace("call_function");
             return result;
         }
 

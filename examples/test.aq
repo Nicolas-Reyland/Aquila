@@ -1,7 +1,30 @@
+#name bubble sort
+#use functions.txt
 
-declare l [1, 2, 3]
+declare l [4, 1, 6, -3, 2]
+declare i 0
+declare int j
+declare len length($l)
 
 trace $l
 
-list_at($l, 0) = 0
-list_at($l, 2) = 4
+for ($i = 0, $i < $len, $i = $i + 1)
+	for ($j = 0, $j < $len - $i - 1, $j = $j + 1)
+		if (list_at($l, $j) > list_at($l, $j + 1))
+			swap($l, $j, $j + 1)
+		end-if
+	end-for
+end-for
+
+return($l)
+
+// Main flaws:
+// - #use is only one file at a time
+// -
+//
+// Not implemented:
+// - external function definitions (working on it tho)
+// - recursivity
+// - a lot of otehr things
+// -
+//
