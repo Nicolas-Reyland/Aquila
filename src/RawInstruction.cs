@@ -100,7 +100,7 @@ namespace Parser
                         index = end_index;
                     }
                 }
-                
+
                 instructions.Add(instr);
                 index++;
             }
