@@ -6,16 +6,32 @@ To compile the code:
 
 On Windows (never tested):
 ```
+cd src
 csc -target:exe -out:program.exe *.cs
 ```
 On Linux:
 ```
+cd src/
 mcs -target:exe -out:program.exe *.cs
 ```
 
+You can run an Aquila code file by giving its path as argument:
+
+On Windows (never tested):
+```
+program.exe "C:\Path\To\File.aq"
+```
+
+On Linux:
+```
+mono program.exe "/path/to/file.aq"
+```
+
+It will print the return value to the stdout (if there is none, print "none").
+
 To get the interactive mode, start the compiled program with "interactive" as argument.
 
-On Windows:
+On Windows (never tested):
 ```
 program.exe interactive
 ```
