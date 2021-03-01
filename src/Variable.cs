@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.SqlTypes;
 using System.Linq;
 // ReSharper disable SuggestVarOrType_SimpleTypes
 
@@ -15,21 +16,50 @@ namespace Parser
         // attributes
         private string _name;
         public bool assigned;
+        public VarTracer tracer;
+        protected bool traced = false;
+
+        public string test_data = "none"; // for testing purposes only
 
         // getters
+        public bool isTraced() => traced;
         public string getName() => _name;
+        public abstract string getTypeString();
+        public abstract Variable cloneTypeToVal(dynamic value);
+        public abstract dynamic getValue();
 
         // setters
         public void setName(string new_name) => _name = new_name;
 
         // methods
-        public abstract dynamic getValue();
+        public void startTracing()
+        {
+            Debugging.print("enabling tracing for " + this._name);
+            tracer = new VarTracer(this);
+            Global.var_tracers.Add(tracer);
+            traced = true;
+        }
+
+        public void trace(object add_info, bool check = false)
+        {
+            if (!traced) return;
+            if (check)
+            {
+                Debugging.print("checking if any values have changed");
+                if (tracer.peekValue() == getValue())
+                {
+                    Debugging.print("values equal. no updating");
+                    return;
+                }
+            }
+            tracer.update(new Event(add_info));
+        }
 
         public abstract void setValue(Variable other_value);
 
-        public abstract bool hasSameParent(Variable other);
+        public abstract void forceSetValue(dynamic value);
 
-        public abstract string getTypeString();
+        public abstract bool hasSameParent(Variable other);
 
         public void assign() => assigned = true;
 
@@ -41,9 +71,13 @@ namespace Parser
 
     public class NullVar : Variable
     {
+        public override Variable cloneTypeToVal(dynamic value) => throw new NotImplementedException();
+
         public override dynamic getValue() => throw Global.aquilaError(); // RuntimeError (never supposed to happen whatsoever)
 
         public override void setValue(Variable other_value) => throw Global.aquilaError(); // RuntimeError (never supposed to happen whatsoever)
+
+        public override void forceSetValue(dynamic value) => throw Global.aquilaError();
 
         public override bool hasSameParent(Variable other) => true;
 
@@ -86,13 +120,18 @@ namespace Parser
             return new BooleanVar(_bool_value ^ other.getValue());
         }
 
+        public override Variable cloneTypeToVal(dynamic value) => new BooleanVar(value);
+
         public override dynamic getValue() => assigned ? _bool_value : throw Global.aquilaError(); // AssignmentError
 
         public override void setValue(Variable other_value)
         {
             _bool_value = other_value.getValue();
             if (!assigned) assign();
+            trace("setValue");
         }
+
+        public override void forceSetValue(dynamic value) => _bool_value = (bool) value;
 
         public override string ToString()
         {
@@ -102,6 +141,8 @@ namespace Parser
         public override bool hasSameParent(Variable other_value) => other_value is BooleanVar || other_value is NullVar;
 
         public override string getTypeString() => "bool";
+
+        public virtual bool Equals(BooleanVar other) => _bool_value == other.getValue();
     }
 
     public class Integer : Variable
@@ -113,6 +154,8 @@ namespace Parser
             assigned = true;
             _int_value = val;
         }
+
+        public override Variable cloneTypeToVal(dynamic value)=>  new Integer(value);
 
         public override dynamic getValue() => assigned ? _int_value : throw Global.aquilaError(); // AssignmentError
 
@@ -167,7 +210,10 @@ namespace Parser
         {
             _int_value = other_value.getValue();
             if (!assigned) assign();
+            trace("setValue");
         }
+
+        public override void forceSetValue(dynamic value) => _int_value = (int) value;
 
         public override string ToString()
         {
@@ -177,14 +223,18 @@ namespace Parser
         public override bool hasSameParent(Variable other_value) => other_value is Integer || other_value is NullVar;
 
         public override string getTypeString() => "int";
+
+        public virtual bool Equals(Integer other) => _int_value == other.getValue();
     }
 
     public class FloatVar : Variable
     {
-        public FloatVar()
+        public FloatVar(params object[] args) // le "params object[] args" n'est que là pour faire tair le compilateur. A enlever
         {
             throw new NotImplementedException();
         }
+
+        public override Variable cloneTypeToVal(dynamic value) => new FloatVar(value);
 
         public override dynamic getValue()
         {
@@ -194,7 +244,10 @@ namespace Parser
         public override void setValue(Variable other_value)
         {
             throw new NotImplementedException();
+            trace("setValue");
         }
+
+        public override void forceSetValue(dynamic value) => throw new NotImplementedException();
 
         public override bool hasSameParent(Variable other_value)
         {
@@ -205,6 +258,8 @@ namespace Parser
         {
             throw new NotImplementedException();
         }
+
+        public virtual bool Equals(FloatVar other) => throw new NotImplementedException();
     }
 
     public class DynamicList : Variable
@@ -225,7 +280,9 @@ namespace Parser
             }
         }
 
-        public override dynamic getValue() => _list;
+        public override Variable cloneTypeToVal(dynamic value) => new DynamicList(new List<Variable>(_list));
+
+        public override dynamic getValue() => new List<Variable>(_list);
         public Integer length() => assigned ? new Integer(_list.Count) : throw Global.aquilaError(); // AssignmentError
 
         public void validateIndex(Integer index)
@@ -244,17 +301,19 @@ namespace Parser
         {
             _list.Add(x);
             if (!assigned) assign();
+            trace("addValue");
         }
 
         public void insertValue(Variable x, Integer index)
         {
             assertAssignment();
             _list.Insert(index.getValue(), x);
+            trace("insertValue");
         }
 
         public Variable getValueAt(Integer index)
         {
-          assertAssignment();
+            assertAssignment();
             int i = index.getValue();
             if (i < 0) i += _list.Count;
             if (i < 0) throw Global.aquilaError();
@@ -275,12 +334,20 @@ namespace Parser
             {
                 throw Global.aquilaError(); // InvalidIndexException
             }
+            trace("removeValue");
         }
 
         public override void setValue(Variable other_value)
         {
             _list = other_value.getValue();
             if (!assigned) assign();
+            trace("setValue");
+        }
+
+        public override void forceSetValue(dynamic value)
+        {
+            _list = new List<Variable>(value);
+            trace("setValue");
         }
 
         public override string ToString()
@@ -299,6 +366,20 @@ namespace Parser
         public override bool hasSameParent(Variable other_value) => other_value is DynamicList || other_value is NullVar;
 
         public override string getTypeString() => "list";
+
+        public virtual bool Equals(DynamicList other)
+        {
+            if (length() != other.length()) return false;
+            
+            List<Variable> other_list = other.getValue();
+
+            for (int i = 0; i < _list.Count; i++)
+            {
+                if (other_list[i] != _list[i]) return false;
+            }
+            
+            return true;
+        }
     }
 
     public class FunctionCall : Variable
@@ -309,21 +390,27 @@ namespace Parser
 
         public FunctionCall(string function_name, List<Expression> arg_expr_list)
         {
+            Functions.assertFunctionExists(function_name);
+            
             _function_name = function_name;
             _arg_expr_list = arg_expr_list;
-
-            assign();
-            Functions.assertFunctionExists(function_name);
+            assigned = true;
         }
 
         public Variable call_function()
         {
+            Context.setStatus(6);
+            Context.setInfo(this);
             _called = true;
             //List<Variable> arg_list = _arg_expr_list.Select(x => x.evaluate()).ToList();
             object[] args = _arg_expr_list.Select(x => (object) x).ToArray();
             Variable result = Functions.callFunctionByName(_function_name, args);
+            Context.reset();
+            trace("call_function");
             return result;
         }
+
+        public override Variable cloneTypeToVal(dynamic value) => throw Global.aquilaError();
 
         public override dynamic getValue() => call_function().getValue();
 
@@ -331,6 +418,8 @@ namespace Parser
         {
             throw Global.aquilaError(); // should never set a value to a function call
         }
+
+        public override void forceSetValue(dynamic value) => throw Global.aquilaError();
 
         public bool hasBeenCalled() => _called;
 

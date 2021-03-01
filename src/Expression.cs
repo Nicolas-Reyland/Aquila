@@ -16,7 +16,7 @@ namespace Parser
         /// <summary>
         /// The literal expresion, as a string (e.g. "$x + 5")
         /// </summary>
-        internal readonly string _expr;
+        internal readonly string expr;
 
         /// <summary>
         /// Constructor
@@ -24,14 +24,14 @@ namespace Parser
         /// <param name="expr"> expression string</param>
         public Expression(string expr)
         {
-            this._expr = StringUtils.purgeLine(expr);
+            this.expr = StringUtils.purgeLine(expr);
         }
 
         /// <summary>
-        /// Call <see cref="parse"/> on <see cref="_expr"/>
+        /// Call <see cref="parse"/> on <see cref="expr"/>
         /// </summary>
-        /// <returns> Arithmetic or logic value of <see cref="_expr"/></returns>
-        public Variable evaluate() => parse(_expr);
+        /// <returns> Arithmetic or logic value of <see cref="expr"/></returns>
+        public Variable evaluate() => parse(expr);
 
         /// <summary>
         /// Takes an arithmetical or logical expression and returns the corresponding variable
@@ -173,7 +173,7 @@ namespace Parser
                     arg_list.Add(arg_expr);
                 }
 
-                if (arg_list.Count == 1 && arg_list[0]._expr == "")
+                if (arg_list.Count == 1 && arg_list[0].expr == "")
                 {
                     arg_list = new List<Expression>();
                 }
@@ -194,7 +194,9 @@ namespace Parser
             if (expr_string.Contains("["))
             {
                 Debugging.print("list access");
+                throw new NotImplementedException("list bracket access disabled due to tracing issues");
                 // brackets
+/*
                 Debugging.assert(expr_string.EndsWith("]")); // cannot be "$l[0] + 5" bc AL_operations have already been processed
                 int bracket_start_index = expr_string.IndexOf('[');
                 Debugging.assert(bracket_start_index > 1); // "$[$i - 4]" is not valid
@@ -211,6 +213,7 @@ namespace Parser
                 list_var.validateIndex(index);
                 // return value
                 return list_var.atIndex(index);
+*/
             }
             else // only variable name, no brackets
             {

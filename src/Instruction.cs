@@ -27,6 +27,8 @@ namespace Parser
             foreach (Instruction instr in instructions)
             {
                 instr.execute();
+                // update all tracers
+                Tracer.updateTracers();
             }
         }
     }
@@ -68,6 +70,8 @@ namespace Parser
                 foreach (Instruction instr in instructions)
                 {
                     instr.execute();
+                    // update all tracers
+                    Tracer.updateTracers();
                 }
             }
             in_loop = false;
@@ -107,7 +111,13 @@ namespace Parser
         public override void execute()
         {
             _start.execute();
+            // update all tracers
+            Tracer.updateTracers();
+            Global.current_line_index--;
+
             _while_loop.execute();
+            // update all tracers again
+            Tracer.updateTracers();
           }
     }
 
@@ -130,6 +140,8 @@ namespace Parser
                 foreach (Instruction instr in instructions)
                 {
                     instr.execute();
+                    // update all tracers
+                    Tracer.updateTracers();
                 }
             }
             else
@@ -137,6 +149,8 @@ namespace Parser
                 foreach (Instruction instr in _else_instructions)
                 {
                     instr.execute();
+                    // update all tracers
+                    Tracer.updateTracers();
                 }
             }
         }
@@ -155,7 +169,7 @@ namespace Parser
             this._var_expr = var_expr;
             this._var_type = var_type;
             this._assignment = assignment;
-            Debugging.print("new declaration: var_name = " + var_name + ", var_expr = " + var_expr._expr + ", var_type = " + var_type + ", assignment = ", assignment);
+            Debugging.print("new declaration: var_name = " + var_name + ", var_expr = " + var_expr.expr + ", var_type = " + var_type + ", assignment = ", assignment);
             // add variable to dictionary
             Debugging.assert(!Global.variables.ContainsKey(var_name)); // DeclaredExistingVarException
             Variable temp_value = _var_type == "auto"
@@ -179,7 +193,11 @@ namespace Parser
             Global.variables[_var_name] = variable;
             if (_assignment) Global.variables[_var_name].assign();
             else Global.variables[_var_name].assigned = false;
+            Global.variables[_var_name].setName(_var_name);
             Debugging.print("finished declaration with value assignment: ", Global.variables[_var_name].assigned);
+            
+            // update all tracers
+            Tracer.updateTracers();
         }
     }
 
@@ -198,9 +216,12 @@ namespace Parser
         public override void execute()
         {
             Variable val = _var_value.evaluate();
-            Debugging.print("assigning " + _var_name + " with value " + _var_value._expr + " (2nd value assigned: " + val.assigned + ")");
+            Debugging.print("assigning " + _var_name + " with expr " + _var_value.expr + " (2nd value assigned: " + val.assigned + ") and type: " + val.getTypeString());
+            // special list_at case
             val.assertAssignment();
             Expression.parse(_var_name).setValue(val);
+            // update all tracers
+            Tracer.updateTracers();
         }
     }
     
@@ -218,10 +239,37 @@ namespace Parser
         
         public override void execute()
         {
+            Context.setStatus(7);
+            Context.setInfo(this);
             _called = true;
             Functions.callFunctionByName(_function_name, _args);
+            Context.reset();
+            // update all tracers
+            Tracer.updateTracers();
         }
+        
+        public object[] getArgs() => _args;
 
         public bool hasBeenCalled() => _called;
+    }
+
+    public class Tracing : Instruction
+    {
+        private readonly List<Expression> _traced_vars = new List<Expression>();
+        
+        public Tracing(List<Expression> traced_vars)
+        {
+            this._traced_vars = traced_vars;
+        }
+        public override void execute()
+        {
+            // the tracing instruction execution doesn't take any Tracer.updateTracers() calls
+            foreach (Expression traced_expr in _traced_vars)
+            {
+                Variable traced_var = traced_expr.evaluate();
+                Debugging.assert(!traced_var.isTraced());
+                traced_var.startTracing();
+            }
+        }
     }
 }

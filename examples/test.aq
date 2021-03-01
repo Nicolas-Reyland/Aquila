@@ -1,6 +1,7 @@
 
-declare a true
-declare b false
+declare l [1, 2, 3]
 
+trace $l
 
-
+list_at($l, 0) = 0
+list_at($l, 2) = 4

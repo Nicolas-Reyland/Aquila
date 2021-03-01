@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
+// ReSharper disable PossibleNullReferenceException
 // ReSharper disable SuggestVarOrType_SimpleTypes
 
 namespace Parser
@@ -30,30 +31,19 @@ namespace Parser
             return list.length();
         }
 
-        /// <summary>
-        /// Default function
-        /// </summary>
-        /// <para>
-        /// Creates a new list which has the elements at index a and b swapped
-        /// </para>
-        /// <param name="list_expr"> the target <see cref="DynamicList"/> (as an <see cref="Expression"/>)</param>
-        /// <param name="a_expr"> index of the first element</param>
-        /// <param name="b_expr"> index of the second element</param>
-        /// <returns> New list which has the values at index a and b swapped</returns>
-        private static Variable swapFunction(Expression list_expr, Expression a_expr, Expression b_expr)
+        private static Variable listAtFunction(Expression list_expr, Expression index_expr)
         {
-            // evaluate every expression
-            DynamicList list = list_expr.evaluate() as DynamicList;
-            Integer a = a_expr.evaluate() as Integer;
-            Integer b = b_expr.evaluate() as Integer;
-            // swap
-            list.validateIndex(a);
-            list.validateIndex(b);
-            Integer temp = list.atIndex(a) as Integer;
-            List < Variable > copy = list.getValue();
-            copy[a.getValue()] = copy[b.getValue()];
-            copy[b.getValue()] = temp;
-            return new DynamicList(copy);
+            // extract list
+            Variable list_var = list_expr.evaluate();
+            Debugging.assert(list_var is DynamicList); // TypeError
+            DynamicList list = list_var as DynamicList;
+            // extract index
+            Variable index_var = index_expr.evaluate();
+            Debugging.assert(index_var is Integer); // TypeError
+            Integer index = index_var as Integer;
+            // access at index
+            handleFunctionTracing("list_at", new object[]{ (object) list, (object) index });
+            return list.atIndex(index);
         }
 
         /// <summary>
@@ -94,7 +84,7 @@ namespace Parser
         private static NullVar returnFunction(Expression expr) // Variable return type only for the callFunctionByName compatibility
         {
             // this Exception will stop the function/algorithm from executing
-            throw new AquilaExceptions.ReturnValueException(expr._expr);
+            throw new AquilaExceptions.ReturnValueException(expr.expr);
         }
 
         /// <summary>
@@ -104,7 +94,7 @@ namespace Parser
         /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
         private static NullVar printFunction(Expression value)
         {
-            Debugging.print("begin printing to console: (" + value._expr + ")");
+            Debugging.print("begin printing to console: (" + value.expr + ")");
             Console.Write(value.evaluate().ToString());
             Debugging.print("end printing to console");
 
@@ -118,7 +108,7 @@ namespace Parser
         private static NullVar printStrEndlFunction(Expression expr)
         {
             Debugging.print("begin printing to console");
-            Console.Write(expr._expr);
+            Console.Write(expr.expr);
             Console.Write('\n');
             Debugging.print("end printing to console");
 
@@ -146,7 +136,7 @@ namespace Parser
         private static NullVar printStrFunction(Expression expr)
         {
             Debugging.print("begin printing to console");
-            Console.Write(expr._expr);
+            Console.Write(expr.expr);
             Debugging.print("end printing to console");
 
             return new NullVar();
@@ -218,6 +208,40 @@ namespace Parser
             return insertValueAt(list_expr, index_expr, var_expr);
         }
 
+        /// <summary>
+        /// Default function
+        /// </summary>
+        /// <para>
+        /// Swaps the elements at index a and b in a list
+        /// </para>
+        /// <param name="list_expr"> the target <see cref="DynamicList"/> (as an <see cref="Expression"/>)</param>
+        /// <param name="a_expr"> index of the first element</param>
+        /// <param name="b_expr"> index of the second element</param>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
+        private static NullVar swapFunction(Expression list_expr, Expression a_expr, Expression b_expr)
+        {
+            // evaluate every expression
+            DynamicList list = list_expr.evaluate() as DynamicList;
+            Integer a = a_expr.evaluate() as Integer;
+            Integer b = b_expr.evaluate() as Integer;
+            // check indexs
+            list.validateIndex(a);
+            list.validateIndex(b);
+            // extract both values
+            Variable var_a = list.getValueAt(a);
+            Variable var_b = list.getValueAt(b);
+            // change a
+            list.removeValue(a);
+            list.insertValue(var_b, a);
+            // change b
+            list.removeValue(b);
+            list.insertValue(var_a, b);
+            // update
+            handleFunctionTracing("swap", new []{ (object) list, (object) a, (object) b });
+            
+            return new NullVar();
+        }
+
         // float2int
 
 
@@ -246,7 +270,7 @@ namespace Parser
         private static readonly Dictionary<string, Delegate> value_functions = new Dictionary<string, Delegate>
         {
             {"length", new Func<Expression, Variable>(lengthFunction)},
-            {"swap", new Func<Expression, Expression, Expression, Variable>(swapFunction)},
+            {"list_at", new Func<Expression, Expression, Variable>(listAtFunction)},
             {"copy_list", new Func<Expression, Variable>(copyListFunction)},
             {"random", new Func<Variable>(randomNumber)},
         };
@@ -266,6 +290,7 @@ namespace Parser
             {"delete_value_at", new Func<Expression, Expression, NullVar>(deleteValueAt)},
             {"insert_value_at", new Func<Expression, Expression, Expression, NullVar>(insertValueAt)},
             {"append_value", new Func<Expression, Expression, NullVar>(appendValue)},
+            {"swap", new Func<Expression, Expression, Expression, NullVar>(swapFunction)},
         };
 
         /// <summary>
@@ -317,12 +342,16 @@ namespace Parser
         {
             if (value_functions.ContainsKey(name))
             {
+                Context.assertStatus(6);
                 Debugging.print("invoking value function ", name, " dynamically with ", args.Length, " argument(s)");
+                //handleFunctionTracing(name, args); // cannot use expressions, have to use variables ...
                 return value_functions[name].DynamicInvoke(args) as Variable;
             }
             if (void_functions.ContainsKey(name))
             {
+                Context.assertStatus(7);
                 Debugging.print("invoking void function ", name, " dynamically with ", args.Length, " argument(s)");
+                //handleFunctionTracing(name, args); // cannot use expressions, have to use variables ...
                 return void_functions[name].DynamicInvoke(args) as Variable;
             }
 
@@ -335,5 +364,19 @@ namespace Parser
         /// <param name="function_name"></param>
         public static void assertFunctionExists(string function_name) =>
             Debugging.assert(value_functions.ContainsKey(function_name) ^ void_functions.ContainsKey(function_name)); // UnknownFunctionNameException
+
+        private static void handleFunctionTracing(string name, object[] args)
+        {
+            Debugging.print("checking all the " + Global.func_tracers.Count + " function tracers for " + name);
+            foreach (FuncTracer tracer in Global.func_tracers)
+            {
+                if (name == tracer.traced_func)
+                {
+                    Debugging.print("found " + name);
+                    tracer.awaitEvent(new Event(args));
+                    return;
+                }
+            }
+        }
     }
 }

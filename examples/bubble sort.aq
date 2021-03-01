@@ -9,7 +9,7 @@ declare len length($l)
 for ($i = 0, $i < $len, $i = $i + 1)
 	for ($j = 0, $j < $len - $i - 1, $j = $j + 1)
 		if ($l[$j] > $l[$j + 1])
-			$l = swap($l, $j, $j + 1)
+			swap($l, $j, $j + 1)
 		end-if
 	end-for
 end-for

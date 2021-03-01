@@ -442,5 +442,19 @@ namespace Parser
             simplified += (last_index == 0 ? "" : " ") + "EXPR";
             return simplified;
         }
+
+        public static string varList2String(List<Variable> var_list)
+        {
+            string s = "{ ";
+            foreach (Variable variable in var_list)
+            {
+                s += variable.ToString() + ", ";
+            }
+
+            if (s.Length > 2) s = s.Substring(0, s.Length - 2);
+            s += " }";
+
+            return s;
+        }
     }
 }

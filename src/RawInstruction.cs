@@ -146,9 +146,22 @@ namespace Parser
             // split instruction
             List<string> instr = StringUtils.splitStringKeepingStructureIntegrity(raw_instr._instr, ' ', Global.base_delimiters);
 
+            Debugging.print("trace ?");
+            // variable tracing
+            if (instr[0] == "trace")
+            {
+                List<Expression> traced_vars = new List<Expression>();
+                for (int i = 1; i < instr.Count; i++)
+                {
+                    traced_vars.Add(new Expression(instr[i]));
+                }
+
+                return new Tracing(traced_vars);
+            }
+
             Debugging.print("declare ?");
             // variable declaration
-            if (instr[0].StartsWith("declare"))
+            if (instr[0] == "declare")
             {
                 // "declare type name" or "declare name value"
                 if (instr.Count < 3 || instr.Count > 4)
@@ -198,7 +211,7 @@ namespace Parser
 
             Debugging.print("assignment ?");
             // variable assignment
-            if (instr[0][0] == '$' && instr[1] == "=")
+            if (instr.Count > 1 && instr[1] == "=" && (instr[0][0] == '$' || instr[0].Contains("(")))
             {
                 Debugging.assert(instr.Count > 2); // syntax ?unfinished line?
                 string var_designation = instr[0];

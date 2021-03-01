@@ -53,11 +53,16 @@ namespace Parser
         /// <returns> The evaluated <see cref="_return_value"/> after all the <see cref="_instructions"/> have been executed</returns>
         public Variable run()
         {
+            Context.setStatus(4);
+            Context.setInfo(_name);
             foreach (Instruction instr in _instructions)
             {
                 try
                 {
+                    Context.setStatus(5);
+                    Context.setInfo(instr);
                     instr.execute();
+                    Context.reset();
                 }
                 catch (System.Reflection.TargetInvocationException out_exception)
                 {
@@ -72,10 +77,12 @@ namespace Parser
                     }
 
                     _return_value = new Expression(exception.getExpr());
+                    Context.reset();
                     return _return_value.evaluate();
                 }
             }
 
+            Context.reset();
             return new NullVar(); // NoReturnCallWarning
         }
     }

@@ -6,19 +6,104 @@ using System.IO;
 
 namespace Parser
 {
+    /// <summary>
+    /// 
+    /// </summary>
+    public static class Context
+    {
+        /// <summary>
+        /// Status list:
+        /// <para/>* -1: undefined
+        /// <para/>*  0: reading &amp; purging code
+        /// <para/>*  1: processing macros
+        /// <para/>*  2: parsing code
+        /// <para/>*  3: building Instructions
+        /// <para/>*  4: running code
+        /// <para/>*  5: executing an instruction
+        /// <para/>*  6: evaluating a value function
+        /// <para/>*  7: executing a void function
+        /// <para/>*  8: executing a declaration
+        /// <para/>*  9: executing an assignment
+        /// <para/>* 99: running finished
+        /// </summary>
+        private static int _status = -1;
+        private static readonly Stack<int> previous_status = new Stack<int>();
+        private static object _info = null;
+        private static readonly Stack<object> previous_info = new Stack<object>();
+        public static bool enabled = true;
+
+        // status
+        public static int getStatus() => _status;
+
+        public static void setStatus(int new_status)
+        {
+            previous_status.Push(_status);
+            _status = new_status;
+        }
+
+        public static void resetStatus()
+        {
+            if (previous_status.Count == 0)
+            {
+                throw new InvalidOperationException("No previous Context state");
+            }
+
+            _status = previous_status.Pop();
+        }
+
+        // info
+        public static dynamic getInfo() => _info;
+
+        public static void setInfo(object new_info)
+        {
+            previous_info.Push(_info);
+            _info = new_info;
+        }
+
+        public static void resetInfo()
+        {
+            if (previous_info.Count == 0)
+            {
+                throw new InvalidOperationException("No previous Context info");
+            }
+
+            _info = previous_info.Pop();
+        }
+        
+        // all
+        public static void reset()
+        {
+            resetStatus();
+            resetInfo();
+        }
+
+        public static void assertStatus(int supposed)
+        {
+            if (enabled && supposed != _status)
+            {
+                throw new Exception("Context Assertion Error. Supposed: " + supposed + " but actual: " + _status);
+            }
+        }
+    }
+    
     /// <summary> All the global variables are stored here. Global variables are the ones that should be accessible every, by everyone in the <see cref="Parser"/> program.
     /// <see cref="Global"/> is a static class. All it's attributes and methods are static too.
     /// 
     /// <para/>List of the attributes:
-    /// <para/>* <see cref="Global.variables"/> : Dictionary(string, Variable)
+    /// <para/>* <see cref="variables"/> : Dictionary(string, Variable)
+    /// <para/>* <see cref="usable_variables"/> : List(string)
     /// <para/>* <see cref="single_line_comment_string"/> : string
-    /// <para/>* <see cref="Global.multiple_lines_comment_string"/>
+    /// <para/>* <see cref="multiple_lines_comment_string"/>
     /// <para/>* <see cref="current_line_index"/> : int
     /// <para/>* <see cref="nested_instruction_flags"/> : Dictionary(string, string)
     /// <para/>* <see cref="default_values_by_var_type"/> : Dictionary(string, Variable)
     /// <para/>* <see cref="base_delimiters"/> : Dictionary(char, char)
     /// <para/>* <see cref="al_operations"/> : char[]
     /// <para/>* <see cref="debug"/> : bool
+    /// <para/>* <see cref="aquilaError"/> : () -> Exception
+    /// <para/>* <see cref="var_tracers"/> : List(VarTracer)
+    /// <para/>* <see cref="func_tracers"/> : List(FuncTracer)
+    /// <para/>* <see cref="nullEvent"/> : () -> Event
     /// </summary>
     static class Global
     {
@@ -26,6 +111,11 @@ namespace Parser
         /// Those are all the variables that the analysed algorithm uses
         /// </summary>
         public static readonly Dictionary<string, Variable> variables = new Dictionary<string, Variable>();
+        
+        /// <summary>
+        /// All the variables that are not NullVar (thus have a graphical representable value)
+        /// </summary>
+        public static readonly List<string> usable_variables = new List<string>();
 
         /// <summary>
         /// The <see cref="single_line_comment_string"/> is the string that is prefix to all
@@ -44,9 +134,7 @@ namespace Parser
         /// It is used to know what line is being executed at a given moment in time.
         /// It is really useful for <see cref="Debugging"/> and generally tracking the algorithm state
         /// </summary>
-#pragma warning disable 414
-        public static readonly int current_line_index = 0; // disable compiler warning
-#pragma warning restore 414
+        public static int current_line_index = 0; // disable compiler warning
 
         /// <summary>
         /// All the nested instructions (for loops, if statements, etc.) have
@@ -116,8 +204,28 @@ namespace Parser
         /// All the <see cref="aquilaError"/> calls should be later replaced by custom <see cref="Exception"/>s.
         /// </summary>
         /// <returns> new <see cref="NotImplementedException"/>("Error occurred. Custom Exceptions not implemented")</returns>
-        public static NotImplementedException aquilaError() =>
-            new NotImplementedException("Error occurred. Custom Exception not implemented for this use case");
+        public static Exception aquilaError() =>
+            new Exception("Error occurred. Custom Exception not implemented for this use case");
+
+        /// <summary>
+        /// List of all the variable tracers
+        /// </summary>
+        public static List<VarTracer> var_tracers = new List<VarTracer>();
+
+        /// <summary>
+        /// List of all the functions tracers
+        /// </summary>
+        public static readonly List<FuncTracer> func_tracers = new List<FuncTracer>();
+        
+        /// <summary>
+        /// null event generator
+        /// </summary>
+        /// <returns> null event</returns>
+        public static Event nullEvent()
+        {
+            Event null_event = new Event(null) {status = -1, info = null}; //! Unity compatible ?
+            return null_event;
+        }
     }
 
     /// <summary>
@@ -127,7 +235,7 @@ namespace Parser
     static class Debugging
     {
         /// <summary>
-        /// Same as <see cref="System.Diagnostics.Debug"/>.Assert, but can be called anywhere.
+        /// Same as"System.Diagnostics.Debug.Assert, but can be called anywhere.
         /// <param name="condition"> if condition is false, raises and exception</param>
         /// </summary>
         public static void assert(bool condition)
@@ -360,6 +468,7 @@ namespace Parser
         /// <returns> the generated <see cref="Algorithm"/></returns>
         public static Algorithm algorithmFromSrcCode(string path, bool print_src = false, bool pretty_print = false, string default_name = "no-name-given")
         {
+            // read code
             List<string> lines = readSourceCode(path);
 
             if (print_src) StringUtils.printStringList(lines, true);
@@ -446,10 +555,12 @@ namespace Parser
         /// <para/>* $var_name -> prints the value of a variable
         /// <para/>* debug -> switch the debugging mode (true to false, false to true)
         /// </summary>
-        public static void interactiveMode()
+        public static void interactiveMode(List<string> execute_lines = null)
         {
+            Context.enabled = false; // disable context checks
             bool new_line = true;
             List<string> current_lines = new List<string>();
+            if (execute_lines != null) current_lines = execute_lines;
             while (true)
             {
                 if (new_line) Console.Write(Global.debug ? " (debug) > " : " > ");
@@ -508,7 +619,78 @@ namespace Parser
                     continue;
                 }
 
-                current_lines.Add(input);
+                if (input == "trace_info")
+                {
+                    Console.WriteLine("var tracers:");
+                    foreach (VarTracer tracer in Global.var_tracers)
+                    {
+                        Console.WriteLine(" - var   : " + (tracer.getTracedObject() as Variable).getName());
+                        Console.WriteLine(" - stack : " + tracer.getStackCount());
+                    }
+                    Console.WriteLine("func tracers:");
+                    foreach (FuncTracer tracer in Global.func_tracers)
+                    {
+                        Console.WriteLine(" - func  : " + tracer.getTracedObject());
+                        Console.WriteLine(" - stack : " + tracer.getStackCount());
+                    }
+    
+                    continue;
+                }
+
+                if (input.StartsWith("rd "))
+                {
+                    string[] splitted = input.Split(' ');
+                    string var_name = splitted[1];
+                    string mode = splitted[2];
+                    if (mode == "set")
+                    {
+                        string value = splitted[3];
+                        Expression.parse(var_name).test_data = value;
+                    }
+                    else if (mode == "get")
+                    {
+                        Console.WriteLine("test_data: " + Expression.parse(var_name).test_data);
+                    }
+                    
+                    continue;
+                }
+
+                if (input == "temp")
+                {
+                    Global.var_tracers[0].printValueStack();
+                    Global.var_tracers[0].printEventStack();
+                    return;
+                }
+
+                if (input.StartsWith("rewind"))
+                {
+                    string[] splitted = input.Split(' ');
+                    if (splitted.Length == 3)
+                    {
+                        if (!Int32.TryParse(splitted[1], out int n))
+                        {
+                            Console.WriteLine("cannot read n");
+                            continue;
+                        } 
+                        
+                        string var_name = splitted[2];
+
+                        Variable var_ = Expression.parse(var_name);
+                        if (!var_.isTraced())
+                        {
+                            Console.WriteLine("Variable is not traced! Use the \"trace\" instruction to start tracing variables");
+                            continue;
+                        }
+                        
+                        var_.tracer.rewind(n);
+                        continue;
+                    }
+                    
+                    Console.WriteLine("split count does not match 3");
+                    continue;
+                }
+
+                if (input != "exec") current_lines.Add(input);
                 if (executableLines(current_lines))
                 {
                     // execute line here
@@ -542,17 +724,20 @@ namespace Parser
         // ReSharper disable once InconsistentNaming
         static void Main(string[] args)
         {
-            Global.debug = false;
+            Global.debug = true;
+            
+            Global.func_tracers.Add(new FuncTracer("list_at", new []{ 0 }, new []{ 0 }));
+            Global.func_tracers.Add(new FuncTracer("swap", new []{ 0 }, new []{ 4 }));
 
             if (true)//args.Length > 0 && args[0] == "interactive")
             {
-                Interpreter.interactiveMode();
+                Interpreter.interactiveMode(new List<string>() {"declare l [1, 2, 3, 4]", "trace $l", "swap($l, 0, 2)"} );
                 return;
             }
             
             Console.WriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : "rule 110.aq"; // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            string src_code = args.Length == 1 ? args[0] : "test.aq"; // "test.aq" // "bubble sort.aq" // "rule 110.aq";
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
 
@@ -572,15 +757,27 @@ namespace Parser
             instr2.execute();
             Console.WriteLine(Global.variables["v"]);*/
             
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
+            //Stopwatch stopwatch = new Stopwatch();
+            //stopwatch.Start();
 
             Variable return_value = Interpreter.runAlgorithm(algo);
+
+            //stopwatch.Stop();
+            //Console.WriteLine(return_value);
             
-            stopwatch.Stop();
-            Console.WriteLine(return_value);
+            Console.WriteLine("Value Stack:");
+            Global.var_tracers[0].printValueStack();
+            Console.WriteLine("Event Stack:");
+            Global.var_tracers[0].printEventStack();
             
-            Console.WriteLine("Time: {0} ms", stopwatch.Elapsed.Milliseconds);
+            //Console.WriteLine(Global.func_tracers[0]._events.Count);
+            
+            Console.WriteLine("\nlist_at Value Stack:");
+            Global.func_tracers[0].printValueStack();
+            Console.WriteLine("list_at Event Stack:");
+            Global.func_tracers[0].printEventStack();
+
+            //Console.WriteLine("Time: {0} ms", stopwatch.Elapsed.Milliseconds);
         }
     }
 }
