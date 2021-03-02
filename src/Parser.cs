@@ -100,6 +100,7 @@ namespace Parser
     /// <para/>* <see cref="default_values_by_var_type"/> : Dictionary(string, Variable)
     /// <para/>* <see cref="base_delimiters"/> : Dictionary(char, char)
     /// <para/>* <see cref="al_operations"/> : char[]
+    /// <para/>* <see cref="trace_debug"/> : bool
     /// <para/>* <see cref="debug"/> : bool
     /// <para/>* <see cref="aquilaError"/> : () -> Exception
     /// <para/>* <see cref="var_tracers"/> : List(VarTracer)
@@ -181,7 +182,7 @@ namespace Parser
 
         /// <summary>
         /// "AL_OPERATIONS" stands for "Arithmetical and Logical Operations".
-        /// This array is sorted by operation priority. For example, the '*'
+        /// This array is sorted by operation priority (reversed). For example, the '*'
         /// operation has a higher priority than the '+' operation.
         /// The same goes for '&amp;' (logic) and '%' (arithmetic).
         /// <para/> Here are unusual characters representations:
@@ -192,13 +193,17 @@ namespace Parser
         /// <para/>* '}' is "&gt;="
         /// <para/>* '{' is "&lt;="
         /// </summary>
-        public static readonly char[] al_operations = { '^', '&', '|', ':', '~', '}', '{', '>', '<', '%', '*', '/', '+', '-' }; // '!' missing. special case
+        public static readonly char[] al_operations = { '-', '+', '/', '*', '%', '<', '>', '{', '}', '~', ':', '|', '&', '^' }; // '!' missing. special case
+        // real priority order: { '^', '&', '|', ':', '~', '}', '{', '>', '<', '%', '*', '/', '+', '-' };
 
         /// <summary>
-        /// If set to true, all the <see cref="Debugging.print"/> calls will output their content to the stdout
+        /// If set to true, all the <see cref="Debugging.print"/> calls will output their content to the default stdout
         /// </summary>
         public static bool debug = true;
 
+        /// <summary>
+        /// If set to true, all the <see cref="Tracer.printTrace"/> calls will output their content to the default stdout
+        /// </summary>
         public static bool trace_debug = true;
 
         /// <summary>
@@ -430,313 +435,6 @@ namespace Parser
         }
     }
 
-    /// <summary>
-    /// The <see cref="Interpreter"/> class is used to interpret and run your code.
-    /// For example, to run source code from a source file, follow the following steps:
-    /// <para/>* Call <see cref="readSourceCode"/> to get a purged code
-    /// <para/>* Call <see cref="RawInstruction.code2RawInstructions"/> on the purged code
-    /// <para/>* Call <see cref="buildInstructions"/> on the generated raw instructions
-    /// <para/>* Create an <see cref="Algorithm"/> using the generated instructions
-    /// <para/>* Call the <see cref="runAlgorithm"/> function on the generated <see cref="Algorithm"/>
-    /// You an also use the <see cref="algorithmFromSrcCode"/>, then call the <see cref="runAlgorithm"/> on it
-    /// </summary>
-    static class Interpreter
-    {
-        /// <summary>
-        /// This function is used to read a raw Aquila source code text-based file and
-        /// purge the code (remove comments and all unnecessary spaces and tabs)
-        /// </summary>
-        /// <param name="path"> path to your source code file</param>
-        /// <returns> list of lines containing your purged code</returns>
-        private static List<string> readSourceCode(string path)
-        {
-            List<string> lines = Parser.readLines(path);
-            Debugging.print("lines read");
-            lines = StringUtils.purgeLines(lines); // same as "lines = StringUtils.purgeLines(lines);"
-            Debugging.print("lines purged");
-
-            return lines;
-        }
-
-        /// <summary>
-        /// Build <see cref="Instruction"/>s from <see cref="RawInstruction"/>s
-        /// </summary>
-        /// <param name="raw_instructions"> list of <see cref="RawInstruction"/>s</param>
-        /// <returns> list of corresponding <see cref="Instruction"/>s</returns>
-        public static List<Instruction> buildInstructions(List<RawInstruction> raw_instructions)
-        {
-            List<Instruction> instructions = new List<Instruction>();
-            foreach (RawInstruction raw_instruction in raw_instructions)
-            {
-                Instruction instruction = raw_instruction.toInstr();
-                instructions.Add(instruction);
-            }
-
-            return instructions;
-        }
-        
-        /// <summary>
-        /// Take source code and generate the corresponding <see cref="Algorithm"/>
-        /// </summary>
-        /// <param name="path"> path to your source code</param>
-        /// <param name="print_src"> print the generated purged code</param>
-        /// <param name="pretty_print"> pretty_print the <see cref="RawInstruction"/>s (useful to check nested-instruction priorities)</param>
-        /// <param name="default_name"> give a name to your <see cref="Algorithm"/></param>
-        /// <returns> the generated <see cref="Algorithm"/></returns>
-        public static Algorithm algorithmFromSrcCode(string path, bool print_src = false, bool pretty_print = false, string default_name = "no-name-given")
-        {
-            // read code
-            List<string> lines = readSourceCode(path);
-
-            if (print_src) StringUtils.printStringList(lines, true);
-
-            // extract macros
-            Dictionary<string, string> macros = Parser.getMacroPreprocessorValues(lines);
-
-            // Parse code into RawInstructions
-            List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(lines);
-            Debugging.print("raw_instructions done");
-            
-            // Pretty-print code
-            foreach (RawInstruction instruction in raw_instructions)
-            {
-                if (pretty_print) instruction.prettyPrint();
-            }
-
-            // Build instructions from the RawInstructions
-            List<Instruction> instructions = buildInstructions(raw_instructions);
-
-            string algo_name = macros.ContainsKey("name") ? macros["name"] : default_name;
-            Algorithm algo = new Algorithm(algo_name, instructions);
-
-            return algo;
-        }
-
-        /// <summary>
-        /// Run an <see cref="Algorithm"/> and return ints return value (if none is given: <see cref="NullVar"/>
-        /// </summary>
-        /// <param name="algo"> input <see cref="Algorithm"/></param>
-        /// <returns> return value of the <see cref="Algorithm"/></returns>
-        public static Variable runAlgorithm(Algorithm algo)
-        {
-            Variable return_value = algo.run();
-            return return_value;
-        }
-
-        /// <summary>
-        /// Checks if input lines from the <see cref="Interpreter.interactiveMode"/> are executable.
-        /// <para/>Examples:
-        /// <para/>* declare int w // this is executable
-        /// <para/>* if ($x &lt; 4) // this is not executable
-        /// <para/>* for (declare i 0, $i &lt; 5, $i = $i + 1)
-        /// <para/> - print($i)
-        /// <para/> - print_endl()
-        /// <para/> - end-for // this is executable
-        /// </summary>
-        /// <param name="lines"> input list of lines</param>
-        /// <returns> executable lines or not ? (bool value)</returns>
-        private static bool executableLines(List<string> lines)
-        {
-            short depth = 0;
-            foreach (string line in lines)
-            {
-                foreach (KeyValuePair<string,string> nested_instruction_flag in Global.nested_instruction_flags)
-                {
-                    if (line.StartsWith(nested_instruction_flag.Key))
-                    {
-                        depth++;
-                        break;
-                    }
-
-                    if (line == nested_instruction_flag.Value)
-                    {
-                        depth--;
-                        break;
-                    }
-                }
-            }
-
-            return depth == 0;
-        }
-
-        /// <summary>
-        /// The interactive mode gives you a shell-like environment in which
-        /// you can code in Aquila. It is important to note that comments are not supported
-        /// if written on the same line as code. You comment lines have to start with the "//"
-        /// symbol. Multiple-line comments are not supported
-        /// <para/>There are special keywords that only exist in the interpreter mode:
-        /// <para/>* exit -> exits the interpreter mode
-        /// <para/>* clear -> clears the console output
-        /// <para/>* var var_name -> prints info about the variable named "var_name"
-        /// <para/>* vars -> prints all the existing variables
-        /// <para/>* $var_name -> prints the value of a variable
-        /// <para/>* debug -> switch the debugging mode (true to false, false to true)
-        /// </summary>
-        public static void interactiveMode(List<string> execute_lines = null)
-        {
-            Context.enabled = false; // disable context checks
-            bool new_line = true;
-            List<string> current_lines = new List<string>();
-            if (execute_lines != null) current_lines = execute_lines;
-            while (true)
-            {
-                if (new_line) Console.Write(Global.debug ? " (debug) > " : " > ");
-                else Console.Write(Global.debug ? " (debug) - " : " - ");
-                string input = Console.ReadLine();
-                input = StringUtils.purgeLine(input);
-
-                if (input == "" || input.StartsWith("//")) continue;
-
-                if (input == "exit")
-                {
-                    Console.WriteLine("Exiting.");
-                    return;
-                }
-
-                if (input == "clear")
-                {
-                    Console.Clear();
-                    continue;
-                }
-
-                if (input.StartsWith("var "))
-                {
-                    string var_name = input.Substring(4);
-                    var_name = StringUtils.purgeLine(var_name);
-                    if (var_name != "")
-                    {
-                        Variable var_ = Global.variables[var_name];
-                        Console.WriteLine("name     : " + var_.getName());
-                        Console.WriteLine("type     : " + var_.getTypeString());
-                        Console.WriteLine("value    : " + var_.ToString());
-                        Console.WriteLine("assigned : " + var_.assigned);
-                    }
-                    continue;
-                }
-
-                if (input == "vars")
-                {
-                    foreach (KeyValuePair<string, Variable> variable in Global.variables)
-                    {
-                        Console.Write(variable.Key + " : ");
-                        Console.WriteLine(variable.Value.ToString());
-                    }
-                    continue;
-                }
-
-                if (input[0] == '$' && Global.variables.ContainsKey(input.Substring(1)))
-                {
-                    Console.WriteLine(Global.variables[input.Substring(1)].ToString());
-                    continue;
-                }
-
-                if (input == "debug")
-                {
-                    Global.debug = !Global.debug;
-                    continue;
-                }
-
-                if (input == "trace_info")
-                {
-                    Console.WriteLine("var tracers:");
-                    foreach (VarTracer tracer in Global.var_tracers)
-                    {
-                        Console.WriteLine(" - var     : " + (tracer.getTracedObject() as Variable).getName());
-                        Console.WriteLine(" - stack   : " + tracer.getStackCount());
-                        Console.WriteLine(" - updated : " + tracer.last_stack_count);
-                    }
-                    Console.WriteLine("func tracers:");
-                    foreach (FuncTracer tracer in Global.func_tracers)
-                    {
-                        Console.WriteLine(" - func  : " + tracer.getTracedObject());
-                        Console.WriteLine(" - stack : " + tracer.getStackCount());
-                    }
-    
-                    continue;
-                }
-
-                if (input.StartsWith("rd "))
-                {
-                    string[] splitted = input.Split(' ');
-                    string var_name = splitted[1];
-                    string mode = splitted[2];
-                    if (mode == "set")
-                    {
-                        string value = splitted[3];
-                        Expression.parse(var_name).test_data = value;
-                    }
-                    else if (mode == "get")
-                    {
-                        Console.WriteLine("test_data: " + Expression.parse(var_name).test_data);
-                    }
-                    
-                    continue;
-                }
-
-                if (input == "temp")
-                {
-                    Global.var_tracers[0].printValueStack();
-                    Global.var_tracers[0].printEventStack();
-                    return;
-                }
-
-                if (input.StartsWith("rewind"))
-                {
-                    string[] splitted = input.Split(' ');
-                    if (splitted.Length == 3)
-                    {
-                        if (!Int32.TryParse(splitted[1], out int n))
-                        {
-                            Console.WriteLine("cannot read n");
-                            continue;
-                        } 
-                        
-                        string var_name = splitted[2];
-
-                        Variable var_ = Expression.parse(var_name);
-                        if (!var_.isTraced())
-                        {
-                            Console.WriteLine("Variable is not traced! Use the \"trace\" instruction to start tracing variables");
-                            continue;
-                        }
-                        
-                        var_.tracer.rewind(n);
-                        continue;
-                    }
-                    
-                    Console.WriteLine("split count does not match 3");
-                    continue;
-                }
-
-                if (input != "exec") current_lines.Add(input);
-                if (executableLines(current_lines))
-                {
-                    // execute line here
-                    try
-                    {
-                        List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(current_lines);
-                        List<Instruction> instructions = buildInstructions(raw_instructions);
-                        foreach (Instruction instr in instructions)
-                        {
-                            instr.execute();
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e);
-                    }
-                    
-                    current_lines.Clear();
-                    new_line = true;
-                }
-                else
-                {
-                    new_line = false;
-                }
-            }
-        }
-    }
-
     static class Program
     {
         // ReSharper disable once InconsistentNaming
@@ -751,13 +449,27 @@ namespace Parser
 
             if (interactive || args.Length > 0 && args[0] == "interactive")
             {
-                Interpreter.interactiveMode(new List<string>() {"declare l [1, 2, 3, 4]", "trace $l", "swap($l, 0, 2)"} );
+                List<string> exec_lines = new List<string>()
+                {
+                    "declare float PI 4f",
+                    "declare float n -1f",
+                    "declare float d 3f",
+                    "declare num_iterations 10",
+                    "for (declare i 0, $i < $num_iterations, $i = $i + 1)",
+                    "$PI = $PI + $n * (4f / $d)",
+                    "$d = $d + 2f",
+                    "$n = $n * (-1f)",
+                    "print($PI)",
+                    "print_endl()",
+                    "end-for"
+                };
+                Interpreter.interactiveMode(exec_lines);
                 return;
             }
             
             Console.WriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : "test.aq"; // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            string src_code = args.Length == 1 ? args[0] : "Leibniz-Gregory PI approximation.aq"; // "test.aq" // "bubble sort.aq" // "rule 110.aq";
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
 

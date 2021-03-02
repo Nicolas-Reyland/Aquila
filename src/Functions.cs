@@ -42,7 +42,7 @@ namespace Parser
             Debugging.assert(index_var is Integer); // TypeError
             Integer index = index_var as Integer;
             // access at index
-            handleFunctionTracing("list_at", list, new dynamic[]{ index });
+            if (list_var.isTraced()) handleFunctionTracing("list_at", list, new dynamic[]{ index });
             return list.atIndex(index);
         }
 
@@ -90,7 +90,7 @@ namespace Parser
         /// <summary>
         /// Prints the value of an <see cref="Expression"/> to the stdout. Doesn't add a return '\n' symbol
         /// </summary>
-        /// <param name="value"> Expression you want to print (its evaluated value)</param>
+        /// <param name="value"> Expression you want to printTrace (its evaluated value)</param>
         /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
         private static NullVar printFunction(Expression value)
         {
@@ -237,7 +237,7 @@ namespace Parser
             list.removeValue(b);
             list.insertValue(var_a, b);
             // update
-            handleFunctionTracing("swap", list, new dynamic[]{ a, b });
+            if (list.isTraced()) handleFunctionTracing("swap", list, new dynamic[]{ a, b });
             
             return new NullVar();
         }
@@ -367,12 +367,12 @@ namespace Parser
 
         private static void handleFunctionTracing(string name, dynamic main_value, dynamic[] minor_values)
         {
-            Debugging.print("checking all the " + Global.func_tracers.Count + " function tracers for " + name);
+            Tracer.printTrace("checking all the " + Global.func_tracers.Count + " function tracers for " + name);
             foreach (FuncTracer tracer in Global.func_tracers)
             {
                 if (name == tracer.traced_func)
                 {
-                    Debugging.print("found traced function " + name);
+                    Tracer.printTrace("found traced function " + name);
                     tracer.awaitTrace(new Event(new Alteration(name, main_value, minor_values)), main_value);
                     return;
                 }

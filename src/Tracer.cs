@@ -64,7 +64,7 @@ namespace Parser
 
         public void awaitTrace(Event event_, dynamic value)
         {
-            print("await event call");
+            printTrace("await event call");
             Debugging.assert(!corrupted);
             _awaiting_event.Push(event_);
             _awaiting_values.Push(value);
@@ -75,7 +75,7 @@ namespace Parser
             Debugging.assert(!corrupted);
             while (_awaiting_event.Count != 0)
             {
-                print("updating awaiting event " + _awaiting_event.Peek().ToString());
+                printTrace("updating awaiting event " + _awaiting_event.Peek().ToString());
                 update(_awaiting_event.Pop(), _awaiting_values.Pop());
             }
         }
@@ -86,17 +86,17 @@ namespace Parser
 
         public static void updateTracers(string add_call_info = "")
         {
-            // print additional info about the call if needed
-            if (add_call_info != "") print(add_call_info);
+            // printTrace additional info about the call if needed
+            if (add_call_info != "") printTrace(add_call_info);
             // check for new usable variables
             foreach (KeyValuePair<string,Variable> pair in Global.variables)
             {
                 if (!Global.usable_variables.Contains(pair.Key))
                 {
-                    print("checking potential var ", pair.Value is NullVar ? "null" : pair.Value.getName());
+                    printTrace("checking potential var ", pair.Value is NullVar ? "null" : pair.Value.getName());
                     if (!(pair.Value is NullVar) && pair.Value.assigned)
                     {
-                        print("var ", pair.Value.getName(), " is usable (non-null & assigned)");
+                        printTrace("var ", pair.Value.getName(), " is usable (non-null & assigned)");
                         Global.usable_variables.Add(pair.Key);
                     }
                 }
@@ -106,29 +106,33 @@ namespace Parser
             checkAllAwaitingEvent();
             
             // check tracer event stacks
-            print("checking variable tracer event stacks");
+            printTrace("checking variable tracer event stacks");
             foreach (VarTracer tracer in Global.var_tracers)
             {
-                if (tracer.last_stack_count != tracer.getStackCount())
+                while (tracer.last_stack_count != tracer.getStackCount())
                 {
-                    print("stack count changed for ", tracer.getVar().getName(), " from ", tracer.last_stack_count, " to ", tracer.getStackCount());
-                    
+                    printTrace("stack count changed for ", tracer.getVar().getName(), " from ", tracer.last_stack_count, " to ", tracer.getStackCount());
+                    printTrace("call graphical function");
+
                     // traced functions have already been processed. checking awaiting stacks
                     int diff = tracer.getStackCount() - tracer.last_stack_count;
-                    print("stack difference is ", diff);
+                    printTrace("stack difference is ", diff);
                     Debugging.assert(diff > 0); // cannot handle rewinding yet
+
+                    tracer.last_stack_count++; //! here
 
                     while (tracer._awaiting_event.Count != 0)
                     {
+                        printTrace("awaiting stacks: ", tracer._awaiting_event.Count);
                         Alteration alter = tracer._awaiting_event.Peek().additional;
-                        Console.WriteLine("call graphical function"); //! should take away this line, for Unity
+                        printTrace("call graphical function");
                         if (Global.graphical_function != null)
                         {
                             Global.graphical_function(alter);
                         }
                         else
                         {
-                            print("Graphical function is none.");
+                            printTrace("Graphical function is none.");
                             //throw Global.aquilaError();
                         }
                         tracer.update(tracer._awaiting_event.Pop(), tracer._awaiting_values.Pop());
@@ -138,18 +142,18 @@ namespace Parser
                 }
             }
 
-            Global.current_line_index++;
+            //Global.current_line_index++;
         }
 
         private static void checkAllAwaitingEvent()
         {
-            print("checking all var tracers");
+            printTrace("checking all var tracers");
             foreach (VarTracer tracer in Global.var_tracers)
             {
                 tracer.checkAwaiting();
             }
             
-            print("checking all func tracers");
+            printTrace("checking all func tracers");
             foreach (FuncTracer tracer in Global.func_tracers)
             {
                 tracer.checkAwaiting();
@@ -159,7 +163,7 @@ namespace Parser
         public dynamic peekValue() => _values.Peek();
         public dynamic peekEvent() => _events.Peek();
 
-        public static void print(params object[] args)
+        public static void printTrace(params object[] args)
         {
             // if not in debugging mode, return
             if (!Global.trace_debug) { return; }
@@ -223,12 +227,12 @@ namespace Parser
 
         public override void update(Event event_, dynamic manual_value = null)
         {
-            last_stack_count++;
+            //last_stack_count++;
             Debugging.assert(!corrupted);
             Debugging.assert(event_.additional != null); // variable events can only hold Alterations, so checking for null
             _values.Push(manual_value == null ? _traced_var.getValue() : manual_value);
             _events.Push(event_);
-            print("updated (value: " + peekValue().ToString() + ")");
+            printTrace("updated (value: " + peekValue().ToString() + ")");
         }
 
         public override void rewind(int n = 2)
@@ -240,9 +244,9 @@ namespace Parser
             dynamic dyn_value = null;
             for (int i = 0; i < n; i++)
             {
-                print("rewind: ", i, "/", n);
+                printTrace("rewind: ", i, "/", n);
                 dyn_value = _values.Pop();
-                print("dyn_value: ", dyn_value.ToString());
+                printTrace("dyn_value: ", dyn_value.ToString());
                 _events.Pop();
             }
 
@@ -252,11 +256,11 @@ namespace Parser
 
         public void squeezeEvents(int n, Event event_)
         {
-            last_stack_count -= n - 1; // - 1: adds manually a stack level at the end of the function
+            //last_stack_count -= n - 1; // - 1: adds manually a stack level at the end of the function
             Debugging.assert(!corrupted);
             Debugging.assert(_values.Count >= n); // _values and _events have the same length
 
-            print("squeezing ", n);
+            printTrace("squeezing ", n);
             for (int i = 0; i < n; i++)
             {
                 _values.Pop();
@@ -266,7 +270,7 @@ namespace Parser
             _values.Push(_traced_var.getValue());
             _events.Push(event_);
 
-            print("resulting length: ", _events.Count, " & ", _values.Count);
+            printTrace("resulting length: ", _events.Count, " & ", _values.Count);
         }
     }
 
@@ -291,21 +295,21 @@ namespace Parser
             _values.Push(event_.additional); // Alteration
             _events.Push(event_);
 
-            print("value stack size: " + _values.Count);
-            print("event stack size: " + _events.Count);
+            printTrace("value stack size: " + _values.Count);
+            printTrace("event stack size: " + _events.Count);
 
             for (int i = 0; i < _affected_indexs.Length; i++)
             {
                 int index = _affected_indexs[i];
                 int num_squeeze_steps = _num_steps[i];
-                print("function squeezing args: ", i, " ", index, " ", num_squeeze_steps);
+                printTrace("function squeezing args: ", i, " ", index, " ", num_squeeze_steps);
                 Alteration alter = event_.additional;
                 Variable affected = alter.main_value as Variable;
                 Debugging.assert(affected != null);
                 Debugging.assert(affected.isTraced());
                 affected.tracer.squeezeEvents(num_squeeze_steps, new Event( new Alteration(traced_func, peekValue().main_value, peekValue().minor_values)));
             }
-            print("updated");
+            printTrace("updated");
         }
 
         public override void rewind(int n)

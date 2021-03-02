@@ -110,6 +110,16 @@ namespace Parser
             {
                 return new FloatVar(float_value);
             }
+            if (float.TryParse(expr_string.Replace('.', ','), out float_value))
+            {
+                return new FloatVar(float_value);
+            }
+            if (expr_string.EndsWith("f") &&
+                float.TryParse(expr_string.Substring(0, expr_string.Length - 1), out float_value))
+            {
+                return new FloatVar(float_value);
+            }
+
 
             // mathematical operations (and logical operations ?)
             foreach (char op in Global.al_operations)
@@ -192,7 +202,7 @@ namespace Parser
             
             // since it is the last possibility for the parse call to return something, assert it is a variable
             Debugging.print("variable by name: ", expr_string);
-            Debugging.assert(expr_string.StartsWith("$"));
+            Debugging.assert(expr_string.StartsWith("$")); // SyntaxError
             // ReSharper disable once PossibleNullReferenceException
             if (expr_string.Contains("["))
             {
@@ -208,7 +218,7 @@ namespace Parser
                 Variable temp_list = variableFromName(var_name);
                 Debugging.assert(temp_list is DynamicList);
                 DynamicList list_var = temp_list as DynamicList;
-                Debugging.print("dynamic-list $", var_name, " exists");
+                Debugging.printTrace("dynamic-list $", var_name, " exists");
                 // index
                 string index_string = expr_string.Substring(bracket_start_index + 1,
                     expr_string.Length - bracket_start_index - 2); // "$l[5]" => "5"
@@ -254,7 +264,7 @@ namespace Parser
         private static Variable applyOperator(Variable v1, Variable v2, char op)
         {
             int comparison;
-            Debugging.print("applyOperator: ", v1.ToString(), " ", op, " ", v2.ToString());
+            Debugging.print("applyOperator: ", v1.ToString(), " ", op, " ", v2.ToString(), " (", v1.getTypeString(), " ", op, " ", v2.getTypeString(), ")");
             Debugging.assert(v1.hasSameParent(v2)); // operations between same classes/subclasses
             switch (op)
             {
@@ -266,12 +276,11 @@ namespace Parser
                     }
                     else if (v1 is FloatVar)
                     {
-                        //return ((FloatVar) v1).addition((v2 as FloatVar));
-                        throw new NotImplementedException();
+                        return ((FloatVar) v1).addition((v2 as FloatVar));
                     }
                     else
                     {
-                        throw Global.aquilaError();
+                        throw Global.aquilaError(); // TypeError
                     }   
                 case '-':
                     if (v1 is Integer)
@@ -280,12 +289,11 @@ namespace Parser
                     }
                     else if (v1 is FloatVar)
                     {
-                        //return ((FloatVar) v1).subtraction((v2 as FloatVar));
-                        throw new NotImplementedException();
+                        return ((FloatVar) v1).subtraction((v2 as FloatVar));
                     }
                     else
                     {
-                        throw Global.aquilaError();
+                        throw Global.aquilaError(); // TypeError
                     }
                 case '/':
                     if (v1 is Integer)
@@ -294,12 +302,11 @@ namespace Parser
                     }
                     else if (v1 is FloatVar)
                     {
-                        //return ((FloatVar) v1).division((v2 as FloatVar));
-                        throw new NotImplementedException();
+                        return ((FloatVar) v1).division((v2 as FloatVar));
                     }
                     else
                     {
-                        throw Global.aquilaError();
+                        throw Global.aquilaError(); // TypeError
                     }
                 case '*':
                     if (v1 is Integer)
@@ -308,26 +315,20 @@ namespace Parser
                     }
                     else if (v1 is FloatVar)
                     {
-                        //return ((FloatVar) v1).mult((v2 as FloatVar));
-                        throw new NotImplementedException();
+                        return ((FloatVar) v1).mult((v2 as FloatVar));
                     }
                     else
                     {
-                        throw Global.aquilaError();
+                        throw Global.aquilaError(); // TypeError
                     }
                 case '%':
                     if (v1 is Integer)
                     {
                         return ((Integer) v1).modulo((v2 as Integer));
                     }
-                    else if (v1 is FloatVar)
-                    {
-                        //return ((FloatVar) v1).modulo((v2 as FloatVar));
-                        throw new NotImplementedException();
-                    }
                     else
                     {
-                        throw Global.aquilaError();
+                        throw Global.aquilaError(); // TypeError
                     }
                 // logic
                 case '<':
@@ -338,8 +339,7 @@ namespace Parser
                     }
                     else
                     {
-                        //comparison = ((FloatVar) v1).compare((v2 as FloatVar));
-                        throw new NotImplementedException();
+                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
                     }
                     return new BooleanVar(comparison == -1);
                 case '>':
@@ -350,8 +350,7 @@ namespace Parser
                     }
                     else
                     {
-                        //comparison = ((FloatVar) v1).compare((v2 as FloatVar));
-                        throw new NotImplementedException();
+                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
                     }
                     return new BooleanVar(comparison == 1);
                 case '{':
@@ -362,8 +361,7 @@ namespace Parser
                     }
                     else
                     {
-                        //comparison = ((FloatVar) v1).compare((v2 as FloatVar));
-                        throw new NotImplementedException();
+                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
                     }
                     return new BooleanVar(comparison != 1);
                 case '}':
@@ -374,8 +372,7 @@ namespace Parser
                     }
                     else
                     {
-                        //comparison = ((FloatVar) v1).compare((v2 as FloatVar));
-                        throw new NotImplementedException();
+                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
                     }
                     return new BooleanVar(comparison != -1);
                 case '~':
@@ -386,8 +383,7 @@ namespace Parser
                     }
                     else
                     {
-                        //comparison = ((FloatVar) v1).compare((v2 as FloatVar));
-                        throw new NotImplementedException();
+                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
                     }
                     return new BooleanVar(comparison == 0);
                 case ':':
@@ -398,8 +394,7 @@ namespace Parser
                     }
                     else
                     {
-                        //comparison = ((FloatVar) v1).compare((v2 as FloatVar));
-                        throw new NotImplementedException();
+                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
                     }
                     return new BooleanVar(comparison != 0);
                 case '|':

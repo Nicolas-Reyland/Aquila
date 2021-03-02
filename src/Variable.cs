@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 // ReSharper disable SuggestVarOrType_SimpleTypes
 
@@ -208,7 +209,7 @@ namespace Parser
 
         public override string ToString()
         {
-            return _bool_value.ToString();
+            return _bool_value ? "true" : "false"; // _bool_value.ToString() capitalizes "true" and "false"
         }
 
         public override bool hasSameParent(Variable other_value) => other_value is BooleanVar || other_value is NullVar;
@@ -326,6 +327,39 @@ namespace Parser
         public override string getTypeString() => "float";
 
         public virtual bool Equals(FloatVar other) => other.getValue() == _float_value;
+
+
+        public int compare(Variable other)
+        {
+            if (_float_value > other.getValue()) return 1;
+            if (_float_value == other.getValue()) return 0;
+            return -1;
+        }
+        
+        public Variable addition(FloatVar other)
+        {
+            return new FloatVar(_float_value + other.getValue());
+        }
+        
+        public Variable subtraction(FloatVar other)
+        {
+            return new FloatVar(_float_value  - other.getValue());
+        }
+        
+        public Variable mult(FloatVar other)
+        {
+            return new FloatVar(_float_value * other.getValue());
+        }
+        
+        public Variable division(FloatVar other)
+        {
+            return new FloatVar(_float_value / other.getValue());
+        }
+
+        public override string ToString()
+        {
+            return _float_value.ToString(CultureInfo.InvariantCulture);
+        }
     }
 
     public class DynamicList : Variable
