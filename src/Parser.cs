@@ -193,7 +193,7 @@ namespace Parser
         /// <para/>* '}' is "&gt;="
         /// <para/>* '{' is "&lt;="
         /// </summary>
-        public static readonly char[] al_operations = { '-', '+', '/', '*', '%', '<', '>', '{', '}', '~', ':', '|', '&', '^' }; // '!' missing. special case
+        public static readonly char[] al_operations = { '^', '&', '|', ':', '~', '}', '{', '>', '<', '-', '+', '/', '*', '%'};//, '<', '>', '{', '}', '~', ':', '|', '&', '^' }; // '!' missing. special case
         // real priority order: { '^', '&', '|', ':', '~', '}', '{', '>', '<', '%', '*', '/', '+', '-' };
 
         /// <summary>
@@ -442,7 +442,7 @@ namespace Parser
         {
             bool interactive = false;
             Global.debug = false;
-            Global.trace_debug = false;
+            Global.trace_debug = true;
 
             Global.func_tracers.Add(new FuncTracer("list_at", new []{ 0 }, new []{ 0 }));
             Global.func_tracers.Add(new FuncTracer("swap", new []{ 0 }, new []{ 4 }));
@@ -469,7 +469,7 @@ namespace Parser
             
             Console.WriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : "Leibniz-Gregory PI approximation.aq"; // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            string src_code = args.Length == 1 ? args[0] : "test.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
 

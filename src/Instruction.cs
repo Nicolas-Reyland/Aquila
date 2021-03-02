@@ -5,11 +5,7 @@ namespace Parser
 {
     public abstract class Instruction
     {
-        private bool _graphical_instruction;
-        public int line_index;
-
-        // getters
-        public bool isGraphical() => _graphical_instruction;
+        protected int line_index;
 
         // methods
         public abstract void execute();
@@ -189,6 +185,10 @@ namespace Parser
         public override void execute()
         {
             setLineIndex();
+            // set Context
+            Context.setStatus(10); // 10: Declaration (should rly do an enum ...)
+            Context.setInfo(this);
+
             // already in dictionary
             Variable variable = _var_expr.evaluate();
             variable.assertAssignment();
@@ -205,6 +205,8 @@ namespace Parser
             Global.variables[_var_name].setName(_var_name);
             Debugging.print("finished declaration with value assignment: ", Global.variables[_var_name].assigned);
             
+            // reset Context
+            Context.reset();
             // update all tracers
             Tracer.updateTracers();
         }
@@ -226,11 +228,18 @@ namespace Parser
         public override void execute()
         {
             setLineIndex();
+            // set Context
+            Context.setStatus(10);
+            Context.setInfo(this);
+            
             Variable val = _var_value.evaluate();
             Debugging.print("assigning " + _var_name + " with expr " + _var_value.expr + " (2nd value assigned: " + val.assigned + ") and type: " + val.getTypeString());
             // special list_at case
             val.assertAssignment();
             Expression.parse(_var_name).setValue(val);
+            
+            // reset Context
+            Context.reset();
             // update all tracers
             Tracer.updateTracers();
         }

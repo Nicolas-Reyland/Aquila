@@ -42,7 +42,8 @@ namespace Parser
             Debugging.assert(index_var is Integer); // TypeError
             Integer index = index_var as Integer;
             // access at index
-            if (list_var.isTraced()) handleFunctionTracing("list_at", list, new dynamic[]{ index });
+            if (list_var.isTraced() && Context.getStatus() == 11)
+                handleFunctionTracing("list_at", list.getName(), list, list.getValue(), new dynamic[] {index.getValue()});
             return list.atIndex(index);
         }
 
@@ -64,7 +65,7 @@ namespace Parser
             List<Variable> copy = list.getValue();
             return new DynamicList(copy);
         }
-        
+
         // random number function
         private static Variable randomNumber()
         {
@@ -100,7 +101,7 @@ namespace Parser
 
             return new NullVar();
         }
-        
+
         /// <summary>
         /// Prints a line, new-line-char to the stdout
         /// </summary>
@@ -113,7 +114,7 @@ namespace Parser
             Debugging.print("end printing to console");
 
             return new NullVar();
-        } 
+        }
 
         /// <summary>
         /// Prints a new-line-char to the stdout
@@ -237,8 +238,8 @@ namespace Parser
             list.removeValue(b);
             list.insertValue(var_a, b);
             // update
-            if (list.isTraced()) handleFunctionTracing("swap", list, new dynamic[]{ a, b });
-            
+            if (list.isTraced()) handleFunctionTracing("swap", list.getName(), list, list.getValue(), new dynamic[]{ a.getValue(), b.getValue() });
+
             return new NullVar();
         }
 
@@ -365,7 +366,7 @@ namespace Parser
         public static void assertFunctionExists(string function_name) =>
             Debugging.assert(value_functions.ContainsKey(function_name) ^ void_functions.ContainsKey(function_name)); // UnknownFunctionNameException
 
-        private static void handleFunctionTracing(string name, dynamic main_value, dynamic[] minor_values)
+        private static void handleFunctionTracing(string name, string var_name, Variable affected, dynamic main_value, dynamic[] minor_values)
         {
             Tracer.printTrace("checking all the " + Global.func_tracers.Count + " function tracers for " + name);
             foreach (FuncTracer tracer in Global.func_tracers)
@@ -373,7 +374,7 @@ namespace Parser
                 if (name == tracer.traced_func)
                 {
                     Tracer.printTrace("found traced function " + name);
-                    tracer.awaitTrace(new Event(new Alteration(name, main_value, minor_values)), main_value);
+                    tracer.awaitTrace(new Event(new Alteration(name, var_name, affected, main_value, minor_values)), main_value);
                     return;
                 }
             }

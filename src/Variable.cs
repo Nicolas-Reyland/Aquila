@@ -121,7 +121,7 @@ namespace Parser
                     return;
                 }
             }
-            tracer.update(new Event(new Alteration(info_name, value, sub_values)));
+            tracer.update(new Event(new Alteration(info_name, _name, this, value, sub_values)));
         }
         /// <summary>
         /// Has the input variable the same type as the current variable.
@@ -141,6 +141,8 @@ namespace Parser
         {
             if (!assigned) throw Global.aquilaError(); // AssignmentError
         }
+
+        public abstract int compare(Variable other);
     }
 
     public class NullVar : Variable
@@ -158,6 +160,8 @@ namespace Parser
         public override string getTypeString() => "null"; // RuntimeError (never supposed to happen whatsoever)
 
         public override string ToString() => "none";
+
+        public override int compare(Variable other) => throw Global.aquilaError();
     }
 
     public class BooleanVar : Variable
@@ -214,6 +218,8 @@ namespace Parser
 
         public override bool hasSameParent(Variable other_value) => other_value is BooleanVar || other_value is NullVar;
 
+        public override int compare(Variable other) => other.getValue() == _bool_value ? 0 : -1;
+
         public override string getTypeString() => "bool";
 
         public virtual bool Equals(BooleanVar other) => _bool_value == other.getValue();
@@ -264,8 +270,9 @@ namespace Parser
             return new Integer(this._int_value * other.getValue());
         }
 
-        public int compare(Integer n1)
+        public override int compare(Variable n1)
         {
+            Debugging.assert(hasSameParent(n1));
             assertAssignment();
             if (_int_value > n1.getValue())
             {
@@ -329,8 +336,9 @@ namespace Parser
         public virtual bool Equals(FloatVar other) => other.getValue() == _float_value;
 
 
-        public int compare(Variable other)
+        public override int compare(Variable other)
         {
+            Debugging.assert(hasSameParent(other));
             if (_float_value > other.getValue()) return 1;
             if (_float_value == other.getValue()) return 0;
             return -1;
@@ -465,16 +473,39 @@ namespace Parser
 
         public override bool hasSameParent(Variable other_value) => other_value is DynamicList || other_value is NullVar;
 
+        public override int compare(Variable other)
+        {
+            Debugging.assert(hasSameParent(other));
+            DynamicList other_list = (DynamicList) other;
+            if (length().compare(other_list.length()) != 0) return length().compare(other_list.length());
+
+            List<Variable> other_list_value = other.getValue();
+
+            for (int i = 0; i < _list.Count; i++)
+            {
+                if (other_list_value[i] != _list[i]) return -1;
+            }
+            
+            return 0;
+        }
+
         public override string getTypeString() => "list";
 
-        public virtual bool Equals(DynamicList other)
+        /// <summary>
+        /// test
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
+        public virtual bool @equals(DynamicList other)
         {
+            Console.WriteLine("Equal");
             if (length() != other.length()) return false;
             
             List<Variable> other_list = other.getValue();
 
             for (int i = 0; i < _list.Count; i++)
             {
+                Console.WriteLine("Equal? : " + other_list[i] + " & " + _list[i]);
                 if (other_list[i] != _list[i]) return false;
             }
             
@@ -524,6 +555,8 @@ namespace Parser
         public bool hasBeenCalled() => _called;
 
         public override bool hasSameParent(Variable other_value) => other_value is FunctionCall || other_value is NullVar;
+
+        public override int compare(Variable other) => throw Global.aquilaError();
 
         public override string getTypeString() => "func";
     }

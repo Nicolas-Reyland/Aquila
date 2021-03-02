@@ -272,11 +272,11 @@ namespace Parser
                 case '+':
                     if (v1 is Integer integer)
                     {
-                        return integer.addition((v2 as Integer));
+                        return integer.addition(v2 as Integer);
                     }
                     else if (v1 is FloatVar)
                     {
-                        return ((FloatVar) v1).addition((v2 as FloatVar));
+                        return ((FloatVar) v1).addition(v2 as FloatVar);
                     }
                     else
                     {
@@ -285,11 +285,11 @@ namespace Parser
                 case '-':
                     if (v1 is Integer)
                     {
-                        return ((Integer) v1).subtraction((v2 as Integer));
+                        return ((Integer) v1).subtraction(v2 as Integer);
                     }
                     else if (v1 is FloatVar)
                     {
-                        return ((FloatVar) v1).subtraction((v2 as FloatVar));
+                        return ((FloatVar) v1).subtraction(v2 as FloatVar);
                     }
                     else
                     {
@@ -298,11 +298,11 @@ namespace Parser
                 case '/':
                     if (v1 is Integer)
                     {
-                        return ((Integer) v1).division((v2 as Integer));
+                        return ((Integer) v1).division(v2 as Integer);
                     }
                     else if (v1 is FloatVar)
                     {
-                        return ((FloatVar) v1).division((v2 as FloatVar));
+                        return ((FloatVar) v1).division(v2 as FloatVar);
                     }
                     else
                     {
@@ -311,11 +311,11 @@ namespace Parser
                 case '*':
                     if (v1 is Integer)
                     {
-                        return ((Integer) v1).mult((v2 as Integer));
+                        return ((Integer) v1).mult(v2 as Integer);
                     }
                     else if (v1 is FloatVar)
                     {
-                        return ((FloatVar) v1).mult((v2 as FloatVar));
+                        return ((FloatVar) v1).mult(v2 as FloatVar);
                     }
                     else
                     {
@@ -324,7 +324,7 @@ namespace Parser
                 case '%':
                     if (v1 is Integer)
                     {
-                        return ((Integer) v1).modulo((v2 as Integer));
+                        return ((Integer) v1).modulo(v2 as Integer);
                     }
                     else
                     {
@@ -335,66 +335,66 @@ namespace Parser
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
                     if (v1 is Integer)
                     {
-                        comparison = ((Integer) v1).compare((v2 as Integer));
+                        comparison = ((Integer) v1).compare(v2 as Integer);
                     }
                     else
                     {
-                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
+                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
                     }
                     return new BooleanVar(comparison == -1);
                 case '>':
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
                     if (v1 is Integer)
                     {
-                        comparison = ((Integer) v1).compare((v2 as Integer));
+                        comparison = ((Integer) v1).compare(v2 as Integer);
                     }
                     else
                     {
-                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
+                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
                     }
                     return new BooleanVar(comparison == 1);
                 case '{':
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
                     if (v1 is Integer)
                     {
-                        comparison = ((Integer) v1).compare((v2 as Integer));
+                        comparison = ((Integer) v1).compare(v2 as Integer);
                     }
                     else
                     {
-                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
+                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
                     }
                     return new BooleanVar(comparison != 1);
                 case '}':
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
                     if (v1 is Integer)
                     {
-                        comparison = ((Integer) v1).compare((v2 as Integer));
+                        comparison = ((Integer) v1).compare(v2 as Integer);
                     }
                     else
                     {
-                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
+                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
                     }
                     return new BooleanVar(comparison != -1);
                 case '~':
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
                     if (v1 is Integer)
                     {
-                        comparison = ((Integer) v1).compare((v2 as Integer));
+                        comparison = ((Integer) v1).compare(v2 as Integer);
                     }
                     else
                     {
-                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
+                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
                     }
                     return new BooleanVar(comparison == 0);
                 case ':':
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
                     if (v1 is Integer)
                     {
-                        comparison = ((Integer) v1).compare((v2 as Integer));
+                        comparison = ((Integer) v1).compare(v2 as Integer);
                     }
                     else
                     {
-                        comparison = ((FloatVar) v1).compare((v2 as FloatVar));
+                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
                     }
                     return new BooleanVar(comparison != 0);
                 case '|':
