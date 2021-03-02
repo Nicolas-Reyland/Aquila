@@ -22,8 +22,9 @@ namespace Parser
         /// <para/>*  5: executing an instruction
         /// <para/>*  6: evaluating a value function
         /// <para/>*  7: executing a void function
-        /// <para/>*  8: executing a declaration
-        /// <para/>*  9: executing an assignment
+        /// <para/>*  8: custom status state used by <see cref="FuncTracer"/> for <see cref="VarTracer"/> stack squeezing
+        /// <para/>* 10: executing a declaration
+        /// <para/>* 11: executing an assignment
         /// <para/>* 99: running finished
         /// </summary>
         private static int _status = -1;
@@ -160,7 +161,7 @@ namespace Parser
             {"int", new Expression("0")},
             {"list", new Expression("[]")},
             {"bool", new Expression("false")},
-            {"float", new Expression("0f")}
+            {"float", new Expression("0f")},
         };
 
         /// <summary>
@@ -197,6 +198,8 @@ namespace Parser
         /// If set to true, all the <see cref="Debugging.print"/> calls will output their content to the stdout
         /// </summary>
         public static bool debug = true;
+
+        public static bool trace_debug = true;
 
         /// <summary>
         /// Temporary function that should be used as follows:<para>throw Global.NIE();</para>
@@ -249,7 +252,7 @@ namespace Parser
             {
                 StackTrace stackTrace = new StackTrace();
                 string call_name = stackTrace.GetFrame(1).GetMethod().Name;
-                throw new Exception(call_name + ": Debugging.Assertion Error. CUSTOM ERROR");
+                throw new Exception(call_name + " (" + Global.current_line_index.ToString() + "): Debugging.Assertion Error. CUSTOM ERROR");
             }
         }
 
@@ -264,11 +267,11 @@ namespace Parser
 
             int max_call_name_length = 30;
             StackTrace stackTrace = new StackTrace();
-            string call_name = stackTrace.GetFrame(1).GetMethod().Name;
-            int missing_spaces = max_call_name_length - call_name.Length;
+            string call_name = stackTrace.GetFrame(1) == null ? "? stackTrace == null ?" : stackTrace.GetFrame(1).GetMethod().Name;
+            int missing_spaces = max_call_name_length - call_name.Length - Global.current_line_index.ToString().Length - 2; // 2: parentheses
             
             // debugging mode is on
-            Console.Write("DEBUG " + call_name);
+            Console.Write("DEBUG " + call_name + "(" + Global.current_line_index.ToString() + ")");
             for (int i = 0; i < missing_spaces; i++) { Console.Write(" "); }
             
             Console.Write(" : ");
@@ -332,10 +335,19 @@ namespace Parser
                         i = next_line_index; // updating i
                         Debugging.print("jumped to ", i);
                     }
-                    else if (full[i] == '\n'){
-                        lines.Add(full.Substring(last_valid_index, i - last_valid_index));
+                    else if (full[i] == '\n')
+                    {
+                        string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
+                        lines.Add(line_of_valid_code);
                         last_valid_index = i + 1; // + 1 : don't take the '\n' char
-                        Debugging.print("adding line of code");
+                        Debugging.print("adding line of code ", lines.Count, " : ", line_of_valid_code);
+                    }
+                    else if (i == full.Length - 1) // in case the file just ends there (could check EOF ?)
+                    {
+                        string line_of_valid_code = full.Substring(last_valid_index);
+                        lines.Add(line_of_valid_code);
+                        last_valid_index = i + 1; // + 1 : don't take the '\n' char
+                        Debugging.print("adding last line of code ", lines.Count, " : ", line_of_valid_code);
                     }
                 }
                 else if (ml_close_flag.Length < remaining && full.Substring(i, ml_close_flag.Length) == ml_close_flag)
@@ -629,8 +641,9 @@ namespace Parser
                     Console.WriteLine("var tracers:");
                     foreach (VarTracer tracer in Global.var_tracers)
                     {
-                        Console.WriteLine(" - var   : " + (tracer.getTracedObject() as Variable).getName());
-                        Console.WriteLine(" - stack : " + tracer.getStackCount());
+                        Console.WriteLine(" - var     : " + (tracer.getTracedObject() as Variable).getName());
+                        Console.WriteLine(" - stack   : " + tracer.getStackCount());
+                        Console.WriteLine(" - updated : " + tracer.last_stack_count);
                     }
                     Console.WriteLine("func tracers:");
                     foreach (FuncTracer tracer in Global.func_tracers)
@@ -729,12 +742,14 @@ namespace Parser
         // ReSharper disable once InconsistentNaming
         static void Main(string[] args)
         {
-            Global.debug = true;
-            
+            bool interactive = false;
+            Global.debug = false;
+            Global.trace_debug = false;
+
             Global.func_tracers.Add(new FuncTracer("list_at", new []{ 0 }, new []{ 0 }));
             Global.func_tracers.Add(new FuncTracer("swap", new []{ 0 }, new []{ 4 }));
 
-            if (false)//args.Length > 0 && args[0] == "interactive")
+            if (interactive || args.Length > 0 && args[0] == "interactive")
             {
                 Interpreter.interactiveMode(new List<string>() {"declare l [1, 2, 3, 4]", "trace $l", "swap($l, 0, 2)"} );
                 return;
@@ -768,9 +783,9 @@ namespace Parser
             Variable return_value = Interpreter.runAlgorithm(algo);
 
             //stopwatch.Stop();
-            //Console.WriteLine(return_value);
+            Console.WriteLine(return_value);
             
-            Console.WriteLine("Value Stack:");
+            /*Console.WriteLine("Value Stack:");
             Global.var_tracers[0].printValueStack();
             Console.WriteLine("Event Stack:");
             Global.var_tracers[0].printEventStack();
@@ -780,7 +795,7 @@ namespace Parser
             Console.WriteLine("\nlist_at Value Stack:");
             Global.func_tracers[0].printValueStack();
             Console.WriteLine("list_at Event Stack:");
-            Global.func_tracers[0].printEventStack();
+            Global.func_tracers[0].printEventStack();*/
 
             //Console.WriteLine("Time: {0} ms", stopwatch.Elapsed.Milliseconds);
         }

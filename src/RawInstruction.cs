@@ -24,6 +24,8 @@ namespace Parser
         /// The line of pseudo-code represented by the <see cref="RawInstruction"/>
         /// </summary>
         private readonly string _instr;
+
+        private readonly int _line_index; // line index of this RawInstruction in the Source Code
         
         /// <summary>
         /// Nested <see cref="RawInstruction"/>s are for-loops, if-statements, etc.
@@ -39,9 +41,10 @@ namespace Parser
         /// Constructor
         /// </summary>
         /// <param name="instr"> instruction</param>
-        public RawInstruction(string instr)
+        public RawInstruction(string instr, int line_index)
         {
             this._instr = instr;
+            this._line_index = line_index;
         }
 
         /// <summary>
@@ -68,22 +71,22 @@ namespace Parser
         /// </summary>
         /// <param name="lines"> list of strings</param>
         /// <returns> list of RawInstructions</returns>
-        public static List<RawInstruction> code2RawInstructions(List<string> lines)
+        public static List<RawInstruction> code2RawInstructions(List<string> lines, int add_index_count = 0)
         {
-            int index = 0;
+            int line_index = 0;
             List<RawInstruction> instructions = new List<RawInstruction> ();
 
-            while (index < lines.Count) // using while loop bc index will be modified
+            while (line_index < lines.Count) // using while loop bc index will be modified
             {
-                string line = lines.ElementAt(index);
+                string line = lines.ElementAt(line_index);
                 Debugging.print("doing line ", line);
                 if (line.StartsWith("#")) // macro preprocessor line
                 {
-                    index++;
+                    line_index++;
                     continue;
                 }
 
-                RawInstruction instr = new RawInstruction (line);
+                RawInstruction instr = new RawInstruction (line, line_index + add_index_count);
 
                 foreach (KeyValuePair<string, string> val in Global.nested_instruction_flags)
                 {
@@ -92,17 +95,17 @@ namespace Parser
                         Debugging.print("FOUND " + val.Key);
                         instr._is_nested = true;
                         int end_index =
-                            StringUtils.findCorrespondingElementIndex(lines, index + 1, val.Key, val.Value);
-                        List<string> sub_lines = lines.GetRange(index + 1, end_index - index - 1);
+                            StringUtils.findCorrespondingElementIndex(lines, line_index + 1, val.Key, val.Value);
+                        List<string> sub_lines = lines.GetRange(line_index + 1, end_index - line_index - 1);
 
-                        instr._sub_instr_list = code2RawInstructions(sub_lines);
-                        Debugging.print(index, " - ", end_index);
-                        index = end_index;
+                        instr._sub_instr_list = code2RawInstructions(sub_lines, line_index + 1);
+                        Debugging.print(line_index, " - ", end_index);
+                        line_index = end_index;
                     }
                 }
 
                 instructions.Add(instr);
-                index++;
+                line_index++;
             }
 
             return instructions;
@@ -114,9 +117,9 @@ namespace Parser
         /// <returns> corresponding <see cref="Instruction"/></returns>
         public Instruction toInstr()
         {
-            return rawInstr2Instr(this);
+            return rawInstr2Instr(_line_index, this);
         }
-        
+
         /// <summary>
         /// Transforms a <see cref="RawInstruction"/> into an <see cref="Instruction"/>.
         /// <para/>The order of operations is:
@@ -127,10 +130,11 @@ namespace Parser
         /// <para/>* if statement
         /// <para/>* void function call
         /// </summary>
+        /// <param name="line_index"> index of the line in the purged source code</param>
         /// <param name="raw_instr"> a <see cref="RawInstruction"/></param>
         /// <returns> teh corresponding <see cref="Instruction"/></returns>
         /// <exception cref="Global.aquilaError"></exception>
-        private static Instruction rawInstr2Instr(RawInstruction raw_instr)
+        private static Instruction rawInstr2Instr(int line_index, RawInstruction raw_instr)
         {
             /* Order of operations:
              * variable declaration
@@ -156,7 +160,7 @@ namespace Parser
                     traced_vars.Add(new Expression(instr[i]));
                 }
 
-                return new Tracing(traced_vars);
+                return new Tracing(line_index, traced_vars);
             }
 
             Debugging.print("declare ?");
@@ -197,16 +201,16 @@ namespace Parser
                     Expression default_value = Global.default_values_by_var_type[instr[1]];
                     if (type_declared)
                     {
-                        return new Declaration(instr[2], new Expression(instr[3]), instr[1], true);
+                        return new Declaration(line_index, instr[2], new Expression(instr[3]), instr[1], true);
                     }
-                    return new Declaration(instr[2], default_value, "auto", false);
+                    return new Declaration(line_index, instr[2], default_value, "auto", false);
                 }
 
                 // case is: "declare var_name value"
                 string var_name = instr[1];
                 string var_value = instr[2];
 
-                return new Declaration(var_name, new Expression(var_value));
+                return new Declaration(line_index, var_name, new Expression(var_value));
             }
 
             Debugging.print("assignment ?");
@@ -221,7 +225,7 @@ namespace Parser
                 string assignment_string = StringUtils.reuniteBySymbol(instr);
                 // get the Expresion
                 Expression assignment = new Expression(assignment_string);
-                return new Assignment(var_designation, assignment);
+                return new Assignment(line_index, var_designation, assignment);
             }
             
             Debugging.print("for loop ?");
@@ -237,22 +241,23 @@ namespace Parser
                 Debugging.assert(sub_instr.Count == 3); // syntax
 
                 // start
-                Instruction start = new RawInstruction(sub_instr[0]).toInstr();
+                Instruction start = new RawInstruction(sub_instr[0], raw_instr._line_index).toInstr();
 
                 // stop
                 Expression condition = new Expression(sub_instr[1]);
                 
                 // step
-                Instruction step = new RawInstruction(sub_instr[2]).toInstr();
+                Instruction step = new RawInstruction(sub_instr[2], raw_instr._line_index).toInstr();
 
                 // instr
                 List<Instruction> loop_instructions = new List<Instruction>();
+                int add_index = 0;
                 foreach (RawInstruction loop_instr in raw_instr._sub_instr_list)
                 {
-                    loop_instructions.Add(rawInstr2Instr(loop_instr));
+                    loop_instructions.Add(rawInstr2Instr(line_index + ++add_index, loop_instr));
                 }
 
-                return new ForLoop(start, condition, step, loop_instructions);
+                return new ForLoop(line_index, start, condition, step, loop_instructions);
 
             }
 
@@ -268,12 +273,13 @@ namespace Parser
                 
                 // instr
                 List<Instruction> loop_instructions = new List<Instruction>();
+                int add_index = 0;
                 foreach (RawInstruction loop_instr in raw_instr._sub_instr_list)
                 {
-                    loop_instructions.Add(rawInstr2Instr(loop_instr));
+                    loop_instructions.Add(rawInstr2Instr(line_index + ++add_index, loop_instr));
                 }
 
-                return new WhileLoop(condition, loop_instructions);
+                return new WhileLoop(line_index, condition, loop_instructions);
             }
             
             Debugging.print("if statement ?");
@@ -290,8 +296,10 @@ namespace Parser
                 List<Instruction> if_instructions = new List<Instruction>();
                 List<Instruction> else_instructions = new List<Instruction>();
                 bool if_section = true;
+                int add_index = 0;
                 foreach (RawInstruction loop_instr in raw_instr._sub_instr_list)
                 {
+                    add_index++;
                     if (if_section)
                     {
                         if (loop_instr._instr == "else")
@@ -299,15 +307,15 @@ namespace Parser
                             if_section = false;
                             continue;
                         }
-                        if_instructions.Add(rawInstr2Instr(loop_instr));
+                        if_instructions.Add(rawInstr2Instr(line_index + add_index, loop_instr));
                     }
                     else
                     {
-                        else_instructions.Add(rawInstr2Instr(loop_instr));
+                        else_instructions.Add(rawInstr2Instr(line_index + add_index, loop_instr));
                     }
                 }
 
-                return new IfCondition(condition, if_instructions, else_instructions);
+                return new IfCondition(line_index, condition, if_instructions, else_instructions);
             }
 
             Debugging.print("function call ?");
@@ -330,13 +338,13 @@ namespace Parser
                 // no args ?
                 if (arg_expr_str.Count == 1 && StringUtils.purgeLine(arg_expr_str[0]) == "")
                 {
-                    return new VoidFunctionCall(function_name);
+                    return new VoidFunctionCall(line_index, function_name);
                 }
                 
                 List<Expression> arg_exprs = arg_expr_str.Select(x => new Expression(x)).ToList();
                 object[] args = arg_exprs.Select(x => (object) x).ToArray();
 
-                return new VoidFunctionCall(function_name, args);
+                return new VoidFunctionCall(line_index, function_name, args);
             }
 
             Debugging.print("!unrecognized line: \"", raw_instr._instr, "\"");

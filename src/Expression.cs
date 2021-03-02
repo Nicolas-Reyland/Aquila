@@ -31,7 +31,7 @@ namespace Parser
         /// Call <see cref="parse"/> on <see cref="expr"/>
         /// </summary>
         /// <returns> Arithmetic or logic value of <see cref="expr"/></returns>
-        public Variable evaluate() => parse(expr);
+        public Variable evaluate(bool force_stop_tracer_update = false) => parse(expr, force_stop_tracer_update);
 
         /// <summary>
         /// Takes an arithmetical or logical expression and returns the corresponding variable
@@ -42,7 +42,7 @@ namespace Parser
         /// </summary>
         /// <param name="expr_string"> expression to parse</param>
         /// <returns> Variable object containing the value of the evaluated expression value (at time t)</returns>
-        public static Variable parse(string expr_string)
+        public static Variable parse(string expr_string, bool force_stop_tracer_update = false)
         {
             /* Order of operations:
              * checking expression string integrity
@@ -65,6 +65,9 @@ namespace Parser
             Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '(', ')'));
             Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '[', ']'));
             expr_string = StringUtils.removeRedundantMatchingDelimiters(expr_string, '(', ')');
+            
+            // update Tracers before expression execution
+            if (!force_stop_tracer_update) Tracer.updateTracers("update Tracers in Expression.parse");
 
             // dynamic list
             try
@@ -105,7 +108,7 @@ namespace Parser
             // try evaluating expression as float
             if (float.TryParse(expr_string, out float float_value))
             {
-                throw new NotImplementedException(); //! (voir comment j'ai fait avec les Integer)
+                return new FloatVar(float_value);
             }
 
             // mathematical operations (and logical operations ?)

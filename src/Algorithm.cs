@@ -71,6 +71,7 @@ namespace Parser
                     // casted ReturnValueException
                     AquilaExceptions.ReturnValueException exception =
                         (AquilaExceptions.ReturnValueException) out_exception.InnerException;
+
                     if (exception == null)
                     {
                         throw Global.aquilaError(); // something went wrong

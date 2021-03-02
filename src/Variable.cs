@@ -6,31 +6,94 @@ using System.Linq;
 namespace Parser
 {
     /// <summary>
-    /// This is a summary
-    /// <para>this is a new paragraph (new line, etc)</para>
-    /// This links to the class Expression : <see cref="Expression"/>
+    /// The <see cref="Variable"/> abstract class defines all the Variables types
+    /// in Aquila. It can be used to store variables from the code, as well as to
+    /// designate some value (e.g. "1" or "true"), which is calculated using
+    /// the <see cref="Expression.parse"/> method
     /// </summary>
     public abstract class Variable
     {
         // attributes
+        /// <summary>
+        /// Variable name
+        /// </summary>
         private string _name;
+        /// <summary>
+        /// Has the variable be assigned a value or has it only be declared ?
+        /// </summary>
         public bool assigned;
+        /// <summary>
+        /// If the variable is traced by a <see cref="VarTracer"/>, this should be
+        /// its <see cref="Tracer"/>. It only has a <see cref="Tracer"/> attached to
+        /// it if the <see cref="startTracing"/> method has been called. You can know
+        /// if a <see cref="Variable"/> is traced by using the <see cref="isTraced"/> method
+        /// </summary>
         public VarTracer tracer;
+        /// <summary>
+        /// is the variable traced
+        /// </summary>
         private bool _traced = false;
-        
-        public string test_data = "none"; // for testing purposes only
+        /// <summary>
+        /// For debugging and testing purposes
+        /// </summary>
+        public string test_data = "some random data";
 
         // getters
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> is the <see cref="Variable"/> traced ?</returns>
         public bool isTraced() => _traced;
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> the name</returns>
         public string getName() => _name;
+        /// <summary>
+        /// If the <see cref="Variable"/> is an <see cref="Integer"/>, returns "int".
+        /// If it is a <see cref="DynamicList"/>, returns "list", etc.
+        /// </summary>
+        /// <returns> Variable type as string</returns>
         public abstract string getTypeString();
+        /// <summary>
+        /// Create a <see cref="Variable"/> of the same type as itself.
+        /// <para/>For example:
+        /// If this method is called on an instance of the <see cref="Integer"/> class,
+        /// the value should be an int (Int32 in C#). It will return a new
+        /// <see cref="Integer"/> having the value of the input value.
+        /// </summary>
+        /// <param name="value"> internal value of the new <see cref="Variable"/></param>
+        /// <returns> new <see cref="Variable"/> sub-class</returns>
         public abstract Variable cloneTypeToVal(dynamic value);
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> real internal value of the class (int, float, List, etc.)</returns>
         public abstract dynamic getValue();
-
-        // setters
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        public void assign() => assigned = true;
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <param name="new_name"> new string Name</param>
         public void setName(string new_name) => _name = new_name;
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <param name="other_value"> new Value for the class</param>
+        public abstract void setValue(Variable other_value);
+        /// <summary>
+        /// Force the variable to get a new value. Disables tracing for this step
+        /// </summary>
+        /// <param name="value"> new internal value for the variable</param>
+        public abstract void forceSetValue(dynamic value);
 
         // methods
+        /// <summary>
+        /// Attach a <see cref="VarTracer"/> to the variable
+        /// </summary>
         public void startTracing()
         {
             Debugging.print("enabling tracing for " + this._name);
@@ -38,8 +101,14 @@ namespace Parser
             Global.var_tracers.Add(tracer);
             _traced = true;
         }
-
-        public void trace(string info_name, dynamic value, dynamic[] sub_values, bool check = false)
+        /// <summary>
+        /// Trace the variable value <see cref="Alteration"/>
+        /// </summary>
+        /// <param name="info_name"> name of the method</param>
+        /// <param name="value"> new internal value</param>
+        /// <param name="sub_values"> sub_values are e.g. function parameters</param>
+        /// <param name="check"> force checking for different value in ?</param>
+        protected void trace(string info_name, dynamic value, dynamic[] sub_values, bool check = false)
         {
             if (!_traced) return;
             if (check)
@@ -47,21 +116,26 @@ namespace Parser
                 Debugging.print("checking if any values have changed");
                 if (tracer.peekValue() == getValue())
                 {
-                    Debugging.print("values equal. no updating");
+                    Debugging.print("values equal. no updating done");
                     return;
                 }
             }
             tracer.update(new Event(new Alteration(info_name, value, sub_values)));
         }
-
-        public abstract void setValue(Variable other_value);
-
-        public abstract void forceSetValue(dynamic value);
-
+        /// <summary>
+        /// Has the input variable the same type as the current variable.
+        /// For example: the current variable could be an <see cref="Integer"/>.
+        /// If the input <see cref="Variable"/>
+        /// is a <see cref="FloatVar"/>, the return value would be false
+        /// </summary>
+        /// <param name="other"> input <see cref="Variable"/></param>
+        /// <returns> is it an instance of the same sub class</returns>
         public abstract bool hasSameParent(Variable other);
-
-        public void assign() => assigned = true;
-
+        /// <summary>
+        /// Before using the variable and its value, check if the variable has
+        /// been assigned to a value (and not only declared)
+        /// </summary>
+        /// <exception cref="Exception"></exception>
         internal void assertAssignment()
         {
             if (!assigned) throw Global.aquilaError(); // AssignmentError

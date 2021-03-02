@@ -5,15 +5,15 @@ namespace Parser
 {
     public abstract class Instruction
     {
-#pragma warning disable 649
-        private bool _graphical_instruction; // #pragma : stop compiler warning due to unused _graphical_instruction variable
-#pragma warning restore 649
+        private bool _graphical_instruction;
+        public int line_index;
 
         // getters
         public bool isGraphical() => _graphical_instruction;
 
         // methods
         public abstract void execute();
+        protected void setLineIndex() => Global.current_line_index = line_index;
     }
 
     public abstract class NestedInstruction : Instruction // ex: for, while, if, etc.
@@ -24,6 +24,7 @@ namespace Parser
 
         public override void execute()
         {
+            setLineIndex();
             foreach (Instruction instr in instructions)
             {
                 instr.execute();
@@ -38,10 +39,12 @@ namespace Parser
         private readonly Expression _condition;
         protected bool in_loop = false;
 
-        protected Loop(Expression condition, List<Instruction> instructions)
+        protected Loop(int line_index, Expression condition, List<Instruction> instructions)
         {
+            this.line_index = line_index;
             this._condition = condition;
             this.instructions = instructions;
+            this.line_index = line_index;
         }
 
         protected bool test()
@@ -57,13 +60,14 @@ namespace Parser
 
     public class WhileLoop : Loop
     {
-        public WhileLoop(Expression condition, List<Instruction> instructions) : base(condition, instructions)
+        public WhileLoop(int line_index, Expression condition, List<Instruction> instructions) : base(line_index, condition, instructions)
         {
             //
         }
         
         public override void execute() //!
         {
+            setLineIndex();
             while (test())
             {
                 in_loop  = true;
@@ -84,12 +88,12 @@ namespace Parser
         private readonly Instruction _step;
         private readonly WhileLoop _while_loop;
 
-        public ForLoop(Instruction start, Expression condition, Instruction step,
-            List<Instruction> instructions) : base(condition, instructions)
+        public ForLoop(int line_index, Instruction start, Expression condition, Instruction step,
+            List<Instruction> instructions) : base(line_index, condition, instructions)
         {
             this._start = start;
             this._step = step;
-            this._while_loop = new WhileLoop(condition, instructions);
+            this._while_loop = new WhileLoop(line_index, condition, instructions);
             this._while_loop.instructions.Add(_step);
         }
         
@@ -110,6 +114,7 @@ namespace Parser
 
         public override void execute()
         {
+            setLineIndex();
             _start.execute();
             // update all tracers
             Tracer.updateTracers();
@@ -126,8 +131,9 @@ namespace Parser
         private readonly Expression _condition;
         private readonly List<Instruction> _else_instructions;
 
-        public IfCondition(Expression condition, List<Instruction> instructions, List<Instruction> else_instructions = null)
+        public IfCondition(int line_index, Expression condition, List<Instruction> instructions, List<Instruction> else_instructions)
         {
+            this.line_index = line_index;
             this._condition = condition;
             this.instructions = instructions;
             this._else_instructions = else_instructions;
@@ -135,6 +141,7 @@ namespace Parser
 
         public override void execute()
         {
+            setLineIndex();
             if (((BooleanVar) _condition.evaluate()).getValue())
             {
                 foreach (Instruction instr in instructions)
@@ -163,8 +170,9 @@ namespace Parser
         private readonly string _var_type;
         private readonly bool _assignment;
         
-        public Declaration(string var_name, Expression var_expr, string var_type = "auto", bool assignment = true)
+        public Declaration(int line_index, string var_name, Expression var_expr, string var_type = "auto", bool assignment = true)
         {
+            this.line_index = line_index;
             this._var_name = var_name;
             this._var_expr = var_expr;
             this._var_type = var_type;
@@ -180,6 +188,7 @@ namespace Parser
 
         public override void execute()
         {
+            setLineIndex();
             // already in dictionary
             Variable variable = _var_expr.evaluate();
             variable.assertAssignment();
@@ -206,8 +215,9 @@ namespace Parser
         private readonly string _var_name;
         private readonly Expression _var_value;
 
-        public Assignment(string var_name, Expression var_value)
+        public Assignment(int line_index, string var_name, Expression var_value)
         {
+            this.line_index = line_index;
             _var_name = var_name;
             _var_value = var_value;
             Debugging.assert(_var_name != "");
@@ -215,6 +225,7 @@ namespace Parser
 
         public override void execute()
         {
+            setLineIndex();
             Variable val = _var_value.evaluate();
             Debugging.print("assigning " + _var_name + " with expr " + _var_value.expr + " (2nd value assigned: " + val.assigned + ") and type: " + val.getTypeString());
             // special list_at case
@@ -231,14 +242,16 @@ namespace Parser
         private readonly object[] _args;
         private bool _called;
 
-        public VoidFunctionCall(string function_name, params object[] args)
+        public VoidFunctionCall(int line_index, string function_name, params object[] args)
         {
+            this.line_index = line_index;
             _function_name = function_name;
             _args = args;
         }
         
         public override void execute()
         {
+            setLineIndex();
             Context.setStatus(7);
             Context.setInfo(this);
             _called = true;
@@ -257,12 +270,14 @@ namespace Parser
     {
         private readonly List<Expression> _traced_vars = new List<Expression>();
         
-        public Tracing(List<Expression> traced_vars)
+        public Tracing(int line_index, List<Expression> traced_vars)
         {
+            this.line_index = line_index;
             this._traced_vars = traced_vars;
         }
         public override void execute()
         {
+            setLineIndex();
             // the tracing instruction execution doesn't take any Tracer.updateTracers() calls
             foreach (Expression traced_expr in _traced_vars)
             {

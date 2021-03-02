@@ -34,11 +34,11 @@ namespace Parser
         private static Variable listAtFunction(Expression list_expr, Expression index_expr)
         {
             // extract list
-            Variable list_var = list_expr.evaluate();
+            Variable list_var = list_expr.evaluate(true);
             Debugging.assert(list_var is DynamicList); // TypeError
             DynamicList list = list_var as DynamicList;
             // extract index
-            Variable index_var = index_expr.evaluate();
+            Variable index_var = index_expr.evaluate(true);
             Debugging.assert(index_var is Integer); // TypeError
             Integer index = index_var as Integer;
             // access at index
@@ -221,9 +221,9 @@ namespace Parser
         private static NullVar swapFunction(Expression list_expr, Expression a_expr, Expression b_expr)
         {
             // evaluate every expression
-            DynamicList list = list_expr.evaluate() as DynamicList;
-            Integer a = a_expr.evaluate() as Integer;
-            Integer b = b_expr.evaluate() as Integer;
+            DynamicList list = list_expr.evaluate(true) as DynamicList;
+            Integer a = a_expr.evaluate(true) as Integer;
+            Integer b = b_expr.evaluate(true) as Integer;
             // check indexs
             list.validateIndex(a);
             list.validateIndex(b);
@@ -372,8 +372,8 @@ namespace Parser
             {
                 if (name == tracer.traced_func)
                 {
-                    Debugging.print("found " + name);
-                    tracer.awaitEvent(new Event(new Alteration(name, main_value, minor_values)));
+                    Debugging.print("found traced function " + name);
+                    tracer.awaitTrace(new Event(new Alteration(name, main_value, minor_values)), main_value);
                     return;
                 }
             }
