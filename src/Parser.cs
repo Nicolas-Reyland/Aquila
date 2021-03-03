@@ -440,9 +440,9 @@ namespace Parser
         // ReSharper disable once InconsistentNaming
         static void Main(string[] args)
         {
-            bool interactive = false;
+            bool interactive = true;
             Global.debug = false;
-            Global.trace_debug = true;
+            Global.trace_debug = false;
 
             Global.func_tracers.Add(new FuncTracer("list_at", new []{ 0 }, new []{ 0 }));
             Global.func_tracers.Add(new FuncTracer("swap", new []{ 0 }, new []{ 4 }));

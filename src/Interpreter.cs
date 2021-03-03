@@ -252,7 +252,7 @@ namespace Parser
         {
             if (input == "help")
             {
-                Console.WriteLine("All existing interpreter-only commands:");
+                Console.WriteLine("All existing interactive-mode-only commands:");
                 foreach (string command in new string[]
                 {
                     "help", "exit", "exec", "clear", "eval %expr", "var %var_name", "vars", "$%var_name", "debug", "trace_debug",
