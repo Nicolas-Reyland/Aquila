@@ -191,11 +191,27 @@ namespace Parser
 
                 if (!processInterpreterInput(input)) continue; // command should not be executed, then continue
 
+		if (input == "exec_info")
+		{
+		    if (!exec_mode)
+		    {
+			Console.WriteLine(" [X] Exec mode disabled. You have to have pre-defined executable lines to enable this mode");
+		    }
+		    else
+		    {
+			Console.WriteLine(" Executable lines:");
+			foreach (string line in exec_lines)
+			{
+				Console.WriteLine("  " + line);
+			}
+		   }
+		   continue;
+		}
                 if (input == "exec")
                 {
                     if (!exec_mode)
                     {
-                        Console.WriteLine(" [X] Exec mode disabled. You have to have pre-defined executables lines to enable this mode");
+                        Console.WriteLine(" [X] Exec mode disabled. You have to have pre-defined executable lines to enable this mode");
                         continue;
                     }
                     executeLines(exec_lines, false);
@@ -255,7 +271,7 @@ namespace Parser
                 Console.WriteLine("All existing interactive-mode-only commands:");
                 foreach (string command in new string[]
                 {
-                    "help", "exit", "exec", "clear", "eval %expr", "var %var_name", "vars", "$%var_name", "debug", "trace_debug",
+                    "help", "exit", "exec", "exec_info", "clear", "eval %expr", "var %var_name", "vars", "$%var_name", "debug", "trace_debug",
                     "trace_info", "rd %var_name set/get %value", "trace_uniq_stacks", "rewind %n %var_name", "reset_env"
                 })
                 {

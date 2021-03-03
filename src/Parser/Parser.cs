@@ -440,7 +440,7 @@ namespace Parser
         // ReSharper disable once InconsistentNaming
         static void Main(string[] args)
         {
-            bool interactive = true;
+            bool interactive = false;
             Global.debug = false;
             Global.trace_debug = false;
 
@@ -469,7 +469,7 @@ namespace Parser
             
             Console.WriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : "test.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            string src_code = args.Length == 1 ? args[0] : "bubble sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
 
@@ -495,8 +495,8 @@ namespace Parser
             Variable return_value = Interpreter.runAlgorithm(algo);
 
             //stopwatch.Stop();
-            Console.WriteLine(return_value);
-            
+            Console.WriteLine("returned value: " + return_value.ToString());
+
             /*Console.WriteLine("Value Stack:");
             Global.var_tracers[0].printValueStack();
             Console.WriteLine("Event Stack:");

@@ -125,7 +125,7 @@ namespace Parser
                 while (tracer.last_stack_count != tracer.getStackCount())
                 {
                     printTrace("stack count changed for ", tracer.getVar().getName(), " from ", tracer.last_stack_count, " to ", tracer.getStackCount());
-                    Console.WriteLine("call graphical function " + StringUtils.varList2String(tracer.getVar().getValue()) + " & call event: " + tracer.peekEvent().ToString());
+                    //Console.WriteLine("call graphical function " + StringUtils.varList2String(tracer.getVar().getValue()) + " & call event: " + tracer.peekEvent().ToString());
 
                     // traced functions have already been processed. checking awaiting stacks
                     int diff = tracer.getStackCount() - tracer.last_stack_count;

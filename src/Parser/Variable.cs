@@ -142,7 +142,7 @@ namespace Parser
             if (!assigned) throw Global.aquilaError(); // AssignmentError
         }
         /// <summary>
-        /// Compare two variables of the same type. If two variables
+        /// Compare two variables of the same type. If they
         /// are equal, returns 0. If they can be compared (floats, ints),
         /// returns 1 if greater, -1 if smaller. If they can't be compared
         /// in size or value in a logical way (lists, bools), returns -1
@@ -386,14 +386,13 @@ namespace Parser
         {
             if (values == null)
             {
-                assigned = false;
                 _list = new List<Variable>();
             }
             else
             {
-                assigned = true;
                 _list = values;
             }
+            assigned = true;
         }
 
         public override Variable cloneTypeToVal(dynamic value) => new DynamicList(new List<Variable>(_list));
