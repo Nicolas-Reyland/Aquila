@@ -454,7 +454,7 @@ namespace Parser
                     "declare float PI 4f",
                     "declare float n -1f",
                     "declare float d 3f",
-                    "declare num_iterations 10",
+                    "declare num_iterations 1000",
                     "for (declare i 0, $i < $num_iterations, $i = $i + 1)",
                     "$PI = $PI + $n * (4f / $d)",
                     "$d = $d + 2f",

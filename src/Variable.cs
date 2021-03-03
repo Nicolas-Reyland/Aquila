@@ -141,7 +141,15 @@ namespace Parser
         {
             if (!assigned) throw Global.aquilaError(); // AssignmentError
         }
-
+        /// <summary>
+        /// Compare two variables of the same type. If two variables
+        /// are equal, returns 0. If they can be compared (floats, ints),
+        /// returns 1 if greater, -1 if smaller. If they can't be compared
+        /// in size or value in a logical way (lists, bools), returns -1
+        /// if they differ.
+        /// </summary>
+        /// <param name="other"> other variable to compare to</param>
+        /// <returns> -1 (less or different), 0 (equal), 1 (greater)</returns>
         public abstract int compare(Variable other);
     }
 

@@ -69,6 +69,7 @@ namespace Parser
             // update Tracers before expression execution
             if (!force_stop_tracer_update) Tracer.updateTracers("update Tracers in Expression.parse");
 
+            Debugging.print("dynamic list ?");
             // dynamic list
             try
             {
@@ -89,12 +90,14 @@ namespace Parser
 
             Debugging.assert(expr_string != ""); //! NullValue here, instead of Exception
 
+            Debugging.print("int ?");
             // try evaluating expression as an integer
             if (Int32.TryParse(expr_string, out int int_value))
             {
                 return new Integer(int_value);
             }
-            
+
+            Debugging.print("bool ?");
             // try evaluating expression as a boolean
             if (expr_string == "true")
             {
@@ -104,24 +107,50 @@ namespace Parser
             {
                 return new BooleanVar(false);
             }
-
+            
+            Debugging.print("float ?");
             // try evaluating expression as float
             if (float.TryParse(expr_string, out float float_value))
             {
+                Debugging.print("french/classic float");
                 return new FloatVar(float_value);
             }
             if (float.TryParse(expr_string.Replace('.', ','), out float_value))
             {
+                Debugging.print("normalized float");
                 return new FloatVar(float_value);
             }
             if (expr_string.EndsWith("f") &&
                 float.TryParse(expr_string.Substring(0, expr_string.Length - 1), out float_value))
             {
+                Debugging.print("f-float");
                 return new FloatVar(float_value);
             }
+            
+            Debugging.print("checking for negative expression");
+            // special step: check for -(expr)
+            if (expr_string.StartsWith("-"))
+            {
+                Debugging.print("evaluating expression without \"-\" sign");
+                string opposite_sign_expr = expr_string.Substring(1); // take away the "-"
+                Variable opposite_sign_var = parse(opposite_sign_expr);
+                Debugging.print("evaluated expression without the \"-\" symbol is of type ", opposite_sign_var.getTypeString(), " and value ", opposite_sign_var.getValue());
+                if (opposite_sign_var is Integer)
+                {
+                    int signed_value = -1 * opposite_sign_var.getValue();
+                    return new Integer(signed_value);
+                }
+                if (opposite_sign_var is FloatVar)
+                {
+                    float signed_value = -1 * opposite_sign_var.getValue();
+                    return new FloatVar(signed_value);
+                }
 
+                throw Global.aquilaError();
+            }
 
-            // mathematical operations (and logical operations ?)
+            Debugging.print("AL operations ?");
+            // mathematical and logical operations
             foreach (char op in Global.al_operations)
             {
                 // ReSharper disable once PossibleNullReferenceException
@@ -157,6 +186,7 @@ namespace Parser
                     }
                 }
             }
+            Debugging.print("not (!) operator ?");
             // '!' operator (only one to take one variable)
             if (expr_string.StartsWith("!"))
             {
@@ -167,7 +197,8 @@ namespace Parser
                 Debugging.print("base val b4 not operator is ", expr.getValue());
                 return ((BooleanVar) expr).not();
             }
-            
+
+            Debugging.print("value function call ?");
             // value function call
             if (expr_string.Contains("("))
             {
@@ -190,7 +221,7 @@ namespace Parser
                 {
                     arg_list = new List<Expression>();
                 }
-                
+
                 Debugging.print("creating value function call with ", arg_list.Count, " parameters");
 
                 FunctionCall func_call = new FunctionCall(function_name, arg_list);
@@ -198,15 +229,15 @@ namespace Parser
             }
 
 
+            Debugging.print("variable ?");
             // variable access
-            
+
             // since it is the last possibility for the parse call to return something, assert it is a variable
-            Debugging.print("variable by name: ", expr_string);
             Debugging.assert(expr_string.StartsWith("$")); // SyntaxError
             // ReSharper disable once PossibleNullReferenceException
             if (expr_string.Contains("["))
             {
-                Debugging.print("list access");
+                Debugging.print("list indexing: ", expr_string);
                 throw new NotImplementedException("list bracket access disabled due to tracing issues");
                 // brackets
 /*
@@ -230,11 +261,8 @@ namespace Parser
             }
             else // only variable name, no brackets
             {
-                Debugging.print("$simple var access");
-                string var_name = expr_string.Substring(1);
-                Debugging.assert(Global.variables.ContainsKey(var_name));
-                Debugging.print("var $", var_name, " exists");
-                return Global.variables[var_name];
+                Debugging.print("var by name: ", expr_string);
+                return variableFromName(expr_string);
             }
         }
 
@@ -244,7 +272,7 @@ namespace Parser
         /// </summary>
         /// <param name="var_name"> The variable name (with or without the "$" as a prefix)</param>
         /// <returns> the corresponding <see cref="Variable"/></returns>
-        public static Variable variableFromName(string var_name)
+        private static Variable variableFromName(string var_name)
         {
             if (var_name.StartsWith("$")) var_name = var_name.Substring(1);
             Debugging.assert(Global.variables.ContainsKey(var_name));
