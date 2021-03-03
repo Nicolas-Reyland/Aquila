@@ -7,11 +7,11 @@ To compile the Interpreter:
 On Windows (never tested):
 ```
 cd src
-csc -target:exe -out:program.exe *.cs
+dotnet build
 ```
 On Linux:
 ```
-cd src/
+cd src/Parser
 mcs -target:exe -out:program.exe *.cs
 ```
 
