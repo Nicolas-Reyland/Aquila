@@ -1,3 +1,6 @@
 update.sh
 *.exe
 *.dll
+
+bin
+obj
