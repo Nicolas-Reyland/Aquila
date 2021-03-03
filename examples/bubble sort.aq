@@ -10,21 +10,10 @@ trace $l
 
 for ($i = 0, $i < $len, $i = $i + 1)
 	for ($j = 0, $j < $len - $i - 1, $j = $j + 1)
-		if ($l[$j] > $l[$j + 1])
+		if (list_at($l, $j) > list_at($l, $j + 1))
 			swap($l, $j, $j + 1)
 		end-if
 	end-for
 end-for
 
 return($l)
-
-// Main flaws:
-// - #use is only one file at a time
-// -
-//
-// Not implemented:
-// - external function definitions (working on it tho)
-// - recursivity
-// - a lot of otehr things
-// -
-//

@@ -5,7 +5,7 @@ declare n -1f
 declare d 3f
 declare num_iter 15
 
-declare bool print_steps false
+declare bool print_steps true
 
 trace $PI
 
