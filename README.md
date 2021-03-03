@@ -7,17 +7,17 @@ To compile the Interpreter:
 On Windows (never tested):
 ```
 cd src
-csc -target:exe -out:program.exe *.cs
+dotnet build
 ```
 On Linux:
 ```
-cd src/
+cd src/Parser
 mcs -target:exe -out:program.exe *.cs
 ```
 
 You can run an Aquila code file by giving its path as argument:
 
-On Windows (never tested):
+On Windows:
 ```
 program.exe "C:\Path\To\File.aq"
 ```
@@ -31,7 +31,7 @@ It will print the return value to the stdout (if there is none, prints "none").
 
 To get the interactive mode, start the compiled program with "interactive" as argument.
 
-On Windows (never tested):
+On Windows:
 ```
 program.exe interactive
 ```
