@@ -23,17 +23,17 @@ for (declare gen 0, $gen < $total_gen, $gen = $gen + 1)
 	for ($i = 0, $i < $len, $i = $i + 1)
 		// start
 		if ($i ~ 0)
-			$start = $l[$len - 1]
+			$start = list_at($l, $len - 1)
 		else
-			$start = $l[$i - 1]
+			$start = list_at($l, $i - 1)
 		end-if
 		// middle
-		$middle = $l[$i]
+		$middle = list_at($l, $i)
 		// end
 		if ($i ~ $len - 1)
-			$end = $l[0]
+			$end = list_at($l, 0)
 		else
-			$end = $l[$i + 1]
+			$end = list_at($l, $i + 1)
 		end-if
 
 		// rule 110 cases
@@ -64,7 +64,7 @@ for (declare gen 0, $gen < $total_gen, $gen = $gen + 1)
 		end-if
 
 		// apply
-		$new_list[$i] = $next_value
+		list_at($new_list, $i) = $next_value
 	end-for
 
 	// print it out
@@ -76,4 +76,4 @@ for (declare gen 0, $gen < $total_gen, $gen = $gen + 1)
 
 end-for
 
-return(0)
+return($l)

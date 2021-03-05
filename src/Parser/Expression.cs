@@ -31,7 +31,7 @@ namespace Parser
         /// Call <see cref="parse"/> on <see cref="expr"/>
         /// </summary>
         /// <returns> Arithmetic or logic value of <see cref="expr"/></returns>
-        public Variable evaluate(bool force_stop_tracer_update = false) => parse(expr, force_stop_tracer_update);
+        public Variable evaluate() => parse(expr);
 
         /// <summary>
         /// Takes an arithmetical or logical expression and returns the corresponding variable
@@ -42,7 +42,7 @@ namespace Parser
         /// </summary>
         /// <param name="expr_string"> expression to parse</param>
         /// <returns> Variable object containing the value of the evaluated expression value (at time t)</returns>
-        public static Variable parse(string expr_string, bool force_stop_tracer_update = false)
+        public static Variable parse(string expr_string)
         {
             /* Order of operations:
              * checking expression string integrity
@@ -65,9 +65,6 @@ namespace Parser
             Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '(', ')'));
             Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '[', ']'));
             expr_string = StringUtils.removeRedundantMatchingDelimiters(expr_string, '(', ')');
-            
-            // update Tracers before expression execution
-            if (!force_stop_tracer_update) Tracer.updateTracers("update Tracers in Expression.parse");
 
             Debugging.print("dynamic list ?");
             // dynamic list
@@ -234,36 +231,30 @@ namespace Parser
 
             // since it is the last possibility for the parse call to return something, assert it is a variable
             Debugging.assert(expr_string.StartsWith("$")); // SyntaxError
+            Debugging.print("list access ?");
             // ReSharper disable once PossibleNullReferenceException
             if (expr_string.Contains("["))
             {
-                Debugging.print("list indexing: ", expr_string);
-                throw new NotImplementedException("list bracket access disabled due to tracing issues");
                 // brackets
-/*
                 Debugging.assert(expr_string.EndsWith("]")); // cannot be "$l[0] + 5" bc AL_operations have already been processed
                 int bracket_start_index = expr_string.IndexOf('[');
                 Debugging.assert(bracket_start_index > 1); // "$[$i - 4]" is not valid
                 // variable
-                string var_name = expr_string.Substring(1, bracket_start_index - 1);
-                Variable temp_list = variableFromName(var_name);
-                Debugging.assert(temp_list is DynamicList);
-                DynamicList list_var = temp_list as DynamicList;
-                Debugging.printTrace("dynamic-list $", var_name, " exists");
+                Expression var_name_expr = new Expression(expr_string.Substring(0, bracket_start_index));
+                Debugging.print("list name: " + var_name_expr.expr);
                 // index
-                string index_string = expr_string.Substring(bracket_start_index + 1,
-                    expr_string.Length - bracket_start_index - 2); // "$l[5]" => "5"
-                Integer index = parse(index_string) as Integer;
-                list_var.validateIndex(index);
-                // return value
-                return list_var.atIndex(index);
-*/
+                Expression index_expr = new Expression(expr_string.Substring(bracket_start_index + 1, // + 1 : don't take the bracket
+                    expr_string.Length - bracket_start_index - 2)); // "$l[5]" => "5"
+                Debugging.print("index: " + index_expr.expr);
+
+                // create a value function call (list_at call)
+                object[] args = new object[] { var_name_expr, index_expr };
+                return Functions.callFunctionByName("list_at", args);
             }
-            else // only variable name, no brackets
-            {
-                Debugging.print("var by name: ", expr_string);
-                return variableFromName(expr_string);
-            }
+
+            // only variable name, no brackets
+            Debugging.print("var by name: ", expr_string);
+            return variableFromName(expr_string);
         }
 
         /// <summary>

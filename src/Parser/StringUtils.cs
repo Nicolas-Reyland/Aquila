@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 // ReSharper disable PossibleNullReferenceException
@@ -28,7 +30,7 @@ namespace Parser
                 Console.WriteLine(line);
             }
         }
-        
+
         /// <summary>
         /// DEPRECATED. ONLY KEPT FOR BACKUP PURPOSES.
         /// <para/>If you want to use it, /** please be aware **/ that multiple-line comment tags don't work
@@ -40,7 +42,7 @@ namespace Parser
         public static List<string> removeComments(List<string> code)
         {
             Console.Error.WriteLine("DEPRECATION WARNING. the StringUtils.removeComments method is deprecated. use at your own risk");
-            
+
             List<string> new_code = new List<string>();
             bool in_comment = false;
 
@@ -69,7 +71,7 @@ namespace Parser
                             Debugging.print("adding as only simple comment on line ", index);
                             continue;
                         }
-                        
+
                         Debugging.print("multiple comment on line too!");
                         int simple_index = line.IndexOf(Global.single_line_comment_string, StringComparison.Ordinal);
                         int multiple_index =
@@ -118,11 +120,11 @@ namespace Parser
 
             return new_code;
         }
-        
+
         /// <summary>
         /// Remove all the tabs (replaced by one space if needed) and unnecessary spaces from a pseudo-code line.
         /// Also removes comments from lines (comments start with <see cref="Global.single_line_comment_string"/>).
-        /// <para/>The input should not have comments in it (<seealso cref="removeComments"/> 
+        /// <para/>The input should not have comments in it (<seealso cref="removeComments"/>
         /// </summary>
         /// <param name="line"> line of code, can be any string tho</param>
         /// <returns> purged line</returns>
@@ -196,7 +198,7 @@ namespace Parser
                 if (s[index] == closing)
                 {
                     counter--;
-                    
+
                     if (counter == 0)
                     {
                         return index + 1;
@@ -208,12 +210,12 @@ namespace Parser
                     counter++;
                 }
             }
-            
+
             Debugging.print("entry: \"" + s + "\" & counter: {0} & start_index: {1} & s.Length: {2}", counter, start_index, s.Length);
 
             throw Global.aquilaError(); // no corresponding closing char: syntax
         }
-        
+
         /// <summary>
         /// Find the corresponding char to an opening and closing string.
         /// It works exactly as the <see cref="findCorrespondingElementIndex(string,int,char,char)"/>, but we are looking for
@@ -251,7 +253,7 @@ namespace Parser
                     counter++;
                 }
             }
-            
+
             throw Global.aquilaError(); // no corresponding closing line: syntax
         }
 
@@ -387,7 +389,7 @@ namespace Parser
             reunited = reunited.Remove(reunited.Length - symbol.Length);
             return reunited;
         }
- 
+
         /// <summary>
         /// Takes an expression and removes the parts with lower priority.
         /// this can be described as "simplifying an expresion"
@@ -407,7 +409,7 @@ namespace Parser
             int depth = 0;
             string simplified = "";
             int last_index = 0;
-            
+
             for (int i = 0; i < expr.Length; i++)
             {
                 var look = true;
@@ -445,6 +447,39 @@ namespace Parser
             return simplified;
         }
 
+        /// <summary>
+        /// Checks if the variable name is valid
+        /// </summary>
+        /// <param name="var_name"> variable name </param>
+        /// <returns> valid variable ?</returns>
+        public static bool validVariableName(string var_name)
+        {
+            // alphabet UPPER & lower + _ + 0123456789
+            foreach (char c in var_name)
+            {
+                if (c < 0x30 ||
+                    (c > 0x39 && c < 0x41) ||
+                    (c > 0x5A && c < 0x5F) ||
+                    c == 0x60 ||
+                    c > 0x7A) return false;
+            }
+            // check first character for decimal
+            if (var_name[0] < 0x3D) return false;
+
+            // check for keywords
+            foreach (string keyword in Global.reserved_keywords)
+            {
+                if (var_name == keyword) return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Equivalent to ToString() method of List(<see cref="Variable"/>)
+        /// </summary>
+        /// <param name="var_list"> list of <see cref="Variable"/></param>
+        /// <returns> string describing the entry list</returns>
         public static string varList2String(List<Variable> var_list)
         {
             string s = "{ ";
@@ -457,6 +492,93 @@ namespace Parser
             s += " }";
 
             return s;
+        }
+
+        /// <summary>
+        /// Takes a dynamic value and calls ToString() on it. If it is a List(<see cref="Variable"/>), calls
+        /// <see cref="varList2String"/> on it. If it is null, returns "null"
+        /// </summary>
+        /// <param name="value"> value to convert into a string</param>
+        /// <returns> corresponding string</returns>
+        public static string dynamic2Str(dynamic value)
+        {
+            if (value == null) return "null";
+            if (!value.ToString().Contains("System.")) return value.ToString();
+            if (value is List<Variable>) return varList2String(value);
+            if (value is Variable) return value.ToString();
+            try
+            {
+                return "// " + new DynamicList(DynamicList.valueFromRawList(value as List<dynamic>)).ToString() + " //";
+            }
+            catch
+            {
+                return value.ToString();
+            }
+        }
+
+        /// <summary>
+        /// explicit naming (see <see cref="nicePrintFunction"/>
+        /// </summary>
+        private static int _last_native_offset;
+        /// <summary>
+        /// explicit naming (see <see cref="nicePrintFunction"/>
+        /// </summary>
+        private static MethodBase _last_method;
+
+        /// <summary>
+        /// Used in <see cref="Debugging.print"/> &amp; <see cref="Tracer.printTrace"/>.
+        /// Nicely outputs debugging information to the default stdout
+        /// </summary>
+        /// <param name="max_call_name_length"> number of chars before printing the args (function name + call stack depth + spaces)</param>
+        /// <param name="num_new_method_separators"> number of '=' symbols when detecting a new function call</param>
+        /// <param name="enable_function_depth"> shift the output using function call stack depth (everything but the prefix)</param>
+        /// <param name="num_function_depth_chars"> shift magnitude (1 : 1 ' ' char per function call stack depth)</param>
+        /// <param name="prefix"> the prefix is printed before each line</param>
+        /// <param name="args"> the args you want to print, consecutively (ToString() called on each one)</param>
+        public static void nicePrintFunction(int max_call_name_length,
+            int num_new_method_separators,
+            bool enable_function_depth,
+            int num_function_depth_chars,
+            string prefix,
+            params object[] args)
+        {
+            // correct parameters
+            num_function_depth_chars = enable_function_depth ? num_function_depth_chars : 0;
+            prefix = prefix + (enable_function_depth ? "" : " ");
+            
+            // extract current method
+            StackTrace stack_trace = new StackTrace();
+            StackFrame current_stack_frame = stack_trace.GetFrame(2); // skip one frame bc this method is already called from Debugging.print or Tracer.printTrace (normally: GetFrame(1))
+            MethodBase current_method = current_stack_frame.GetMethod();
+            int current_native_offset = current_stack_frame.GetNativeOffset();
+            string call_name = current_method.Name;
+            int num_frames = stack_trace.GetFrames().Length - 2; // remove two frames : this one and debugging function
+            string space_separator = new String(' ', num_frames * num_function_depth_chars);
+            
+            // new method call ?
+            if (current_native_offset < _last_native_offset || current_method != _last_method)
+            { // (current_native_offset < _last_native_offset) means that 1. new function call or 2. same function called again (recursive)
+                string delim = new String('=', num_new_method_separators);
+                Console.Write(prefix + space_separator + delim);
+                Console.Write(" " + call_name + " (" + num_frames + ") ");
+                Console.WriteLine(delim);
+            }
+            _last_native_offset = current_native_offset;
+            _last_method = current_method;
+            
+            // every line config
+            int missing_spaces = max_call_name_length - call_name.Length - Context.getStatus().ToString().Length - 2; // 2: parentheses
+
+            // debugging mode is on
+            Console.Write(prefix + space_separator + call_name + "(" + Context.getStatus() + ")");
+            Console.Write(new String(' ', missing_spaces));
+
+            Console.Write(" : ");
+            foreach (dynamic arg in args)
+            {
+                Console.Write(arg.ToString());
+            }
+            Console.WriteLine();
         }
     }
 }

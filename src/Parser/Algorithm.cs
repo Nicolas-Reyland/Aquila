@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Xml;
+
 // ReSharper disable SuggestVarOrType_SimpleTypes
 
 namespace Parser
@@ -46,6 +48,26 @@ namespace Parser
         public string getName() => _name;
 
         /// <summary>
+        /// Set the Context status to <see cref="Context.StatusEnum.instruction_main_loop"/>.
+        /// Set the Context info to this <see cref="Algorithm"/>
+        /// </summary>
+        private void setStartContext()
+        {
+            Context.setStatus(Context.StatusEnum.instruction_main_loop);
+            Context.setInfo(this);
+        }
+
+        /// <summary>
+        /// Set the Context status to <see cref="Context.StatusEnum.instruction_main_finished"/>.
+        /// Set the Context info to this <see cref="Algorithm"/>
+        /// </summary>
+        private void setEndContext()
+        {
+            Context.setStatus(Context.StatusEnum.instruction_main_finished);
+            Context.setInfo(this);
+        }
+
+        /// <summary>
         /// Execute the Algorithm/Function. <see cref="Instruction"/> by <see cref="Instruction"/>,
         /// until the list of instructions is exhausted and we can return the <see cref="_return_value"/>,
         /// using <see cref="Expression.parse"/> on it (it is an <see cref="Expression"/>)
@@ -53,16 +75,14 @@ namespace Parser
         /// <returns> The evaluated <see cref="_return_value"/> after all the <see cref="_instructions"/> have been executed</returns>
         public Variable run()
         {
-            Context.setStatus(4);
-            Context.setInfo(_name);
+            // Algorithm start
+            setStartContext();
+
             foreach (Instruction instr in _instructions)
             {
                 try
                 {
-                    Context.setStatus(5);
-                    Context.setInfo(instr);
                     instr.execute();
-                    Context.reset();
                 }
                 catch (System.Reflection.TargetInvocationException out_exception)
                 {
@@ -83,7 +103,9 @@ namespace Parser
                 }
             }
 
-            Context.reset();
+            // no resetting here. algorithm finished
+            setEndContext();
+
             return new NullVar(); // NoReturnCallWarning
         }
     }

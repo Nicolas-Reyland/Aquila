@@ -1,6 +1,10 @@
+#name bubble sort
+#use functions.txt
 
-declare a true
-declare b false
+declare l [4, 1, 6, 0, 2]
 
+trace $l
 
+swap($l, 0, 3)
 
+return($l)

@@ -172,7 +172,10 @@ namespace Parser
             Console.WriteLine(" [?] Type \"help\" to get a list of all the interactive-mode-only commands");
             Console.WriteLine(" [?] See https://github.com/Nicolas-Reyland/Aquila/blob/main/Aquila_Documentation_unfinished.pdf for some unfinished documentation about Aquila itself");
             if (exec_mode) Console.WriteLine(" [!] Exec mode enabled. There are executables lines saved. Use the \"exec\" command to run them");
-            
+
+            Context.setStatus(Context.StatusEnum.instruction_main_loop);
+            Context.setInfo("Interactive Mode");
+
             while (true)
             {
                 if (new_line) Console.Write(getInteractivePrefix() + " > ");
@@ -191,22 +194,23 @@ namespace Parser
 
                 if (!processInterpreterInput(input)) continue; // command should not be executed, then continue
 
-		if (input == "exec_info")
-		{
-		    if (!exec_mode)
-		    {
-			Console.WriteLine(" [X] Exec mode disabled. You have to have pre-defined executable lines to enable this mode");
-		    }
-		    else
-		    {
-			Console.WriteLine(" Executable lines:");
-			foreach (string line in exec_lines)
-			{
-				Console.WriteLine("  " + line);
-			}
-		   }
-		   continue;
-		}
+		        if (input == "exec_info")
+		        {
+		            if (!exec_mode)
+		            {
+			            Console.WriteLine(" [X] Exec mode disabled. You have to have pre-defined executable lines to enable this mode");
+		            }
+		            else
+		            {
+			            Console.WriteLine(" Executable lines:");
+			            foreach (string line in exec_lines)
+			            {
+				            Console.WriteLine("  " + line);
+			            }
+                    }
+                    continue;
+		        }
+
                 if (input == "exec")
                 {
                     if (!exec_mode)
@@ -271,8 +275,14 @@ namespace Parser
                 Console.WriteLine("All existing interactive-mode-only commands:");
                 foreach (string command in new string[]
                 {
-                    "help", "exit", "exec", "exec_info", "clear", "eval %expr", "var %var_name", "vars", "$%var_name", "debug", "trace_debug",
-                    "trace_info", "rd %var_name set/get %value", "trace_uniq_stacks", "rewind %n %var_name", "reset_env"
+                    "help", "exit", "reset_env", "clear", // base interactive-mode commands
+                    "exec", "exec_info", // exec commands
+                    "debug", "trace_debug", // debugging (enable/disable) commands
+                    "eval %expr", // expr
+                    "var %var_name", "vars", "$%var_name", // variable commands
+                    "trace_info", "trace_uniq_stacks", "rewind %n %var_name", "peek_event $%traced_value", // trace commands
+                    "get_context", "set_status", "set_info_null", "reset_context", // context commands -> CONTEXT DISABLED IN INTERACTIVE MODE LMAO
+                    //"",
                 })
                 {
                     Console.WriteLine("  -> " + command);
@@ -356,27 +366,8 @@ namespace Parser
                 return false;
             }
 
-            if (input.StartsWith("rd "))
-            {
-                string[] splitted = input.Split(' ');
-                string var_name = splitted[1];
-                string mode = splitted[2];
-                if (mode == "set")
-                {
-                    string value = splitted[3];
-                    Expression.parse(var_name).test_data = value;
-                }
-                else if (mode == "get")
-                {
-                    Console.WriteLine("test_data: " + Expression.parse(var_name).test_data);
-                }
-                
-                return false;
-            }
-
             if (input == "trace_uniq_stacks")
             {
-                Global.var_tracers[0].printValueStack();
                 Global.var_tracers[0].printEventStack();
                 return false;
             }
@@ -391,7 +382,7 @@ namespace Parser
                         Console.WriteLine("cannot read n");
                         return false;
                     } 
-                    
+
                     string var_name = splitted[2];
 
                     Variable var_ = Expression.parse(var_name);
@@ -409,6 +400,27 @@ namespace Parser
                 return false;
             }
 
+            if (input.StartsWith("peek_trace"))
+            {
+                if (input.Length < 11) return false;
+                Variable var_ = Expression.parse(input.Substring(11));
+                if (!var_.isTraced())
+                {
+                    Console.WriteLine("Variable is not traced! Use the \"trace\" instruction to start tracing variables");
+                    return false;
+                }
+                Alteration alter = var_.tracer.peekEvent().alter;
+                Console.WriteLine("name         : " + alter.name);
+                Console.WriteLine("variable     : " + alter.affected.getName());
+                Console.WriteLine("main value   : " + StringUtils.dynamic2Str(alter.main_value));
+                Console.WriteLine("num minor    : " + alter.minor_values.Length);
+                Console.WriteLine("minor values : " + StringUtils.dynamic2Str(alter.minor_values));
+                Console.WriteLine("stack count  : " + var_.tracer.getStackCount());
+                Console.WriteLine("updated      : " + var_.tracer.last_stack_count);
+
+                return false;
+            }
+
             if (input == "reset_env")
             {
                 Global.variables.Clear();
@@ -420,6 +432,42 @@ namespace Parser
                 return false;
             }
 
+            if (input == "get_context")
+            {
+                int status = Context.getStatus();
+                Context.StatusEnum status_quote = (Context.StatusEnum) status;
+                object info = Context.getInfo();
+                bool blocked = Context.isBlocked();
+                bool enabled = Context.enabled;
+                Console.WriteLine("status  : " + status);
+                Console.WriteLine("quote   : " + status_quote);
+                Console.WriteLine("info    : " + info);
+                Console.WriteLine("blocked : " + blocked);
+                Console.WriteLine("enabled : " + enabled);
+
+                return false;
+            }
+
+            if (input.StartsWith("set_status "))
+            {
+                int status = Int32.Parse(input.Substring(11));
+                Context.setStatus((Context.StatusEnum) status);
+                
+                return false;
+            }
+
+            if (input == "set_info_null")
+            {
+                Context.setInfo(null);
+                return false;
+            }
+
+            if (input == "reset_context")
+            {
+                Context.reset();
+                return false;
+            }
+            
             return true;
         }
     }

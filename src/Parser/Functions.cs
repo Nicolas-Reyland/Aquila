@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 // ReSharper disable PossibleNullReferenceException
@@ -15,6 +16,13 @@ namespace Parser
     /// </summary>
     public static class Functions
     {
+        /// <summary>
+        /// Check if the current context shows that we are in the middle on a function
+        /// </summary>
+        /// <returns></returns>
+        private static bool contextInFunction() => Context.statusIs(Context.StatusEnum.function_void_call) ||
+                                                   Context.statusIs(Context.StatusEnum.function_value_call);
+        
         /// <summary>
         /// Default function
         /// <para>
@@ -34,16 +42,22 @@ namespace Parser
         private static Variable listAtFunction(Expression list_expr, Expression index_expr)
         {
             // extract list
-            Variable list_var = list_expr.evaluate(true);
+            Variable list_var = list_expr.evaluate();
             Debugging.assert(list_var is DynamicList); // TypeError
             DynamicList list = list_var as DynamicList;
             // extract index
-            Variable index_var = index_expr.evaluate(true);
+            Variable index_var = index_expr.evaluate();
             Debugging.assert(index_var is Integer); // TypeError
             Integer index = index_var as Integer;
             // access at index
-            if (list_var.isTraced() && Context.getStatus() == 11)
-                handleFunctionTracing("list_at", list.getName(), list, list.getValue(), new dynamic[] {index.getValue()});
+            if (list_var.isTraced())
+            {
+                Tracer.printTrace("list_at last event: " + list_var.tracer.peekEvent());
+                handleValueFunctionTracing("list_at", list,
+                    new dynamic[] {index.getValue()});
+                Tracer.printTrace("list_at last event: " + list_var.tracer.peekEvent());
+            }
+
             return list.atIndex(index);
         }
 
@@ -222,23 +236,29 @@ namespace Parser
         private static NullVar swapFunction(Expression list_expr, Expression a_expr, Expression b_expr)
         {
             // evaluate every expression
-            DynamicList list = list_expr.evaluate(true) as DynamicList;
-            Integer a = a_expr.evaluate(true) as Integer;
-            Integer b = b_expr.evaluate(true) as Integer;
+            DynamicList list = list_expr.evaluate() as DynamicList;
+            Integer a = a_expr.evaluate() as Integer;
+            Integer b = b_expr.evaluate() as Integer;
             // check indexs
             list.validateIndex(a);
             list.validateIndex(b);
             // extract both values
             Variable var_a = list.getValueAt(a);
             Variable var_b = list.getValueAt(b);
+            // block the context
+            Context.block();
             // change a
             list.removeValue(a);
             list.insertValue(var_b, a);
             // change b
             list.removeValue(b);
             list.insertValue(var_a, b);
-            // update
-            if (list.isTraced()) handleFunctionTracing("swap", list.getName(), list, list.getValue(), new dynamic[]{ a.getValue(), b.getValue() });
+            // unblock the context
+            Context.unblock();
+            // update manually (void)
+            if (list.isTraced())
+                list.tracer.update(new Event(
+                    new Alteration("swap", list, list.getValue(), new dynamic[] {a.getValue(), b.getValue()})));
 
             return new NullVar();
         }
@@ -343,16 +363,16 @@ namespace Parser
         {
             if (value_functions.ContainsKey(name))
             {
-                Context.assertStatus(6);
+                Context.assertStatus(Context.StatusEnum.function_value_call);
                 Debugging.print("invoking value function ", name, " dynamically with ", args.Length, " argument(s)");
-                //handleFunctionTracing(name, args); // cannot use expressions, have to use variables ...
+                //handleValueFunctionTracing(name, args); // cannot use expressions, have to use variables ...
                 return value_functions[name].DynamicInvoke(args) as Variable;
             }
             if (void_functions.ContainsKey(name))
             {
-                Context.assertStatus(7);
+                Context.assertStatus(Context.StatusEnum.function_void_call);
                 Debugging.print("invoking void function ", name, " dynamically with ", args.Length, " argument(s)");
-                //handleFunctionTracing(name, args); // cannot use expressions, have to use variables ...
+                //handleValueFunctionTracing(name, args); // cannot use expressions, have to use variables ...
                 return void_functions[name].DynamicInvoke(args) as Variable;
             }
 
@@ -366,15 +386,15 @@ namespace Parser
         public static void assertFunctionExists(string function_name) =>
             Debugging.assert(value_functions.ContainsKey(function_name) ^ void_functions.ContainsKey(function_name)); // UnknownFunctionNameException
 
-        private static void handleFunctionTracing(string name, string var_name, Variable affected, dynamic main_value, dynamic[] minor_values)
+        private static void handleValueFunctionTracing(string name, Variable affected, dynamic[] minor_values)
         {
-            Tracer.printTrace("checking all the " + Global.func_tracers.Count + " function tracers for " + name);
+            Tracer.printTrace("checking all the " + Global.func_tracers.Count + " total function tracers for " + name);
             foreach (FuncTracer tracer in Global.func_tracers)
             {
                 if (name == tracer.traced_func)
                 {
                     Tracer.printTrace("found traced function " + name);
-                    tracer.awaitTrace(new Event(new Alteration(name, var_name, affected, main_value, minor_values)), main_value);
+                    tracer.awaitTrace(new Event(new Alteration(name, affected, null, minor_values)));
                     return;
                 }
             }

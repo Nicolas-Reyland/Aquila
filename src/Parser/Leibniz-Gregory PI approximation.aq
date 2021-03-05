@@ -1,0 +1,22 @@
+#name Leigniz-Gregory forumla
+
+declare PI 4f
+declare n -1f
+declare d 3f
+declare num_iter 15
+
+declare bool print_steps true
+
+trace $PI
+
+for (declare i 0, $i < $num_iter, $i = $i + 1)
+	$PI = $PI + $n * (4f / $d)
+	$d = $d + 2f
+	$n = $n * (-1f)
+	if ($print_steps)
+		print($PI)
+		print_endl()
+	end-if
+end-for
+
+return($PI)

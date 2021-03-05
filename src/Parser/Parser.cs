@@ -2,17 +2,20 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
+
 // ReSharper disable SuggestVarOrType_SimpleTypes
+// ReSharper disable PossibleNullReferenceException
 
 namespace Parser
 {
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public static class Context
     {
         /// <summary>
-        /// Status list:
+        /// Status list: DEPRECATED. TO BE UPDATED
         /// <para/>* -1: undefined
         /// <para/>*  0: reading &amp; purging code
         /// <para/>*  1: processing macros
@@ -27,22 +30,52 @@ namespace Parser
         /// <para/>* 11: executing an assignment
         /// <para/>* 99: running finished
         /// </summary>
-        private static int _status = -1;
+        private static int _status = (int) StatusEnum.undefined;
         private static readonly Stack<int> previous_status = new Stack<int>();
         private static object _info = null;
         private static readonly Stack<object> previous_info = new Stack<object>();
+        private static bool _blocked = false;
         public static bool enabled = true;
+
+        public enum StatusEnum
+        {
+            undefined,                  // 0
+            read_purge,                 // 1
+            macro_preprocessing,        // 2
+            building_raw_instructions,  // 3
+            building_instructions,      // 4
+            instruction_main_loop,      // 5
+            instruction_function_loop,  // 6
+            trace_execution,            // 7
+            while_loop_execution,       // 8
+            for_loop_execution,         // 9
+            if_execution,               // 10
+            declaration_execution,      // 11
+            assignment_execution,       // 12
+            function_void_call,         // 13
+            function_value_call,        // 14
+            instruction_main_finished   // 15
+        }
 
         // status
         public static int getStatus() => _status;
 
-        public static void setStatus(int new_status)
+        public static bool statusIs(StatusEnum status_enum) => _status == (int) status_enum;
+
+        private static void setStatus(int new_status)
         {
             previous_status.Push(_status);
             _status = new_status;
         }
 
-        public static void resetStatus()
+        public static void setStatus(StatusEnum status_enum)
+        {
+            if (_blocked) return;
+            int status_int = (int) status_enum;
+            setStatus(status_int);
+        }
+
+        private static void resetStatus()
         {
             if (previous_status.Count == 0)
             {
@@ -57,11 +90,12 @@ namespace Parser
 
         public static void setInfo(object new_info)
         {
+            if (_blocked) return;
             previous_info.Push(_info);
             _info = new_info;
         }
 
-        public static void resetInfo()
+        private static void resetInfo()
         {
             if (previous_info.Count == 0)
             {
@@ -71,25 +105,40 @@ namespace Parser
             _info = previous_info.Pop();
         }
         
+        // block
+        public static void block()
+        {
+            Debugging.assert(!_blocked);
+            _blocked = true;
+        }
+        public static void unblock()
+        {
+            Debugging.assert(_blocked);
+            _blocked = false;
+        }
+        public static bool isBlocked() => _blocked;
+
         // all
         public static void reset()
         {
+            if (_blocked) return;
+            if (previous_info.Count != previous_status.Count) throw new Exception("inconsistent use of reset");
             resetStatus();
             resetInfo();
         }
 
-        public static void assertStatus(int supposed)
+        public static void assertStatus(StatusEnum supposed)
         {
-            if (enabled && supposed != _status)
+            if (enabled && !_blocked && (int) supposed != _status) // not sure about not being blocked ?
             {
                 throw new Exception("Context Assertion Error. Supposed: " + supposed + " but actual: " + _status);
             }
         }
     }
-    
+
     /// <summary> All the global variables are stored here. Global variables are the ones that should be accessible every, by everyone in the <see cref="Parser"/> program.
     /// <see cref="Global"/> is a static class. All it's attributes and methods are static too.
-    /// 
+    ///
     /// <para/>List of the attributes:
     /// <para/>* <see cref="variables"/> : Dictionary(string, Variable)
     /// <para/>* <see cref="usable_variables"/> : List(string)
@@ -110,10 +159,25 @@ namespace Parser
     static class Global
     {
         /// <summary>
+        /// All the reserved keywords
+        /// </summary>
+        public static readonly string[] reserved_keywords = new string[] {
+            "if", "else", "end-if",
+            "for","end-for",
+            "while", "end-while",
+            "declare",
+            "overwrite", // not yet
+            "safe", // not yet
+            "trace",
+            "void", "auto", "int", "float", "bool", "list",
+            "function", // not yet
+        };
+
+        /// <summary>
         /// Those are all the variables that the analysed algorithm uses
         /// </summary>
         public static readonly Dictionary<string, Variable> variables = new Dictionary<string, Variable>();
-        
+
         /// <summary>
         /// All the variables that are not NullVar (thus have a graphical representable value)
         /// </summary>
@@ -130,7 +194,7 @@ namespace Parser
         /// the comment-mode. It's mirror "closes" this mode
         /// </summary>
         public static readonly string multiple_lines_comment_string = "/**"; // mirror is closing tag
-        
+
         /// <summary>
         /// When executing the <see cref="Algorithm"/>, this int will be increased as the execution goes line to line.
         /// It is used to know what line is being executed at a given moment in time.
@@ -224,7 +288,7 @@ namespace Parser
         /// List of all the functions tracers
         /// </summary>
         public static readonly List<FuncTracer> func_tracers = new List<FuncTracer>();
-        
+
         /// <summary>
         /// null event generator
         /// </summary>
@@ -261,33 +325,31 @@ namespace Parser
             }
         }
 
+        private static int _last_native_offset;
+        private static MethodBase _last_method;
+
         /// <summary>
         /// Outputs the args to the stdout stream if <see cref="Global.debug"/> is set to true
         /// </summary>
         /// <param name="args"> consecutive calls of the ".ToString()" method of these will be printed</param>
-        public static void print(params dynamic[] args)
+        public static void print(params object[] args)
         {
             // if not in debugging mode, return
-            if (!Global.debug) { return; }
+            if (!Global.debug) return;
 
+            // default settings
             int max_call_name_length = 30;
-            StackTrace stackTrace = new StackTrace();
-            string call_name = stackTrace.GetFrame(1) == null ? "? stackTrace == null ?" : stackTrace.GetFrame(1).GetMethod().Name;
-            int missing_spaces = max_call_name_length - call_name.Length - Global.current_line_index.ToString().Length - 2; // 2: parentheses
+            int num_new_method_separators = 25;
+            bool enable_function_depth = true;
+            int num_function_depth_chars = 4;
+            string prefix = "+ DEBUG";
             
-            // debugging mode is on
-            Console.Write("DEBUG " + call_name + "(" + Global.current_line_index.ToString() + ")");
-            for (int i = 0; i < missing_spaces; i++) { Console.Write(" "); }
-            
-            Console.Write(" : ");
-            foreach (dynamic arg in args)
-            {
-                Console.Write(arg.ToString());
-            }
-            Console.WriteLine();
+            // print the args nicely
+            StringUtils.nicePrintFunction(max_call_name_length, num_new_method_separators, enable_function_depth,
+                num_function_depth_chars, prefix, args);
         }
     }
-    
+
     /// <summary>
     /// The Parser class is used to transform string expressions into
     /// instances of <see cref="Variable"/> and other similar objects. It is the main class used to
@@ -309,13 +371,13 @@ namespace Parser
 
             string full = file.ReadToEnd();
             file.Close();
-            
+
             string sl_flag = Global.single_line_comment_string; // single line comment string
             string ml_open_flag = Global.multiple_lines_comment_string; // multiple lines opening comment string
             char[] char_array = ml_open_flag.ToCharArray();
             Array.Reverse( char_array );
             string ml_close_flag = new string( char_array ); // multiple lines closing comment string
-            
+
             bool in_comment = false; // are we currently in a multiple-line comment
             int last_valid_index = 0; // for adding to lines
             int remaining = full.Length + 1; // remaining chars, for SubStrings
@@ -440,76 +502,37 @@ namespace Parser
         // ReSharper disable once InconsistentNaming
         static void Main(string[] args)
         {
-            bool interactive = false;
+            bool interactive = true;
             Global.debug = false;
             Global.trace_debug = false;
+            Context.enabled = true;
 
-            Global.func_tracers.Add(new FuncTracer("list_at", new []{ 0 }, new []{ 0 }));
-            Global.func_tracers.Add(new FuncTracer("swap", new []{ 0 }, new []{ 4 }));
+            Global.func_tracers.Add(new FuncTracer("list_at"));
+            Global.func_tracers.Add(new FuncTracer("swap"));
 
             if (interactive || args.Length > 0 && args[0] == "interactive")
             {
                 List<string> exec_lines = new List<string>()
                 {
-                    "declare float PI 4f",
-                    "declare float n -1f",
-                    "declare float d 3f",
-                    "declare num_iterations 1000",
-                    "for (declare i 0, $i < $num_iterations, $i = $i + 1)",
-                    "$PI = $PI + $n * (4f / $d)",
-                    "$d = $d + 2f",
-                    "$n = $n * (-1f)",
-                    "print($PI)",
-                    "print_endl()",
-                    "end-for"
-                };
+                    "declare l [-3, 7]",
+                    "trace $l",
+                    "$l[0] = 4",
+                };  
                 Interpreter.interactiveMode(exec_lines);
                 return;
             }
-            
+
             Console.WriteLine(args.Length > 0 ? args[0] : "");
 
             string src_code = args.Length == 1 ? args[0] : "bubble sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            bool interpreter_after = false;
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
-
-            /*DynamicList l_list = new DynamicList(new List<Variable>() {new Integer(0), new Integer(1), new Integer(2), new Integer(3)});
-            Global.variables.Add("i2", new Integer(-4));
-            Global.variables.Add("j2", new Integer(5));
-            Global.variables.Add("l2", l_list);*/
-            
-            //Global.debug = true;
-            
-            /*const string INSTR1_STR = "declare l4 [1, 2, 3, 4, 0]";
-            const string INSTR2_STR = "declare v []";
-            Instruction instr1 = new RawInstruction(INSTR1_STR).toInstr();
-            Instruction instr2 = new RawInstruction(INSTR2_STR).toInstr();
-            //Console.WriteLine(Expression.parse(test).getValue());
-            instr1.execute();
-            instr2.execute();
-            Console.WriteLine(Global.variables["v"]);*/
-            
-            //Stopwatch stopwatch = new Stopwatch();
-            //stopwatch.Start();
-
             Variable return_value = Interpreter.runAlgorithm(algo);
-
-            //stopwatch.Stop();
+            
             Console.WriteLine("returned value: " + return_value.ToString());
-
-            /*Console.WriteLine("Value Stack:");
-            Global.var_tracers[0].printValueStack();
-            Console.WriteLine("Event Stack:");
-            Global.var_tracers[0].printEventStack();
             
-            //Console.WriteLine(Global.func_tracers[0]._events.Count);
-            
-            Console.WriteLine("\nlist_at Value Stack:");
-            Global.func_tracers[0].printValueStack();
-            Console.WriteLine("list_at Event Stack:");
-            Global.func_tracers[0].printEventStack();*/
-
-            //Console.WriteLine("Time: {0} ms", stopwatch.Elapsed.Milliseconds);
+            if (interpreter_after) Interpreter.interactiveMode();
         }
     }
 }

@@ -34,10 +34,6 @@ namespace Parser
         /// is the variable traced
         /// </summary>
         private bool _traced = false;
-        /// <summary>
-        /// For debugging and testing purposes
-        /// </summary>
-        public string test_data = "some random data";
 
         // getters
         /// <summary>
@@ -72,6 +68,13 @@ namespace Parser
         /// <returns> real internal value of the class (int, float, List, etc.)</returns>
         public abstract dynamic getValue();
         /// <summary>
+        /// Get the "raw" value. This differs with the <see cref="getValue"/> method for <see cref="DynamicList"/>s.
+        /// In fact, instead of returning a List of <see cref="Variable"/>s, this method would return
+        /// a list of Lists, ints, etc.
+        /// </summary>
+        /// <returns> real, "raw" value</returns>
+        public virtual dynamic getRawValue() => getValue(); //! comments
+        /// <summary>
         /// explicit naming
         /// </summary>
         public void assign() => assigned = true;
@@ -97,19 +100,19 @@ namespace Parser
         /// </summary>
         public void startTracing()
         {
-            Debugging.print("enabling tracing for " + this._name);
+            Tracer.printTrace("enabling tracing for " + this._name);
             tracer = new VarTracer(this);
             Global.var_tracers.Add(tracer);
             _traced = true;
         }
         /// <summary>
-        /// Trace the variable value <see cref="Alteration"/>
+        /// Trace the variable value <see cref="Alteration"/>.
+        /// This is done manually in <see cref="FunctionCall"/> to prevent from infinite recursive calls
         /// </summary>
         /// <param name="info_name"> name of the method</param>
-        /// <param name="value"> new internal value</param>
         /// <param name="sub_values"> sub_values are e.g. function parameters</param>
         /// <param name="check"> force checking for different value in ?</param>
-        protected void trace(string info_name, dynamic value, dynamic[] sub_values, bool check = false)
+        protected void trace(string info_name, dynamic[] sub_values, bool check = false)
         {
             if (!_traced) return;
             if (check)
@@ -121,7 +124,7 @@ namespace Parser
                     return;
                 }
             }
-            tracer.update(new Event(new Alteration(info_name, _name, this, value, sub_values)));
+            tracer.update(new Event(new Alteration(info_name, this, getRawValue(), sub_values)));
         }
         /// <summary>
         /// Has the input variable the same type as the current variable.
@@ -151,6 +154,20 @@ namespace Parser
         /// <param name="other"> other variable to compare to</param>
         /// <returns> -1 (less or different), 0 (equal), 1 (greater)</returns>
         public abstract int compare(Variable other);
+        /// <summary>
+        /// Returns a <see cref="Variable"/> instance, corresponding to the value of "o"
+        /// </summary>
+        /// <param name="o"> value to interpret as a <see cref="Variable"/></param>
+        /// <returns> corresponding <see cref="Variable"/></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        protected static Variable fromRawValue(dynamic o)
+        {
+            if (o is int) return new Integer(o);
+            if (o is float) return new FloatVar(o);
+            if (o is bool) return new BooleanVar(o);
+            if (o is List<dynamic>) return new DynamicList(DynamicList.valueFromRawList(o));
+            throw new NotImplementedException("unsupported raw variable type: " + o);
+        }
     }
 
     public class NullVar : Variable
@@ -172,7 +189,7 @@ namespace Parser
         public override int compare(Variable other) => throw Global.aquilaError();
     }
 
-    public class BooleanVar : Variable
+    public sealed class BooleanVar : Variable
     {
         private bool _bool_value;
 
@@ -213,14 +230,15 @@ namespace Parser
         public override void setValue(Variable other_value)
         {
             if (!assigned) assign();
-            trace("setValue", getValue(), new dynamic[] { other_value.getValue() });
             _bool_value = other_value.getValue();
+            trace("setValue", new dynamic[] { other_value.getValue() });
         }
 
         public override void forceSetValue(dynamic value) => _bool_value = (bool) value;
 
         public override string ToString()
         {
+            if (Global.debug || Global.trace_debug) return "Boolean (" + (_bool_value ? "true" : "false") + ")";
             return _bool_value ? "true" : "false"; // _bool_value.ToString() capitalizes "true" and "false"
         }
 
@@ -230,10 +248,10 @@ namespace Parser
 
         public override string getTypeString() => "bool";
 
-        public virtual bool Equals(BooleanVar other) => _bool_value == other.getValue();
+        public bool Equals(BooleanVar other) => _bool_value == other.getValue();
     }
 
-    public class Integer : Variable
+    public sealed class Integer : Variable
     {
         private int _int_value;
 
@@ -298,14 +316,18 @@ namespace Parser
         public override void setValue(Variable other_value)
         {
             if (!assigned) assign();
-            trace("setValue", getValue(), new dynamic[] { other_value.getValue() });
+            if (Global.var_tracers.Count > 0) Tracer.printTrace("just: " + Global.var_tracers[0].peekEvent()); //! remove
             _int_value = other_value.getValue();
+            Console.WriteLine(other_value.ToString());
+            if (Global.var_tracers.Count > 0) Tracer.printTrace("just: " + Global.var_tracers[0].peekEvent()); //! remove
+            trace("setValue", new dynamic[] { other_value.getValue() });
         }
 
         public override void forceSetValue(dynamic value) => _int_value = (int) value;
 
         public override string ToString()
         {
+            if (Global.debug || Global.trace_debug) return "Integer (" + _int_value.ToString() + ")";
             return _int_value.ToString();
         }
 
@@ -313,13 +335,13 @@ namespace Parser
 
         public override string getTypeString() => "int";
 
-        public virtual bool Equals(Integer other) => _int_value == other.getValue();
+        public bool Equals(Integer other) => _int_value == other.getValue();
     }
 
-    public class FloatVar : Variable
+    public sealed class FloatVar : Variable
     {
         private float _float_value;
-        public FloatVar(float val) // le "params object[] args" n'est que là pour faire tair le compilateur. A enlever
+        public FloatVar(float val)
         {
             _float_value = val;
             assigned = true;
@@ -331,17 +353,18 @@ namespace Parser
 
         public override void setValue(Variable other_value)
         {
-            trace("setValue", getValue(), new dynamic[] { other_value.getValue() });
+            if (!assigned) assign();
             _float_value = other_value.getValue();
+            trace("setValue", new dynamic[] { other_value.getValue() });
         }
 
-        public override void forceSetValue(dynamic value) => throw new NotImplementedException();
+        public override void forceSetValue(dynamic value) => _float_value = (float) value;
 
         public override bool hasSameParent(Variable other_value) => other_value is FloatVar;
 
         public override string getTypeString() => "float";
 
-        public virtual bool Equals(FloatVar other) => other.getValue() == _float_value;
+        public bool Equals(FloatVar other) => other.getValue() == _float_value;
 
 
         public override int compare(Variable other)
@@ -374,11 +397,12 @@ namespace Parser
 
         public override string ToString()
         {
+            if (Global.debug || Global.trace_debug) return "Float (" + _float_value.ToString() + ")";
             return _float_value.ToString(CultureInfo.InvariantCulture);
         }
     }
 
-    public class DynamicList : Variable
+    public sealed class DynamicList : Variable
     {
         private List<Variable> _list;
 
@@ -398,6 +422,18 @@ namespace Parser
         public override Variable cloneTypeToVal(dynamic value) => new DynamicList(new List<Variable>(_list));
 
         public override dynamic getValue() => new List<Variable>(_list);
+
+        public override dynamic getRawValue()
+        {
+            List<dynamic> raw_value = new List<dynamic>();
+            foreach (Variable variable in _list)
+            {
+                raw_value.Add(variable.getRawValue());
+            }
+
+            return raw_value;
+        }
+        
         public Integer length() => assigned ? new Integer(_list.Count) : throw Global.aquilaError(); // AssignmentError
 
         public void validateIndex(Integer index)
@@ -415,15 +451,15 @@ namespace Parser
         public void addValue(Variable x)
         {
             if (!assigned) assign();
-            trace("addValue", getValue(), new dynamic[] { x.getValue() });
             _list.Add(x);
+            trace("addValue", new dynamic[] { x.getRawValue() });
         }
 
         public void insertValue(Variable x, Integer index)
         {
             assertAssignment();
-            trace("insertValue", getValue(), new dynamic[] { x.getValue(), index.getValue() });
             _list.Insert(index.getValue(), x);
+            trace("insertValue", new dynamic[] { x.getRawValue(), index.getRawValue() });
         }
 
         public Variable getValueAt(Integer index)
@@ -439,7 +475,6 @@ namespace Parser
         public void removeValue(Integer index)
         {
             assertAssignment();
-            trace("removeValue", getValue(), new dynamic[] { index.getValue() });
             int i = index.getValue();
             if (i < 0) i += _list.Count; // if "-1" -> last element of the list
             if (i < _list.Count)
@@ -450,19 +485,41 @@ namespace Parser
             {
                 throw Global.aquilaError(); // InvalidIndexException
             }
+            trace("removeValue", new dynamic[] { index.getRawValue() });
         }
 
         public override void setValue(Variable other_value)
         {
             if (!assigned) assign();
-            trace("setValue", getValue(), new dynamic[] { other_value.getValue() });
             _list = other_value.getValue();
+            trace("setValue", new dynamic[] { other_value.getRawValue() });
         }
 
         public override void forceSetValue(dynamic value)
         {
-            trace("setValue", getValue(), new dynamic[] { value });
-            _list = new List<Variable>(value);
+            if (value is List<Variable>)
+            {
+                _list = new List<Variable>(value);
+            }
+            else if (value is List<dynamic>)
+            {
+                _list = valueFromRawList(value);
+            }
+            else
+            {
+                throw new NotImplementedException("unsupported list raw data type: " + value);
+            }
+        }
+
+        public static List<Variable> valueFromRawList(IEnumerable<dynamic> dyn_list)
+        {
+            List<Variable> new_value = new List<Variable>();
+            foreach (dynamic o in dyn_list)
+            {
+                new_value.Add(Variable.fromRawValue(o));
+            }
+
+            return new_value;
         }
 
         public override string ToString()
@@ -475,6 +532,7 @@ namespace Parser
             }
 
             s = "[" + s.Substring(0, s.Length - 2) + "]";
+            if (Global.debug || Global.trace_debug) s = "List (" + s + ")";
             return s;
         }
 
@@ -503,7 +561,7 @@ namespace Parser
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public virtual bool @equals(DynamicList other)
+        public bool @equals(DynamicList other)
         {
             Console.WriteLine("Equal");
             if (length() != other.length()) return false;
@@ -537,14 +595,26 @@ namespace Parser
 
         public Variable call_function()
         {
-            Context.setStatus(6);
+            // manually set context
+            Context.setStatus(Context.StatusEnum.function_value_call);
             Context.setInfo(this);
+
             _called = true;
-            //List<Variable> arg_list = _arg_expr_list.Select(x => x.evaluate()).ToList();
+            // from list to array of objects
             object[] args = _arg_expr_list.Select(x => (object) x).ToArray();
-            trace("call_function", null, args);
+            // call by name
             Variable result = Functions.callFunctionByName(_function_name, args);
+            
+            // have to trace manually here
+            if (isTraced())
+            {
+                Tracer.printTrace("Tracing manually value function");
+                tracer.update(new Event(new Alteration(_function_name, this, result, args)));
+            }
+
+            // reset Context
             Context.reset();
+
             return result;
         }
 
@@ -565,7 +635,7 @@ namespace Parser
 
         public override int compare(Variable other) => throw Global.aquilaError();
 
-        public override string getTypeString() => "func";
+        public override string getTypeString() => "val_func";
     }
 
     // Utils for Graphics & Animations
