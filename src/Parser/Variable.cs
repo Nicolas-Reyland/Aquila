@@ -589,7 +589,7 @@ namespace Parser
             assigned = true;
         }
 
-        public Variable call_function()
+        public Variable callFunction()
         {
             // manually set context
             Context.setStatus(Context.StatusEnum.function_value_call);
@@ -616,7 +616,7 @@ namespace Parser
 
         public override Variable cloneTypeToVal(dynamic value) => throw Global.aquilaError();
 
-        public override dynamic getValue() => call_function().getValue();
+        public override dynamic getValue() => callFunction().getValue();
 
         public override void setValue(Variable other_value)
         {

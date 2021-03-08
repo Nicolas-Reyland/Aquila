@@ -299,6 +299,28 @@ namespace Parser
         public bool hasBeenCalled() => _called;
     }
 
+    public class FunctionDef : Instruction
+    {
+        private readonly Function _func;
+        public FunctionDef(int line_index, Function func)
+        {
+            this.line_index = line_index;
+            this._func = func;
+        }
+        
+        public override void execute()
+        {
+            Functions.addUserFunction(_func);
+        }
+
+        protected override void setContext()
+        {
+            Context.setStatus(Context.StatusEnum.instruction_function_loop);
+            Context.setInfo(this);
+            setLineIndex();
+        }
+    }
+
     public class Tracing : Instruction // no updateTracers bc values can't be changed here ...
     {
         private readonly List<Expression> _traced_vars;

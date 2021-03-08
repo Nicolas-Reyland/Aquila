@@ -471,6 +471,15 @@ namespace Parser
                 Context.reset();
                 return false;
             }
+
+            if (input == "type")
+            {
+                Console.WriteLine("type of NullVar: " + typeof(NullVar));
+                Console.WriteLine("type of Variable: " + typeof(Variable));
+                Console.WriteLine("type of Integer: " + typeof(Integer));
+
+                return false;
+            }
             
             return true;
         }

@@ -97,7 +97,7 @@ namespace Parser
                         throw Global.aquilaError(); // something went wrong
                     }
 
-                    _return_value = new Expression(exception.getExpr());
+                    _return_value = new Expression(exception.getExprStr());
                     Context.reset();
                     return _return_value.evaluate();
                 }

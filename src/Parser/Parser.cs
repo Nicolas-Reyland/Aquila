@@ -241,18 +241,18 @@ namespace Parser
             "if", "else", "end-if",
             "for","end-for",
             "while", "end-while",
+            "function", "end-function", //! add this to atom grammar package (end-function)
             "declare",
             "overwrite", // not yet
             "safe", // not yet
             "trace",
             "void", "auto", "int", "float", "bool", "list",
-            "function", // not yet
         };
 
         /// <summary>
         /// Those are all the variables that the analysed algorithm uses
         /// </summary>
-        public static readonly Dictionary<string, Variable> variables = new Dictionary<string, Variable>();
+        public static Dictionary<string, Variable> variables = new Dictionary<string, Variable>();
 
         /// <summary>
         /// All the variables that are not NullVar (thus have a graphical representable value)
@@ -287,7 +287,8 @@ namespace Parser
         {
             {"for", "end-for"},
             {"while", "end-while"},
-            {"if", "end-if"}
+            {"if", "end-if"},
+            {"function", "end-function"},
         };
 
         /// <summary>
@@ -574,7 +575,7 @@ namespace Parser
         static void Main(string[] args)
         {
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
-            bool interactive = false;
+            bool interactive = true;
             Global.debug = false;
             Global.trace_debug = false;
             Context.enabled = true;

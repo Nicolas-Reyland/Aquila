@@ -144,6 +144,7 @@ namespace Parser
             /* Order of operations:
              * variable declaration
              * variable assignment
+             * function definition
              * for loop
              * while loop
              * if statement
@@ -229,6 +230,15 @@ namespace Parser
                 // get the Expresion
                 Expression assignment = new Expression(assignment_string);
                 return new Assignment(line_index, var_designation, assignment);
+            }
+
+            Debugging.print("function definition ?");
+            if (instr[0] == "function") {
+                Debugging.assert(raw_instr._is_nested); // syntax???
+                Debugging.assert(instr.Count == 3); // "function" "type" "name(args)"
+
+                Function func = Functions.readFunction(raw_instr._instr, raw_instr._sub_instr_list);
+                return new FunctionDef(line_index, func);
             }
             
             Debugging.print("for loop ?");

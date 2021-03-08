@@ -22,7 +22,7 @@ namespace Parser
                 _return_expr = message;
             }
 
-            public string getExpr() => _return_expr;
+            public string getExprStr() => _return_expr;
         }
 
         /// <summary>

@@ -229,7 +229,7 @@ namespace Parser
                 Debugging.print("creating value function call with ", arg_list.Count, " parameters");
 
                 FunctionCall func_call = new FunctionCall(function_name, arg_list);
-                return func_call.call_function();
+                return func_call.callFunction();
             }
 
 

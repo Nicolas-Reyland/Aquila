@@ -10,6 +10,106 @@ using System.Linq;
 
 namespace Parser
 {
+    public class Function
+    {
+        private readonly string _name;
+        private Dictionary<string, Variable> _var_copy;
+        private readonly Type _type;
+        public readonly List<string> func_args;
+        private readonly List<Instruction> _instructions;
+        private bool _in_function_scope; // = false;
+        public Function(string name, Type type, List<string> func_args, List<Instruction> instructions)
+        {
+            _name = name;
+            _type = type;
+            this.func_args = func_args;
+            _instructions = instructions;
+        }
+
+        public string getName() => _name;
+
+        public bool isVoid() => _type == typeof(NullVar);
+        public bool isValue() => !isVoid();
+
+        private void initialize(Dictionary<string, Variable> args)
+        {
+            if (_in_function_scope) throw new Exception("Already in function scope");
+            _var_copy = Global.variables;
+            Global.variables.Clear();
+            
+            foreach (KeyValuePair<string,Variable> pair in args)
+            {
+                // This is equivalent to a declaration & assignment
+                Global.variables.Add(pair.Key, pair.Value);
+            }
+
+            if (Context.isFrozen())
+            {
+                Debugging.print("Context already frozen in function init: " + _name);
+            }
+            else
+            {
+                Context.setStatus(Context.StatusEnum.instruction_function_loop);
+                Context.setInfo(this);
+                Context.freeze();
+            }
+            
+            _in_function_scope = true;
+        }
+
+        public Variable callFunction(Dictionary<string, Variable> args)
+        {
+            initialize(args);
+            
+            Debugging.assert(_in_function_scope);
+            foreach (Instruction instruction in _instructions)
+            {
+                try
+                {
+                    instruction.execute(); // return here (not continue, nor break) 
+                }
+                catch (System.Reflection.TargetInvocationException out_exception)
+                {
+                    if (!(out_exception.InnerException is AquilaExceptions.ReturnValueException)) throw;
+                    AquilaExceptions.ReturnValueException return_value_exception = out_exception.InnerException as AquilaExceptions.ReturnValueException;
+                    Debugging.print("ReturnValueException was thrown");
+                    string return_value_string = return_value_exception.getExprStr();
+                    Expression return_value_expression = new Expression(return_value_string);
+                    Variable return_value = return_value_expression.evaluate();
+
+                    restore();
+                    return return_value;
+                }
+            }
+            
+            Debugging.print("no ReturnValueException thrown. returning NullVar");
+            
+            restore();
+            return new NullVar();
+        }
+
+        private void restore()
+        {
+            if (!_in_function_scope) throw new Exception("Not in function scope");
+
+            Global.variables.Clear(); // clear function variables
+            Global.variables = _var_copy; // restore the Global variables
+            _var_copy.Clear(); // this will prevent from difficult-to-detect mistakes
+
+            if (!Context.isFrozen())
+            {
+                Debugging.print("Context was not frozen in function restore: " + _name);
+            }
+            else
+            {
+                Context.unfreeze();
+                Context.reset();
+            }
+            
+            _in_function_scope = false;
+        }
+    }
+    
     /// <summary>
     /// The <see cref="Functions"/> lets you define new value_functions and use
     /// them in your code. You can only add value_functions that return a value here.
@@ -18,6 +118,80 @@ namespace Parser
     /// </summary>
     public static class Functions
     {
+        public static Function readFunction(string declaration_line, List<RawInstruction> function_declaration)
+        {
+            Debugging.assert(function_declaration.Count > 0); // >= 1
+            
+            // function type
+            List<string> decl =
+                StringUtils.splitStringKeepingStructureIntegrity(declaration_line, ' ', Global.base_delimiters);
+            Debugging.assert(decl.Count == 3); // function type name(args)
+            Debugging.assert(decl[0] == "function");
+            // type
+            string type_str = decl[1];
+            Type type;
+            switch (type_str)
+            {
+                case "int":
+                    type = typeof(Integer);
+                    break;
+                case "float":
+                    type = typeof(FloatVar);
+                    break;
+                case "bool":
+                    type = typeof(BooleanVar);
+                    break;
+                case "list":
+                    type = typeof(DynamicList);
+                    break;
+                case "void":
+                    type = typeof(NullVar);
+                    break;
+                default:
+                    throw Global.aquilaError(); // unknown type
+            }
+            // name
+            Debugging.assert(decl[2].Contains("(") && decl[2].Contains(")"));
+            int name_sep_index = decl[2].IndexOf('(');
+            string function_name = decl[2].Substring(0, name_sep_index);
+            // args
+            string function_args_str = decl[2].Substring(name_sep_index + 1);
+            function_args_str = function_args_str.Substring(0, function_args_str.Length - 1);
+            Debugging.print("name: " + function_name);
+            Debugging.print("args: " + function_args_str);
+            List<string> function_args = function_args_str.Split(',').ToList();
+            for (int i = 0; i < function_args.Count; i++)
+            {
+                function_args[i] = StringUtils.purgeLine(function_args[i]);
+            }
+
+            Debugging.print("args args: " + function_args);
+
+            // Instructions
+            List<Instruction> instr_list = function_declaration.Select(raw_instruction => raw_instruction.toInstr()).ToList();
+
+            return new Function(function_name, type, function_args, instr_list);
+        }
+        
+        public static void addUserFunction(Function func)
+        {
+            user_functions.Add(func.getName(), func);
+        }
+
+        private static Dictionary<string, Variable> args2Dict(string name, object[] args)
+        {
+            Dictionary<string, Variable> d = new Dictionary<string, Variable>();
+            for (int i = 0; i < args.Length; i++)
+            {
+                Debugging.assert(args[i] is Expression);
+                Variable v = (args[i] as Expression).evaluate();
+                string func_name = user_functions[name].func_args[i];
+                d.Add(func_name, v);
+            }
+            
+            return d;
+        }
+
         /// <summary>
         /// Default function
         /// <para>
@@ -234,7 +408,7 @@ namespace Parser
             DynamicList list = list_expr.evaluate() as DynamicList;
             Integer a = a_expr.evaluate() as Integer;
             Integer b = b_expr.evaluate() as Integer;
-            // check indexs
+            // check indexes
             list.validateIndex(a);
             list.validateIndex(b);
             // extract both values
@@ -309,6 +483,8 @@ namespace Parser
             {"swap", new Func<Expression, Expression, Expression, NullVar>(swapFunction)},
         };
 
+        private static Dictionary<string, Function> user_functions = new Dictionary<string, Function>();
+
         /// <summary>
         /// Add your own value_functions to the <see cref="value_functions"/> dictionary. If the function
         /// already exists in it, please use the <see cref="Functions.addFunctionOverwrite"/> method instead
@@ -370,6 +546,12 @@ namespace Parser
                 //handleValueFunctionTracing(name, args); // cannot use expressions, have to use variables ...
                 return void_functions[name].DynamicInvoke(args) as Variable;
             }
+            if (user_functions.ContainsKey(name))
+            {
+                Debugging.print("calling user function: " + name);
+                Dictionary<string, Variable> arg_dict = args2Dict(name, args);
+                return user_functions[name].callFunction(arg_dict);
+            }
 
             throw Global.aquilaError(); // UnknownFunctionNameException
         }
@@ -379,7 +561,9 @@ namespace Parser
         /// </summary>
         /// <param name="function_name"></param>
         public static void assertFunctionExists(string function_name) =>
-            Debugging.assert(value_functions.ContainsKey(function_name) ^ void_functions.ContainsKey(function_name)); // UnknownFunctionNameException
+            Debugging.assert(value_functions.ContainsKey(function_name) ^
+                             void_functions.ContainsKey(function_name) ^
+                             user_functions.ContainsKey(function_name)); // UnknownFunctionNameException
 
         private static void handleValueFunctionTracing(string name, Variable affected, dynamic[] minor_values)
         {
