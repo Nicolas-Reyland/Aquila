@@ -26,7 +26,7 @@ namespace Parser
         /// <summary>
         /// The line of pseudo-code represented by the <see cref="RawInstruction"/>
         /// </summary>
-        private readonly string _instr;
+        private string _instr;
 
         private readonly int _line_index; // line index of this RawInstruction in the Source Code
         
@@ -144,13 +144,16 @@ namespace Parser
         /// <para/>* void function call
         /// </summary>
         /// <param name="line_index"> index of the line in the purged source code</param>
-        /// <param name="raw_instr"> a <see cref="RawInstruction"/></param>
+        /// <param name="raw_instr"> a <see cref="RawInstruction"/> to convert</param>
+        /// <param name="declaration_overwrite"> var/func overwriting is done recursively</param>
         /// <returns> the corresponding <see cref="Instruction"/></returns>
         /// <exception cref="Global.aquilaError"></exception>
-        private static Instruction rawInstr2Instr(int line_index, RawInstruction raw_instr)
+        private static Instruction rawInstr2Instr(int line_index, RawInstruction raw_instr, int declaration_overwrite = 0)
         {
             /* Order of operations:
-             * variable declaration
+             * tracing
+             * declaration
+             * overwriting var
              * variable assignment
              * function definition
              * for loop
@@ -177,11 +180,11 @@ namespace Parser
                 return new Tracing(line_index, traced_vars);
             }
 
-            Debugging.print("declare ?");
+            Debugging.print("decl ?");
             // variable declaration
             if (instr[0] == "decl")
             {
-                // "declare type name" or "declare name value"
+                // "decl type name" or "decl name value"
                 if (instr.Count < 3 || instr.Count > 4)
                 {
                     throw Global.aquilaError();
@@ -192,7 +195,7 @@ namespace Parser
 
                 bool type_declared = false;
                 
-                if (instr.Count == 4) // declare type name value
+                if (instr.Count == 4) // decl type name value
                 {
                     if (instr[1] == "auto")
                     {
@@ -206,7 +209,7 @@ namespace Parser
                 }
                 else if (instr[1] == "auto")
                 {
-                    throw Global.aquilaError(); // cannot "declare auto var_name"
+                    throw Global.aquilaError(); // cannot "decl auto var_name"
                 }
 
                 // if instr[1] is type name
@@ -214,15 +217,27 @@ namespace Parser
                 {
                     Expression default_value = Global.default_values_by_var_type[instr[1]];
                     return type_declared
-                        ? new Declaration(line_index, instr[2], new Expression(instr[3]), instr[1])
-                        : new Declaration(line_index, instr[2], default_value, "auto", false);
+                        ? new Declaration(line_index, instr[2], new Expression(instr[3]), instr[1], true, declaration_overwrite)
+                        : new Declaration(line_index, instr[2], default_value, "auto", false, declaration_overwrite);
                 }
 
-                // case is: "declare var_name value"
+                // case is: "decl var_name value"
                 string var_name = instr[1];
                 string var_value = instr[2];
 
-                return new Declaration(line_index, var_name, new Expression(var_value));
+                return new Declaration(line_index, var_name, new Expression(var_value), "auto", true, declaration_overwrite);
+            }
+
+            Debugging.print("overwriting ?");
+            if (instr[0] == "overwrite") // overwrite itn var_name 5
+            {
+                raw_instr._instr = "decl" + raw_instr._instr.Substring(9);
+                return rawInstr2Instr(line_index, raw_instr, 1);
+            }
+            if (instr[0] == "safe") // safe decl var_name 6
+            {
+                raw_instr._instr = raw_instr._instr.Substring(5);
+                return rawInstr2Instr(line_index, raw_instr, 2);
             }
 
             Debugging.print("assignment ?");
