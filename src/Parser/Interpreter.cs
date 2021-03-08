@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+
 // ReSharper disable SuggestVarOrType_SimpleTypes
+// ReSharper disable PossibleNullReferenceException
+// ReSharper disable ArrangeObjectCreationWhenTypeEvident
 
 namespace Parser
 {
@@ -37,7 +40,7 @@ namespace Parser
         /// </summary>
         /// <param name="raw_instructions"> list of <see cref="RawInstruction"/>s</param>
         /// <returns> list of corresponding <see cref="Instruction"/>s</returns>
-        public static List<Instruction> buildInstructions(List<RawInstruction> raw_instructions)
+        private static List<Instruction> buildInstructions(List<RawInstruction> raw_instructions)
         {
             List<Instruction> instructions = new List<Instruction>();
             foreach (RawInstruction raw_instruction in raw_instructions)
@@ -273,6 +276,7 @@ namespace Parser
             if (input == "help")
             {
                 Console.WriteLine("All existing interactive-mode-only commands:");
+                // ReSharper disable once RedundantExplicitArrayCreation
                 foreach (string command in new string[]
                 {
                     "help", "exit", "reset_env", "clear", // base interactive-mode commands
@@ -313,7 +317,7 @@ namespace Parser
                     Variable var_ = Global.variables[var_name];
                     Console.WriteLine("name     : " + var_.getName());
                     Console.WriteLine("type     : " + var_.getTypeString());
-                    Console.WriteLine("value    : " + var_.ToString());
+                    Console.WriteLine("value    : " + var_);
                     Console.WriteLine("assigned : " + var_.assigned);
                 }
                 return false;
@@ -437,7 +441,7 @@ namespace Parser
                 int status = Context.getStatus();
                 Context.StatusEnum status_quote = (Context.StatusEnum) status;
                 object info = Context.getInfo();
-                bool blocked = Context.isBlocked();
+                bool blocked = Context.isFrozen();
                 bool enabled = Context.enabled;
                 Console.WriteLine("status  : " + status);
                 Console.WriteLine("quote   : " + status_quote);

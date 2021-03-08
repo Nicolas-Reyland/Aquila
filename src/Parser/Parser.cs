@@ -2,41 +2,68 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
+// ReSharper disable ArrangeObjectCreationWhenTypeEvident
 
 namespace Parser
 {
     /// <summary>
-    ///
+    /// The Context defines where we are at runtime, and gives additional info (<see cref="Context.getInfo"/>).
+    /// The info is often the <see cref="Instruction"/> that is being executed.*
+    /// If the <see cref="Algorithm"/> execution time hasn't been reached yet,
+    /// the info type can vary (string, List, etc.)
     /// </summary>
     public static class Context
     {
         /// <summary>
-        /// Status list: DEPRECATED. TO BE UPDATED
-        /// <para/>* -1: undefined
-        /// <para/>*  0: reading &amp; purging code
-        /// <para/>*  1: processing macros
-        /// <para/>*  2: parsing code
-        /// <para/>*  3: building Instructions
-        /// <para/>*  4: running code
-        /// <para/>*  5: executing an instruction
-        /// <para/>*  6: evaluating a value function
-        /// <para/>*  7: executing a void function
-        /// <para/>*  8: custom status state used by <see cref="FuncTracer"/> for <see cref="VarTracer"/> stack squeezing
-        /// <para/>* 10: executing a declaration
-        /// <para/>* 11: executing an assignment
-        /// <para/>* 99: running finished
+        /// Status list:
+        /// <para/>*  0: undefined
+        /// <para/>*  1: reading &amp; purging code
+        /// <para/>*  2: processing macros
+        /// <para/>*  3: building raw instructions
+        /// <para/>*  4: building instructions
+        /// <para/>*  5: in the main algorithm main loop
+        /// <para/>*  6: in a function main loop
+        /// <para/>*  7: executing a trace instruction
+        /// <para/>*  8: in a while loop
+        /// <para/>*  9: in a for loop
+        /// <para/>* 10: in an if statement
+        /// <para/>* 11: executing a declaration instruction
+        /// <para/>* 12: executing a assignment instruction
+        /// <para/>* 13: executing a void function
+        /// <para/>* 14: executing a value function
+        /// <para/>* 15: algorithm main loop finished
         /// </summary>
         private static int _status = (int) StatusEnum.undefined;
+        /// <summary>
+        /// Stack of the previous status'. An algorithm being naturally of a
+        /// recursive nature, we need a stack to store the status'
+        /// </summary>
         private static readonly Stack<int> previous_status = new Stack<int>();
-        private static object _info = null;
+        /// <summary>
+        /// Additional information about the current state.
+        /// <para/> This could be an <see cref="Instruction"/> or a <see cref="FunctionCall"/>
+        /// </summary>
+        private static object _info;
+        /// <summary>
+        /// Stack of the previous infos. An algorithm being naturally of a
+        /// recursive nature, we need a stack to store the infos
+        /// </summary>
         private static readonly Stack<object> previous_info = new Stack<object>();
-        private static bool _blocked = false;
+        /// <summary>
+        /// Is the context blocked ? (see <see cref="Tracer"/> &amp; <see cref="Functions.swapFunction"/>)
+        /// </summary>
+        private static bool _frozen; // default: false
+        /// <summary>
+        /// You can disable the Context. If you do so, it will still update itself, but all
+        /// checks concerning the context (<see cref="assertStatus"/>) will not execute
+        /// </summary>
         public static bool enabled = true;
-
+        /// <summary>
+        /// Enum of all the existing status'
+        /// </summary>
         public enum StatusEnum
         {
             undefined,                  // 0
@@ -58,23 +85,40 @@ namespace Parser
         }
 
         // status
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> current status</returns>
         public static int getStatus() => _status;
-
+        /// <summary>
+        /// check for status
+        /// </summary>
+        /// <param name="status_enum"> supposed status</param>
+        /// <returns> is the supposed status the actual status ?</returns>
         public static bool statusIs(StatusEnum status_enum) => _status == (int) status_enum;
-
+        /// <summary>
+        /// set the new status
+        /// </summary>
+        /// <param name="new_status"> new status</param>
         private static void setStatus(int new_status)
         {
             previous_status.Push(_status);
             _status = new_status;
         }
-
+        /// <summary>
+        /// set the new status
+        /// </summary>
+        /// <param name="status_enum"> new status</param>
         public static void setStatus(StatusEnum status_enum)
         {
-            if (_blocked) return;
+            if (_frozen) return;
             int status_int = (int) status_enum;
             setStatus(status_int);
         }
-
+        /// <summary>
+        /// reset the status to the last one
+        /// </summary>
+        /// <exception cref="InvalidOperationException"> there is no last status (the current one is the first one set)</exception>
         private static void resetStatus()
         {
             if (previous_status.Count == 0)
@@ -86,15 +130,25 @@ namespace Parser
         }
 
         // info
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> current info</returns>
         public static dynamic getInfo() => _info;
-
+        /// <summary>
+        /// set the new info
+        /// </summary>
+        /// <param name="new_info"> new info</param>
         public static void setInfo(object new_info)
         {
-            if (_blocked) return;
+            if (_frozen) return;
             previous_info.Push(_info);
             _info = new_info;
         }
-
+        /// <summary>
+        /// reset the info to the last one
+        /// </summary>
+        /// <exception cref="InvalidOperationException"> there is no last info (the current one is the first one set)</exception>
         private static void resetInfo()
         {
             if (previous_info.Count == 0)
@@ -104,32 +158,54 @@ namespace Parser
 
             _info = previous_info.Pop();
         }
-        
-        // block
-        public static void block()
+
+        // freeze
+        /// <summary>
+        /// freeze the context (cannot be changed) (&amp; thus all the existing <see cref="VarTracer"/>s)
+        /// </summary>
+        public static void freeze()
         {
-            Debugging.assert(!_blocked);
-            _blocked = true;
+            Debugging.assert(!_frozen);
+            _frozen = true;
         }
-        public static void unblock()
+        /// <summary>
+        /// unfreeze the status
+        /// <para/>Exception will be raised if the context is not frozen
+        /// </summary>
+        public static void unfreeze()
         {
-            Debugging.assert(_blocked);
-            _blocked = false;
+            Debugging.assert(_frozen);
+            _frozen = false;
         }
-        public static bool isBlocked() => _blocked;
+        /// <summary>
+        /// is the context frozen ?
+        /// </summary>
+        public static bool isFrozen() => _frozen;
 
         // all
+        /// <summary>
+        /// Reset the Context to its previous state.
+        /// Rests the <see cref="_status"/> &amp; <see cref="_info"/>
+        /// </summary>
+        /// <exception cref="Exception"> there is not the same amount of stacked previous status' &amp; infos</exception>
         public static void reset()
         {
-            if (_blocked) return;
+            if (_frozen) return;
             if (previous_info.Count != previous_status.Count) throw new Exception("inconsistent use of reset");
             resetStatus();
             resetInfo();
         }
-
+        /// <summary>
+        /// Assert that the status is the one given as input.
+        /// Does not assert if:
+        /// <para/>* the Context is not <see cref="enabled"/>
+        /// <para/>* the Context is <see cref="_frozen"/>
+        /// </summary>
+        /// <param name="supposed"> wanted status</param>
+        /// <exception cref="Exception"> the status is not the input status</exception>
         public static void assertStatus(StatusEnum supposed)
         {
-            if (enabled && !_blocked && (int) supposed != _status) // not sure about not being blocked ?
+            if (enabled && !_frozen && (int) supposed != _status) // not sure about not being blocked ?
             {
                 throw new Exception("Context Assertion Error. Supposed: " + supposed + " but actual: " + _status);
             }
@@ -140,6 +216,7 @@ namespace Parser
     /// <see cref="Global"/> is a static class. All it's attributes and methods are static too.
     ///
     /// <para/>List of the attributes:
+    /// <para/>* <see cref="reserved_keywords"/> : string[]
     /// <para/>* <see cref="variables"/> : Dictionary(string, Variable)
     /// <para/>* <see cref="usable_variables"/> : List(string)
     /// <para/>* <see cref="single_line_comment_string"/> : string
@@ -151,10 +228,9 @@ namespace Parser
     /// <para/>* <see cref="al_operations"/> : char[]
     /// <para/>* <see cref="trace_debug"/> : bool
     /// <para/>* <see cref="debug"/> : bool
-    /// <para/>* <see cref="aquilaError"/> : () -> Exception
     /// <para/>* <see cref="var_tracers"/> : List(VarTracer)
     /// <para/>* <see cref="func_tracers"/> : List(FuncTracer)
-    /// <para/>* <see cref="nullEvent"/> : () -> Event
+    /// <para/>* <see cref="aquilaError"/> : () -> Exception
     /// </summary>
     static class Global
     {
@@ -271,18 +347,9 @@ namespace Parser
         public static bool trace_debug = true;
 
         /// <summary>
-        /// Temporary function that should be used as follows:<para>throw Global.NIE();</para>
-        /// <para/> This should be used while there is no pseudo-code related Exception.
-        /// All the <see cref="aquilaError"/> calls should be later replaced by custom <see cref="Exception"/>s.
-        /// </summary>
-        /// <returns> new <see cref="NotImplementedException"/>("Error occurred. Custom Exceptions not implemented")</returns>
-        public static Exception aquilaError() =>
-            new Exception("Error occurred. Custom Exception not implemented for this use case");
-
-        /// <summary>
         /// List of all the variable tracers
         /// </summary>
-        public static List<VarTracer> var_tracers = new List<VarTracer>();
+        public static readonly List<VarTracer> var_tracers = new List<VarTracer>();
 
         /// <summary>
         /// List of all the functions tracers
@@ -290,19 +357,20 @@ namespace Parser
         public static readonly List<FuncTracer> func_tracers = new List<FuncTracer>();
 
         /// <summary>
-        /// null event generator
-        /// </summary>
-        /// <returns> null event</returns>
-        public static Event nullEvent()
-        {
-            Event null_event = new Event(null) {status = -1, info = null}; //! Unity compatible ?
-            return null_event;
-        }
-
-        /// <summary>
         /// Function called on every tracer change
         /// </summary>
+#pragma warning disable 649
         public static Func<Alteration, bool> graphical_function; // example: new Func<Alteration, bool>(graphicalFunction)
+#pragma warning restore 649
+
+        /// <summary>
+        /// Temporary function that should be used as follows:<para>throw Global.NIE();</para>
+        /// <para/> This should be used while there is no pseudo-code related Exception.
+        /// All the <see cref="aquilaError"/> calls should be later replaced by custom <see cref="Exception"/>s.
+        /// </summary>
+        /// <returns> new <see cref="NotImplementedException"/>("Error occurred. Custom Exceptions not implemented")</returns>
+        public static Exception aquilaError() =>
+            new Exception("Error occurred. Custom Exception not implemented for this use case");
     }
 
     /// <summary>
@@ -321,12 +389,9 @@ namespace Parser
             {
                 StackTrace stackTrace = new StackTrace();
                 string call_name = stackTrace.GetFrame(1).GetMethod().Name;
-                throw new Exception(call_name + " (" + Global.current_line_index.ToString() + "): Debugging.Assertion Error. CUSTOM ERROR");
+                throw new Exception(call_name + " (" + Global.current_line_index + "): Debugging.Assertion Error. CUSTOM ERROR");
             }
         }
-
-        private static int _last_native_offset;
-        private static MethodBase _last_method;
 
         /// <summary>
         /// Outputs the args to the stdout stream if <see cref="Global.debug"/> is set to true
@@ -343,8 +408,9 @@ namespace Parser
             bool enable_function_depth = true;
             int num_function_depth_chars = 4;
             string prefix = "+ DEBUG";
-            
+
             // print the args nicely
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
             StringUtils.nicePrintFunction(max_call_name_length, num_new_method_separators, enable_function_depth,
                 num_function_depth_chars, prefix, args);
         }
@@ -444,6 +510,7 @@ namespace Parser
         public static DynamicList string2DynamicList(string s)
         {
             s = s.Replace(" ", "");
+            // ReSharper disable once UseIndexFromEndExpression
             if (s[0] != 91 || s[s.Length - 1] != 93)
             {
                 throw Global.aquilaError(); // NoMatchingTagError
@@ -463,6 +530,7 @@ namespace Parser
             {
                 if (split[0] == 91)
                 {
+                    // ReSharper disable once UseIndexFromEndExpression
                     if (split[split.Length - 1] != 93)
                     {
                         throw Global.aquilaError(); // syntax
@@ -475,7 +543,7 @@ namespace Parser
         }
 
         /// <summary>
-        /// Extract all the macro preprocessor values from an Acquila algorithm.
+        /// Extract all the macro preprocessor values from an Aquila algorithm.
         /// These values are always preceded by a '#' char
         /// </summary>
         /// <param name="lines"> lines of code</param>
@@ -499,16 +567,22 @@ namespace Parser
 
     static class Program
     {
+        // ReSharper disable HeuristicUnreachableCode
         // ReSharper disable once InconsistentNaming
+        // ReSharper disable RedundantAssignment
+
         static void Main(string[] args)
         {
-            bool interactive = true;
+            // ReSharper disable ConditionIsAlwaysTrueOrFalse
+            bool interactive = false;
             Global.debug = false;
             Global.trace_debug = false;
             Context.enabled = true;
 
             Global.func_tracers.Add(new FuncTracer("list_at"));
             Global.func_tracers.Add(new FuncTracer("swap"));
+
+            if (args.Length > 0) interactive = false; // for Atom running!
 
             if (interactive || args.Length > 0 && args[0] == "interactive")
             {
@@ -517,7 +591,7 @@ namespace Parser
                     "declare l [-3, 7]",
                     "trace $l",
                     "$l[0] = 4",
-                };  
+                };
                 Interpreter.interactiveMode(exec_lines);
                 return;
             }
@@ -529,10 +603,14 @@ namespace Parser
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
             Variable return_value = Interpreter.runAlgorithm(algo);
-            
-            Console.WriteLine("returned value: " + return_value.ToString());
-            
+
+            Console.WriteLine("returned value: " + return_value);
+
             if (interpreter_after) Interpreter.interactiveMode();
+
+            // ReSharper restore HeuristicUnreachableCode
+            // ReSharper restore ConditionIsAlwaysTrueOrFalse
+            // ReSharper restore RedundantAssignment
         }
     }
 }

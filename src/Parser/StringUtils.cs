@@ -5,8 +5,9 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 
-// ReSharper disable PossibleNullReferenceException
 // ReSharper disable SuggestVarOrType_SimpleTypes
+// ReSharper disable PossibleNullReferenceException
+// ReSharper disable ArrangeObjectCreationWhenTypeEvident
 
 namespace Parser
 {
@@ -142,6 +143,7 @@ namespace Parser
                 {
                     new_line = new_line.Remove(0, 1);
                 }
+                // ReSharper disable once UseIndexFromEndExpression
                 if (new_line[new_line.Length - 1] == 32)
                 {
                     new_line = new_line.Remove(new_line.Length - 1);
@@ -480,12 +482,12 @@ namespace Parser
         /// </summary>
         /// <param name="var_list"> list of <see cref="Variable"/></param>
         /// <returns> string describing the entry list</returns>
-        public static string varList2String(List<Variable> var_list)
+        private static string varList2String(List<Variable> var_list)
         {
             string s = "{ ";
             foreach (Variable variable in var_list)
             {
-                s += variable.ToString() + ", ";
+                s += variable + ", ";
             }
 
             if (s.Length > 2) s = s.Substring(0, s.Length - 2);
@@ -508,7 +510,7 @@ namespace Parser
             if (value is Variable) return value.ToString();
             try
             {
-                return "// " + new DynamicList(DynamicList.valueFromRawList(value as List<dynamic>)).ToString() + " //";
+                return "// " + new DynamicList(DynamicList.valueFromRawList(value as List<dynamic>)) + " //";
             }
             catch
             {

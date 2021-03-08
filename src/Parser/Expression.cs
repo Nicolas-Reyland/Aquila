@@ -1,6 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+
 // ReSharper disable SuggestVarOrType_SimpleTypes
+// ReSharper disable PossibleNullReferenceException
+// ReSharper disable ArrangeObjectCreationWhenTypeEvident
+
+// ReSharper disable UseIndexFromEndExpression
+// ReSharper disable MergeCastWithTypeCheck
+// ReSharper disable MergeConditionalExpression
 
 namespace Parser
 {
@@ -352,69 +359,39 @@ namespace Parser
                 // logic
                 case '<':
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
-                    if (v1 is Integer)
-                    {
-                        comparison = ((Integer) v1).compare(v2 as Integer);
-                    }
-                    else
-                    {
-                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
-                    }
+                    comparison = v1 is Integer
+                        ? ((Integer) v1).compare(v2 as Integer)
+                        : ((FloatVar) v1).compare(v2 as FloatVar);
                     return new BooleanVar(comparison == -1);
                 case '>':
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
-                    if (v1 is Integer)
-                    {
-                        comparison = ((Integer) v1).compare(v2 as Integer);
-                    }
-                    else
-                    {
-                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
-                    }
+                    comparison = v1 is Integer
+                        ? ((Integer) v1).compare(v2 as Integer)
+                        : ((FloatVar) v1).compare(v2 as FloatVar);
                     return new BooleanVar(comparison == 1);
                 case '{':
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
-                    if (v1 is Integer)
-                    {
-                        comparison = ((Integer) v1).compare(v2 as Integer);
-                    }
-                    else
-                    {
-                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
-                    }
+                    comparison = v1 is Integer
+                        ? ((Integer) v1).compare(v2 as Integer)
+                        : ((FloatVar) v1).compare(v2 as FloatVar);
                     return new BooleanVar(comparison != 1);
                 case '}':
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
-                    if (v1 is Integer)
-                    {
-                        comparison = ((Integer) v1).compare(v2 as Integer);
-                    }
-                    else
-                    {
-                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
-                    }
+                    comparison = v1 is Integer
+                        ? ((Integer) v1).compare(v2 as Integer)
+                        : ((FloatVar) v1).compare(v2 as FloatVar);
                     return new BooleanVar(comparison != -1);
                 case '~':
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
-                    if (v1 is Integer)
-                    {
-                        comparison = ((Integer) v1).compare(v2 as Integer);
-                    }
-                    else
-                    {
-                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
-                    }
+                    comparison = v1 is Integer
+                        ? ((Integer) v1).compare(v2 as Integer)
+                        : ((FloatVar) v1).compare(v2 as FloatVar);
                     return new BooleanVar(comparison == 0);
                 case ':':
                     Debugging.assert(v1 is Integer || v1 is FloatVar);
-                    if (v1 is Integer)
-                    {
-                        comparison = ((Integer) v1).compare(v2 as Integer);
-                    }
-                    else
-                    {
-                        comparison = ((FloatVar) v1).compare(v2 as FloatVar);
-                    }
+                    comparison = v1 is Integer
+                        ? ((Integer) v1).compare(v2 as Integer)
+                        : ((FloatVar) v1).compare(v2 as FloatVar);
                     return new BooleanVar(comparison != 0);
                 case '|':
                     Debugging.assert(v1 is BooleanVar);

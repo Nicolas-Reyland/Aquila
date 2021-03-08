@@ -1,29 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Reflection;
 
+// ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
+// ReSharper disable ArrangeObjectCreationWhenTypeEvident
 
 namespace Parser
 {
     public class Event
     {
-        public int status;
-        public object info;
+        private readonly int _status;
+        private readonly object _info;
         public readonly Alteration alter;
 
         public Event(dynamic alter)
         {
-            this.status = Context.getStatus();
-            this.info = Context.getInfo();
+            this._status = Context.getStatus();
+            this._info = Context.getInfo();
             this.alter = alter;
         }
 
         public override string ToString()
         {
-            string status_str = status.ToString();
-            string info_str = info == null ? "null" : info.ToString();
+            string status_str = _status.ToString();
+            string info_str = _info == null ? "null" : _info.ToString();
             string add_str = alter == null ? "null" : alter.ToString();
             return "status: " + status_str + " info: " + info_str + " alter: " + add_str;
         }
@@ -160,9 +160,9 @@ namespace Parser
             while (_awaiting_events.Count != 0)
             {
                 printTrace("event count: " + getStackCount());
-                printTrace("updating awaiting event " + _awaiting_events.Peek().ToString());
+                printTrace("updating awaiting event " + _awaiting_events.Peek());
                 Event event_ = _awaiting_events.Pop();
-                printTrace("last event: " + event_.alter.affected.tracer.peekEvent().ToString());
+                printTrace("last event: " + event_.alter.affected.tracer.peekEvent());
                 event_.alter.main_value = event_.alter.affected.getRawValue();
                 printTrace("settings event value manually to " + StringUtils.dynamic2Str(event_.alter.main_value));
                 update(event_);
@@ -185,6 +185,7 @@ namespace Parser
             string prefix = "- TRACE";
 
             // print the args nicely
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
             StringUtils.nicePrintFunction(max_call_name_length, num_new_method_separators, enable_function_depth,
                 num_function_depth_chars, prefix, args);
         }
@@ -219,7 +220,7 @@ namespace Parser
         public override void update(Event event_)
         {
             // blocked context ?
-            if (Context.isBlocked()) return;
+            if (Context.isFrozen()) return;
             // checks
             Debugging.assert(!corrupted);
             Debugging.assert(event_.alter != null); // variable events can only hold Alterations, so checking for null
@@ -240,7 +241,7 @@ namespace Parser
             {
                 printTrace("rewind: ", i, "/", n);
                 Event popped = events.Pop();
-                printTrace("popped event: " + popped.ToString());
+                printTrace("popped event: " + popped);
                 dyn_value = popped.alter.main_value;
                 printTrace("loop dyn_value: ", StringUtils.dynamic2Str(dyn_value));
             }
@@ -277,7 +278,7 @@ namespace Parser
         public override void update(Event event_)
         {
             // blocked context ?
-            if (Context.isBlocked()) throw new Exception("Context is blocked in function tracer update call. Normal behaviour ?");
+            if (Context.isFrozen()) throw new Exception("Context is blocked in function tracer update call. Normal behaviour ?");
             // checks
             Debugging.assert(!corrupted);
             Debugging.assert(event_ != null);

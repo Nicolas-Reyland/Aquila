@@ -2,7 +2,12 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+
 // ReSharper disable SuggestVarOrType_SimpleTypes
+// ReSharper disable PossibleNullReferenceException
+// ReSharper disable ArrangeObjectCreationWhenTypeEvident
+
+// ReSharper disable RedundantExplicitArrayCreation
 
 namespace Parser
 {
@@ -33,7 +38,7 @@ namespace Parser
         /// <summary>
         /// is the variable traced
         /// </summary>
-        private bool _traced = false;
+        private bool _traced;
 
         // getters
         /// <summary>
@@ -248,7 +253,8 @@ namespace Parser
 
         public override string getTypeString() => "bool";
 
-        public bool Equals(BooleanVar other) => _bool_value == other.getValue();
+        // ReSharper disable once UnusedMember.Global
+        public bool @equals(BooleanVar other) => _bool_value == other.getValue();
     }
 
     public sealed class Integer : Variable
@@ -316,10 +322,7 @@ namespace Parser
         public override void setValue(Variable other_value)
         {
             if (!assigned) assign();
-            if (Global.var_tracers.Count > 0) Tracer.printTrace("just: " + Global.var_tracers[0].peekEvent()); //! remove
             _int_value = other_value.getValue();
-            Console.WriteLine(other_value.ToString());
-            if (Global.var_tracers.Count > 0) Tracer.printTrace("just: " + Global.var_tracers[0].peekEvent()); //! remove
             trace("setValue", new dynamic[] { other_value.getValue() });
         }
 
@@ -327,7 +330,7 @@ namespace Parser
 
         public override string ToString()
         {
-            if (Global.debug || Global.trace_debug) return "Integer (" + _int_value.ToString() + ")";
+            if (Global.debug || Global.trace_debug) return "Integer (" + _int_value + ")";
             return _int_value.ToString();
         }
 
@@ -335,7 +338,7 @@ namespace Parser
 
         public override string getTypeString() => "int";
 
-        public bool Equals(Integer other) => _int_value == other.getValue();
+        public bool @equals(Integer other) => _int_value == other.getValue();
     }
 
     public sealed class FloatVar : Variable
@@ -364,7 +367,7 @@ namespace Parser
 
         public override string getTypeString() => "float";
 
-        public bool Equals(FloatVar other) => other.getValue() == _float_value;
+        public bool @equals(FloatVar other) => other.getValue() == _float_value;
 
 
         public override int compare(Variable other)
@@ -374,22 +377,22 @@ namespace Parser
             if (_float_value == other.getValue()) return 0;
             return -1;
         }
-        
+
         public Variable addition(FloatVar other)
         {
             return new FloatVar(_float_value + other.getValue());
         }
-        
+
         public Variable subtraction(FloatVar other)
         {
             return new FloatVar(_float_value  - other.getValue());
         }
-        
+
         public Variable mult(FloatVar other)
         {
             return new FloatVar(_float_value * other.getValue());
         }
-        
+
         public Variable division(FloatVar other)
         {
             return new FloatVar(_float_value / other.getValue());
@@ -397,7 +400,7 @@ namespace Parser
 
         public override string ToString()
         {
-            if (Global.debug || Global.trace_debug) return "Float (" + _float_value.ToString() + ")";
+            if (Global.debug || Global.trace_debug) return "Float (" + _float_value + ")";
             return _float_value.ToString(CultureInfo.InvariantCulture);
         }
     }
@@ -408,14 +411,7 @@ namespace Parser
 
         public DynamicList(List<Variable> values = null)
         {
-            if (values == null)
-            {
-                _list = new List<Variable>();
-            }
-            else
-            {
-                _list = values;
-            }
+            _list = values ?? new List<Variable>();
             assigned = true;
         }
 
@@ -433,7 +429,7 @@ namespace Parser
 
             return raw_value;
         }
-        
+
         public Integer length() => assigned ? new Integer(_list.Count) : throw Global.aquilaError(); // AssignmentError
 
         public void validateIndex(Integer index)
@@ -528,7 +524,7 @@ namespace Parser
             string s = "";
             foreach (Variable variable in _list)
             {
-                s += variable.ToString() + ", "; // ToString() forced by Unity ?
+                s += variable + ", ";
             }
 
             s = "[" + s.Substring(0, s.Length - 2) + "]";
@@ -550,7 +546,7 @@ namespace Parser
             {
                 if (other_list_value[i] != _list[i]) return -1;
             }
-            
+
             return 0;
         }
 
@@ -565,7 +561,7 @@ namespace Parser
         {
             Console.WriteLine("Equal");
             if (length() != other.length()) return false;
-            
+
             List<Variable> other_list = other.getValue();
 
             for (int i = 0; i < _list.Count; i++)
@@ -573,7 +569,7 @@ namespace Parser
                 Console.WriteLine("Equal? : " + other_list[i] + " & " + _list[i]);
                 if (other_list[i] != _list[i]) return false;
             }
-            
+
             return true;
         }
     }
@@ -587,7 +583,7 @@ namespace Parser
         public FunctionCall(string function_name, List<Expression> arg_expr_list)
         {
             Functions.assertFunctionExists(function_name);
-            
+
             _function_name = function_name;
             _arg_expr_list = arg_expr_list;
             assigned = true;
@@ -604,7 +600,7 @@ namespace Parser
             object[] args = _arg_expr_list.Select(x => (object) x).ToArray();
             // call by name
             Variable result = Functions.callFunctionByName(_function_name, args);
-            
+
             // have to trace manually here
             if (isTraced())
             {

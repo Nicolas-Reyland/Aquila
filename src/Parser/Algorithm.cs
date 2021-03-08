@@ -1,8 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Xml;
+﻿using System.Collections.Generic;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
+// ReSharper disable PossibleNullReferenceException
+// ReSharper disable ArrangeObjectCreationWhenTypeEvident
 
 namespace Parser
 {

@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 
-// ReSharper disable PossibleNullReferenceException
 // ReSharper disable SuggestVarOrType_SimpleTypes
+// ReSharper disable PossibleNullReferenceException
+// ReSharper disable ArrangeObjectCreationWhenTypeEvident
+
+// ReSharper disable RedundantExplicitArrayCreation
 
 namespace Parser
 {
@@ -16,13 +18,6 @@ namespace Parser
     /// </summary>
     public static class Functions
     {
-        /// <summary>
-        /// Check if the current context shows that we are in the middle on a function
-        /// </summary>
-        /// <returns></returns>
-        private static bool contextInFunction() => Context.statusIs(Context.StatusEnum.function_void_call) ||
-                                                   Context.statusIs(Context.StatusEnum.function_value_call);
-        
         /// <summary>
         /// Default function
         /// <para>
@@ -245,16 +240,16 @@ namespace Parser
             // extract both values
             Variable var_a = list.getValueAt(a);
             Variable var_b = list.getValueAt(b);
-            // block the context
-            Context.block();
+            // freeze the context
+            Context.freeze();
             // change a
             list.removeValue(a);
             list.insertValue(var_b, a);
             // change b
             list.removeValue(b);
             list.insertValue(var_a, b);
-            // unblock the context
-            Context.unblock();
+            // unfreeze the context
+            Context.unfreeze();
             // update manually (void)
             if (list.isTraced())
                 list.tracer.update(new Event(

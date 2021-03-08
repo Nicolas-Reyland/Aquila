@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
-using System.ComponentModel.Design.Serialization;
-using System.Security.Cryptography.X509Certificates;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
+// ReSharper disable PossibleNullReferenceException
+// ReSharper disable ArrangeObjectCreationWhenTypeEvident
 
 namespace Parser
 {
@@ -26,7 +26,7 @@ namespace Parser
     public abstract class Loop : NestedInstruction //! NEVER NEED TO UPDATE TRACERS IN LOOPS (already in all sub-instructions)
     {
         private readonly Expression _condition;
-        protected bool in_loop = false;
+        protected bool in_loop;
 
         protected Loop(int line_index, Expression condition, List<Instruction> instructions)
         {
@@ -178,8 +178,8 @@ namespace Parser
             Debugging.assert(!Global.variables.ContainsKey(var_name)); // DeclaredExistingVarException
             // give a temp or predefined value
             Variable temp_value = _var_type == "auto"
-                ? new NullVar() // temporary variable. doesn't have any real value (if no type explicited)
-                : (Variable) Global.default_values_by_var_type[var_type].evaluate(); // (if type explicited)
+                ? new NullVar() // temporary variable. doesn't have any real value (if no explicit type)
+                : (Variable) Global.default_values_by_var_type[var_type].evaluate(); // (if explicit type)
             // add variable to dictionary
             Global.variables.Add(var_name, temp_value);
         }

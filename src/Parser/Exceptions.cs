@@ -1,5 +1,9 @@
 ﻿using System;
 
+// ReSharper disable SuggestVarOrType_SimpleTypes
+// ReSharper disable PossibleNullReferenceException
+// ReSharper disable ArrangeObjectCreationWhenTypeEvident
+
 namespace Parser
 {
     /// <summary>

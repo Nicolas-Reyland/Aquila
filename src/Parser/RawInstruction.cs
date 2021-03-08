@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+
 // ReSharper disable SuggestVarOrType_SimpleTypes
+// ReSharper disable PossibleNullReferenceException
+// ReSharper disable ArrangeObjectCreationWhenTypeEvident
 
 namespace Parser
 {
@@ -36,12 +39,13 @@ namespace Parser
         /// If nested (<seealso cref="_is_nested"/>), holds the nested instructions that follow the instruction.
         /// </summary>
         private List<RawInstruction> _sub_instr_list;
-        
+
         /// <summary>
         /// Constructor
         /// </summary>
         /// <param name="instr"> instruction</param>
-        public RawInstruction(string instr, int line_index)
+        /// <param name="line_index"> index of the corresponding line in the src code</param>
+        private RawInstruction(string instr, int line_index)
         {
             this._instr = instr;
             this._line_index = line_index;
@@ -63,13 +67,14 @@ namespace Parser
                 sub_instr.prettyPrint(depth + 1);
             }
         }
-        
+
         /// <summary>
         /// Transform a string list into a <see cref="RawInstruction"/>. Takes into account
         /// nested instructions. This method creates the base algorithm structure, using
         /// the <see cref="_is_nested"/> and <see cref="_sub_instr_list"/> attributes.
         /// </summary>
         /// <param name="lines"> list of strings</param>
+        /// <param name="add_index_count"> offset to add to each line index</param>
         /// <returns> list of RawInstructions</returns>
         public static List<RawInstruction> code2RawInstructions(List<string> lines, int add_index_count = 0)
         {
@@ -132,7 +137,7 @@ namespace Parser
         /// </summary>
         /// <param name="line_index"> index of the line in the purged source code</param>
         /// <param name="raw_instr"> a <see cref="RawInstruction"/></param>
-        /// <returns> teh corresponding <see cref="Instruction"/></returns>
+        /// <returns> the corresponding <see cref="Instruction"/></returns>
         /// <exception cref="Global.aquilaError"></exception>
         private static Instruction rawInstr2Instr(int line_index, RawInstruction raw_instr)
         {
@@ -199,11 +204,9 @@ namespace Parser
                 if (type_list.Contains(instr[1]))
                 {
                     Expression default_value = Global.default_values_by_var_type[instr[1]];
-                    if (type_declared)
-                    {
-                        return new Declaration(line_index, instr[2], new Expression(instr[3]), instr[1], true);
-                    }
-                    return new Declaration(line_index, instr[2], default_value, "auto", false);
+                    return type_declared
+                        ? new Declaration(line_index, instr[2], new Expression(instr[3]), instr[1])
+                        : new Declaration(line_index, instr[2], default_value, "auto", false);
                 }
 
                 // case is: "declare var_name value"
