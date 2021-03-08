@@ -105,7 +105,7 @@ namespace Parser
         /// </summary>
         public void startTracing()
         {
-            Tracer.printTrace("enabling tracing for " + this._name);
+            Tracer.printTrace("enabling tracing for " + _name);
             tracer = new VarTracer(this);
             Global.var_tracers.Add(tracer);
             _traced = true;
@@ -254,7 +254,7 @@ namespace Parser
         public override string getTypeString() => "bool";
 
         // ReSharper disable once UnusedMember.Global
-        public bool @equals(BooleanVar other) => _bool_value == other.getValue();
+        public bool equals(BooleanVar other) => _bool_value == other.getValue();
     }
 
     public sealed class Integer : Variable
@@ -281,25 +281,25 @@ namespace Parser
         public Integer addition(Integer other)
         {
             assertAssignment();
-            return new Integer(this._int_value + other.getValue());
+            return new Integer(_int_value + other.getValue());
         }
 
         public Integer subtraction(Integer other)
         {
             assertAssignment();
-            return new Integer(this._int_value - other.getValue());
+            return new Integer(_int_value - other.getValue());
         }
 
         public Integer division(Integer other)
         {
             assertAssignment();
-            return new Integer(this._int_value / other.getValue());
+            return new Integer(_int_value / other.getValue());
         }
 
         public Integer mult(Integer other)
         {
             assertAssignment();
-            return new Integer(this._int_value * other.getValue());
+            return new Integer(_int_value * other.getValue());
         }
 
         public override int compare(Variable n1)
@@ -338,7 +338,7 @@ namespace Parser
 
         public override string getTypeString() => "int";
 
-        public bool @equals(Integer other) => _int_value == other.getValue();
+        public bool equals(Integer other) => _int_value == other.getValue();
     }
 
     public sealed class FloatVar : Variable
@@ -367,7 +367,7 @@ namespace Parser
 
         public override string getTypeString() => "float";
 
-        public bool @equals(FloatVar other) => other.getValue() == _float_value;
+        public bool equals(FloatVar other) => other.getValue() == _float_value;
 
 
         public override int compare(Variable other)
@@ -441,7 +441,10 @@ namespace Parser
         public Variable atIndex(Integer index)
         {
             assertAssignment();
-            return Enumerable.ElementAt(_list, index.getValue());
+            int i = index.getValue();
+            if (i < 0) i += _list.Count;
+            if (i < 0) throw Global.aquilaError();
+            return _list.ElementAt(i);
         }
 
         public void addValue(Variable x)
@@ -456,16 +459,6 @@ namespace Parser
             assertAssignment();
             _list.Insert(index.getValue(), x);
             trace("insertValue", new dynamic[] { x.getRawValue(), index.getRawValue() });
-        }
-
-        public Variable getValueAt(Integer index)
-        {
-            assertAssignment();
-            int i = index.getValue();
-            if (i < 0) i += _list.Count;
-            if (i < 0) throw Global.aquilaError();
-
-            return _list[i];
         }
 
         public void removeValue(Integer index)
@@ -512,7 +505,7 @@ namespace Parser
             List<Variable> new_value = new List<Variable>();
             foreach (dynamic o in dyn_list)
             {
-                new_value.Add(Variable.fromRawValue(o));
+                new_value.Add(fromRawValue(o));
             }
 
             return new_value;
@@ -557,7 +550,7 @@ namespace Parser
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public bool @equals(DynamicList other)
+        public bool equals(DynamicList other)
         {
             Console.WriteLine("Equal");
             if (length() != other.length()) return false;

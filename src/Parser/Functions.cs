@@ -412,8 +412,8 @@ namespace Parser
             list.validateIndex(a);
             list.validateIndex(b);
             // extract both values
-            Variable var_a = list.getValueAt(a);
-            Variable var_b = list.getValueAt(b);
+            Variable var_a = list.atIndex(a);
+            Variable var_b = list.atIndex(b);
             // freeze the context
             Context.freeze();
             // change a
