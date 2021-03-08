@@ -40,7 +40,7 @@ namespace Parser
         {
             this.name = name;
             this.affected = affected;
-            this.main_value = main_value;
+             this.main_value = main_value;
             this.minor_values = minor_values;
         }
 

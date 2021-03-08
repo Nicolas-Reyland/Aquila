@@ -154,7 +154,7 @@ namespace Parser
         }
 
         /// <summary>
-        /// Same as purgeLine, but one a List of lines. If the input lines contain a line only
+        /// Same as <see cref="purgeLine"/>, but one a List of lines. If the input lines contain a line only
         /// containing spaces/tabs or a line that is simply empty, it will not be included in the
         /// returned list.
         /// </summary>
@@ -167,10 +167,32 @@ namespace Parser
             {
                 string new_line = purgeLine(line);
 
-                // if the line is not empty, add it
+                // if the line has content, add it
                 if (new_line != "")
                 {
                     new_lines.Add(new_line);
+                }
+            }
+
+            return new_lines;
+        }
+
+        /// <summary>
+        /// Same as <see cref="purgeLines(System.Collections.Generic.List{string})"/>, but keeps the keys.
+        /// </summary>
+        /// <param name="lines"> dict, values must be the lines to purge</param>
+        /// <returns> purged dict</returns>
+        public static Dictionary<int, string> purgeLines(Dictionary<int, string> lines)
+        {
+            Dictionary<int, string> new_lines = new Dictionary<int, string>();
+            foreach (KeyValuePair<int, string> pair in lines)
+            {
+                string new_line = purgeLine(pair.Value);
+
+                // if the line has content, add it
+                if (new_line != "")
+                {
+                    new_lines.Add(pair.Key, new_line);
                 }
             }
 

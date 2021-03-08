@@ -585,7 +585,7 @@ namespace Parser
         public Variable callFunction()
         {
             // manually set context
-            Context.setStatus(Context.StatusEnum.function_value_call);
+            Context.setStatus(Context.StatusEnum.predefined_function_call);
             Context.setInfo(this);
 
             _called = true;

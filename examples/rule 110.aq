@@ -1,25 +1,25 @@
 /** Proof that Aquila is a turing complete programming language by coding the "Rule 110 cellular automaton"
 	Is pretty slow (because of the prints) tho ... **/
 
-declare total_gen 100
+decl total_gen 100
 
 // global vars
-declare l [1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1]
-declare int len
-declare list new_list
+decl l [1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1]
+decl int len
+decl list new_list
 // for-loop incrementation
-declare int i
+decl int i
 // rule 110 vars
-declare int start
-declare int middle
-declare int end
-declare int next_value
+decl int start
+decl int middle
+decl int end
+decl int next_value
 
 $len = length($l)
 $new_list = copy_list($l)
 
-// 
-for (declare gen 0, $gen < $total_gen, $gen = $gen + 1)
+//
+for (decl gen 0, $gen < $total_gen, $gen = $gen + 1)
 	for ($i = 0, $i < $len, $i = $i + 1)
 		// start
 		if ($i ~ 0)

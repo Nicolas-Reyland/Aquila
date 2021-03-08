@@ -1,10 +1,10 @@
 #name bubble sort
 #use functions.txt
 
-declare l [4, 1, 6, -3, 2]
-declare i 0
-declare int j
-declare len length($l)
+decl l [4, 1, 6, -3, 2]
+decl i 0
+decl int j
+decl len length($l)
 
 trace $l
 

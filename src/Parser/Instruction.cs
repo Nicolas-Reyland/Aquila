@@ -278,7 +278,7 @@ namespace Parser
         protected override void setContext()
         {
             setLineIndex();
-            Context.setStatus(Context.StatusEnum.function_void_call);
+            Context.setStatus(Context.StatusEnum.predefined_function_call);
             Context.setInfo(this);
         }
 
@@ -310,12 +310,14 @@ namespace Parser
         
         public override void execute()
         {
+            setContext();
             Functions.addUserFunction(_func);
+            Context.reset();
         }
 
         protected override void setContext()
         {
-            Context.setStatus(Context.StatusEnum.instruction_function_loop);
+            Context.setStatus(Context.StatusEnum.user_function_call);
             Context.setInfo(this);
             setLineIndex();
         }

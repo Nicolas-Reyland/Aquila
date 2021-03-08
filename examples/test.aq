@@ -1,7 +1,7 @@
 #name bubble sort
 #use functions.txt
 
-declare l [4, 1, 6, 0, 2]
+decl l [4, 1, 6, 0, 2]
 
 trace $l
 

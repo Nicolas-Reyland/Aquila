@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
@@ -25,12 +26,12 @@ namespace Parser
         /// </summary>
         /// <param name="path"> path to your source code file</param>
         /// <returns> list of lines containing your purged code</returns>
-        private static List<string> readSourceCode(string path)
+        private static Dictionary<int, string> readSourceCode(string path)
         {
-            List<string> lines = Parser.readLines(path);
-            Debugging.print("lines read");
+            Dictionary<int, string> lines = Parser.readLines(path);
+            Debugging.print(lines.Count + " lines read");
             lines = StringUtils.purgeLines(lines); // same as "lines = StringUtils.purgeLines(lines);"
-            Debugging.print("lines purged");
+            Debugging.print("lines purged. remaining: " + lines.Count);
 
             return lines;
         }
@@ -63,12 +64,12 @@ namespace Parser
         public static Algorithm algorithmFromSrcCode(string path, bool print_src = false, bool pretty_print = false, string default_name = "no-name-given")
         {
             // read code
-            List<string> lines = readSourceCode(path);
+            Dictionary<int, string> lines = readSourceCode(path);
 
-            if (print_src) StringUtils.printStringList(lines, true);
+            if (print_src) StringUtils.printStringList(lines.Select(pair => pair.Value).ToList(), true);
 
             // extract macros
-            Dictionary<string, string> macros = Parser.getMacroPreprocessorValues(lines);
+            Dictionary<string, string> macros = Parser.getMacroPreprocessorValues(lines.Select(pair => pair.Value).ToList());
 
             // Parse code into RawInstructions
             List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(lines);
@@ -249,7 +250,7 @@ namespace Parser
             // execute line here
             try
             {
-                List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(lines);
+                List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(lines.ToDictionary(_ => 0, x => x));
                 List<Instruction> instructions = buildInstructions(raw_instructions);
                 foreach (Instruction instr in instructions)
                 {
@@ -273,31 +274,125 @@ namespace Parser
         /// <returns> should the command be executed ?</returns>
         private static bool processInterpreterInput(string input)
         {
-            if (input == "help")
+            switch (input)
             {
-                Console.WriteLine("All existing interactive-mode-only commands:");
-                // ReSharper disable once RedundantExplicitArrayCreation
-                foreach (string command in new string[]
+                case "help":
                 {
-                    "help", "exit", "reset_env", "clear", // base interactive-mode commands
-                    "exec", "exec_info", // exec commands
-                    "debug", "trace_debug", // debugging (enable/disable) commands
-                    "eval %expr", // expr
-                    "var %var_name", "vars", "$%var_name", // variable commands
-                    "trace_info", "trace_uniq_stacks", "rewind %n %var_name", "peek_event $%traced_value", // trace commands
-                    "get_context", "set_status", "set_info_null", "reset_context", // context commands -> CONTEXT DISABLED IN INTERACTIVE MODE LMAO
-                    //"",
-                })
-                {
-                    Console.WriteLine("  -> " + command);
-                }
+                    Console.WriteLine("All existing interactive-mode-only commands:");
+                    // ReSharper disable once RedundantExplicitArrayCreation
+                    foreach (string command in new string[]
+                    {
+                        "help", "exit", "reset_env", "clear", // base interactive-mode
+                        "exec", "exec_info", // exec
+                        "debug", "trace_debug", // debugging (enable/disable)
+                        "eval %expr", // expr
+                        "var %var_name", "vars", "$%var_name", // variables
+                        // ReSharper disable once StringLiteralTypo
+                        "funcs", // functions
+                        "trace_info", "trace_uniq_stacks", "rewind %n %var_name", "peek_event $%traced_value", // trace
+                        "get_context", "set_status", "set_info_null", "reset_context", // context
+                        //"",
+                    })
+                    {
+                        Console.WriteLine("  -> " + command);
+                    }
 
+                    return false;
+                }
+                case "clear":
+                    Console.Clear();
+                    return false;
+                case "vars":
+                {
+                    foreach (KeyValuePair<string, Variable> variable in Global.variables)
+                    {
+                        Console.Write(variable.Key + " : ");
+                        Console.WriteLine(variable.Value.ToString());
+                    }
+                    return false;
+                }
+                // ReSharper disable once StringLiteralTypo
+                case "funcs":
+                {
+                    foreach (KeyValuePair<string,Function> pair in Functions.user_functions)
+                    {
+                        Console.WriteLine("func: " + pair.Key + " -> (" + pair.Value.func_args.Count + ") " + pair.Value.getType());
+                    }
+
+                    return false;
+                }
+                case "debug":
+                    Global.debug = !Global.debug;
+                    return false;
+                case "trace_debug":
+                    Global.trace_debug = !Global.trace_debug;
+                    return false;
+                case "trace_info":
+                {
+                    Console.WriteLine("var tracers:");
+                    foreach (VarTracer tracer in Global.var_tracers)
+                    {
+                        Console.WriteLine(" - var     : " + (tracer.getTracedObject() as Variable).getName());
+                        Console.WriteLine(" - stack   : " + tracer.getStackCount());
+                        Console.WriteLine(" - updated : " + tracer.last_stack_count);
+                    }
+                    Console.WriteLine("func tracers:");
+                    foreach (FuncTracer tracer in Global.func_tracers)
+                    {
+                        Console.WriteLine(" - func  : " + tracer.getTracedObject());
+                        Console.WriteLine(" - stack : " + tracer.getStackCount());
+                    }
+
+                    return false;
+                }
+                case "trace_uniq_stacks":
+                    Global.var_tracers[0].printEventStack();
+                    return false;
+                case "reset_env":
+                    Global.resetEnv();
+                    Console.WriteLine(" [!] Global Environment reset");
+
+                    return false;
+                case "get_context":
+                {
+                    int status = Context.getStatus();
+                    Context.StatusEnum status_quote = (Context.StatusEnum) status;
+                    object info = Context.getInfo();
+                    bool blocked = Context.isFrozen();
+                    bool enabled = Context.enabled;
+                    Console.WriteLine("status  : " + status);
+                    Console.WriteLine("quote   : " + status_quote);
+                    Console.WriteLine("info    : " + info);
+                    Console.WriteLine("blocked : " + blocked);
+                    Console.WriteLine("enabled : " + enabled);
+
+                    return false;
+                }
+                case "set_info_null":
+                    Context.setInfo(null);
+                    return false;
+                case "reset_context":
+                    Context.reset();
+                    return false;
+                case "type":
+                    Console.WriteLine("type of NullVar: " + typeof(NullVar));
+                    Console.WriteLine("type of Variable: " + typeof(Variable));
+                    Console.WriteLine("type of Integer: " + typeof(Integer));
+
+                    return false;
+            }
+
+            if (input[0] == '$' && Global.variables.ContainsKey(input.Substring(1)))
+            {
+                Console.WriteLine(Global.variables[input.Substring(1)].ToString());
                 return false;
             }
-            
-            if (input == "clear")
+
+            if (input.StartsWith("set_status "))
             {
-                Console.Clear();
+                int status = Int32.Parse(input.Substring(11));
+                Context.setStatus((Context.StatusEnum) status);
+                
                 return false;
             }
 
@@ -320,59 +415,6 @@ namespace Parser
                     Console.WriteLine("value    : " + var_);
                     Console.WriteLine("assigned : " + var_.assigned);
                 }
-                return false;
-            }
-
-            if (input == "vars")
-            {
-                foreach (KeyValuePair<string, Variable> variable in Global.variables)
-                {
-                    Console.Write(variable.Key + " : ");
-                    Console.WriteLine(variable.Value.ToString());
-                }
-                return false;
-            }
-
-            if (input[0] == '$' && Global.variables.ContainsKey(input.Substring(1)))
-            {
-                Console.WriteLine(Global.variables[input.Substring(1)].ToString());
-                return false;
-            }
-
-            if (input == "debug")
-            {
-                Global.debug = !Global.debug;
-                return false;
-            }
-
-            if (input == "trace_debug")
-            {
-                Global.trace_debug = !Global.trace_debug;
-                return false;
-            }
-
-            if (input == "trace_info")
-            {
-                Console.WriteLine("var tracers:");
-                foreach (VarTracer tracer in Global.var_tracers)
-                {
-                    Console.WriteLine(" - var     : " + (tracer.getTracedObject() as Variable).getName());
-                    Console.WriteLine(" - stack   : " + tracer.getStackCount());
-                    Console.WriteLine(" - updated : " + tracer.last_stack_count);
-                }
-                Console.WriteLine("func tracers:");
-                foreach (FuncTracer tracer in Global.func_tracers)
-                {
-                    Console.WriteLine(" - func  : " + tracer.getTracedObject());
-                    Console.WriteLine(" - stack : " + tracer.getStackCount());
-                }
-
-                return false;
-            }
-
-            if (input == "trace_uniq_stacks")
-            {
-                Global.var_tracers[0].printEventStack();
                 return false;
             }
 
@@ -421,62 +463,6 @@ namespace Parser
                 Console.WriteLine("minor values : " + StringUtils.dynamic2Str(alter.minor_values));
                 Console.WriteLine("stack count  : " + var_.tracer.getStackCount());
                 Console.WriteLine("updated      : " + var_.tracer.last_stack_count);
-
-                return false;
-            }
-
-            if (input == "reset_env")
-            {
-                Global.variables.Clear();
-                Global.var_tracers.Clear();
-                Global.func_tracers.Clear();
-                Global.usable_variables.Clear();
-                Console.WriteLine(" [!] Global Environment reset");
-
-                return false;
-            }
-
-            if (input == "get_context")
-            {
-                int status = Context.getStatus();
-                Context.StatusEnum status_quote = (Context.StatusEnum) status;
-                object info = Context.getInfo();
-                bool blocked = Context.isFrozen();
-                bool enabled = Context.enabled;
-                Console.WriteLine("status  : " + status);
-                Console.WriteLine("quote   : " + status_quote);
-                Console.WriteLine("info    : " + info);
-                Console.WriteLine("blocked : " + blocked);
-                Console.WriteLine("enabled : " + enabled);
-
-                return false;
-            }
-
-            if (input.StartsWith("set_status "))
-            {
-                int status = Int32.Parse(input.Substring(11));
-                Context.setStatus((Context.StatusEnum) status);
-                
-                return false;
-            }
-
-            if (input == "set_info_null")
-            {
-                Context.setInfo(null);
-                return false;
-            }
-
-            if (input == "reset_context")
-            {
-                Context.reset();
-                return false;
-            }
-
-            if (input == "type")
-            {
-                Console.WriteLine("type of NullVar: " + typeof(NullVar));
-                Console.WriteLine("type of Variable: " + typeof(Variable));
-                Console.WriteLine("type of Integer: " + typeof(Integer));
 
                 return false;
             }

@@ -72,16 +72,15 @@ namespace Parser
             building_raw_instructions,  // 3
             building_instructions,      // 4
             instruction_main_loop,      // 5
-            instruction_function_loop,  // 6
-            trace_execution,            // 7
-            while_loop_execution,       // 8
-            for_loop_execution,         // 9
-            if_execution,               // 10
-            declaration_execution,      // 11
-            assignment_execution,       // 12
-            function_void_call,         // 13
-            function_value_call,        // 14
-            instruction_main_finished   // 15
+            trace_execution,            // 6
+            while_loop_execution,       // 7
+            for_loop_execution,         // 8
+            if_execution,               // 9
+            declaration_execution,      // 10
+            assignment_execution,       // 11
+            predefined_function_call,   // 12
+            user_function_call,         // 13
+            instruction_main_finished   // 14
         }
 
         // status
@@ -210,6 +209,17 @@ namespace Parser
                 throw new Exception("Context Assertion Error. Supposed: " + supposed + " but actual: " + _status);
             }
         }
+        /// <summary>
+        /// Reset the whole Context to zero
+        /// </summary>
+        public static void resetContext()
+        {
+            _status = (int) StatusEnum.undefined;
+            _info = null;
+            _frozen = false;
+            previous_status.Clear();
+            previous_info.Clear();
+        }
     }
 
     /// <summary> All the global variables are stored here. Global variables are the ones that should be accessible every, by everyone in the <see cref="Parser"/> program.
@@ -231,6 +241,7 @@ namespace Parser
     /// <para/>* <see cref="var_tracers"/> : List(VarTracer)
     /// <para/>* <see cref="func_tracers"/> : List(FuncTracer)
     /// <para/>* <see cref="aquilaError"/> : () -> Exception
+    /// <para/>* <see cref="resetEnv"/> : () -> void
     /// </summary>
     static class Global
     {
@@ -242,7 +253,7 @@ namespace Parser
             "for","end-for",
             "while", "end-while",
             "function", "end-function", //! add this to atom grammar package (end-function)
-            "declare",
+            "decl",
             "overwrite", // not yet
             "safe", // not yet
             "trace",
@@ -372,6 +383,19 @@ namespace Parser
         /// <returns> new <see cref="NotImplementedException"/>("Error occurred. Custom Exceptions not implemented")</returns>
         public static Exception aquilaError() =>
             new Exception("Error occurred. Custom Exception not implemented for this use case");
+
+        /// <summary>
+        /// Reset the current Environment to zero
+        /// </summary>
+        public static void resetEnv()
+        {
+            variables.Clear();
+            Functions.user_functions.Clear();
+            var_tracers.Clear();
+            func_tracers.Clear();
+            usable_variables.Clear();
+            Context.resetContext();
+        }
     }
 
     /// <summary>
@@ -431,9 +455,9 @@ namespace Parser
         /// </summary>
         /// <param name="path"> relative or full path to file</param>
         /// <returns> List of the lines, without the '\n' char or comments</returns>
-        public static List<string> readLines(string path)
+        public static Dictionary<int, string> readLines(string path)
         {
-            List<string> lines = new List<string>();
+            Dictionary<int, string> lines = new Dictionary<int, string>();
             StreamReader file = new StreamReader(path);
 
             string full = file.ReadToEnd();
@@ -449,39 +473,47 @@ namespace Parser
             int last_valid_index = 0; // for adding to lines
             int remaining = full.Length + 1; // remaining chars, for SubStrings
 
+            int line_index = 0; // start at 0, bc will be incremented before the line is appended (debut of for loop)
+
             for (int i = 0; i < full.Length; i++)
             {
                 remaining--;
+                if (full[i] == '\n') line_index++; // next line starts
+
                 if (!in_comment)
                 {
+                    // multiple-line comment start
                     if (ml_open_flag.Length < remaining && full.Substring(i, ml_open_flag.Length) == ml_open_flag)
                     {
-                        lines.Add(full.Substring(last_valid_index, i - last_valid_index));
+                        lines.Add(line_index, full.Substring(last_valid_index, i - last_valid_index));
                         in_comment = true;
                         Debugging.print("in multiple line comment");
                     }
+                    // single line comment start
                     else if (sl_flag.Length < remaining && full.Substring(i, sl_flag.Length) == sl_flag)
                     {
                         int next_line_index = full.IndexOf('\n', i);
-                        lines.Add(full.Substring(last_valid_index, i - last_valid_index));
+                        lines.Add(line_index, full.Substring(last_valid_index, i - last_valid_index));
                         last_valid_index = next_line_index; // new last_valid_index (in future)
                         remaining -= next_line_index - i; // decrement remaining
                         i = next_line_index; // updating i
                         Debugging.print("jumped to ", i);
                     }
+                    // end-of-line (EOL)
                     else if (full[i] == '\n')
                     {
                         string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
-                        lines.Add(line_of_valid_code);
+                        lines.Add(line_index, line_of_valid_code);
                         last_valid_index = i + 1; // + 1 : don't take the '\n' char
-                        Debugging.print("adding line of code ", lines.Count, " : ", line_of_valid_code);
+                        Debugging.print("adding line of code ", line_index, " : ", line_of_valid_code);
                     }
+                    // end-of-file (EOF)
                     else if (i == full.Length - 1) // in case the file just ends there (could check EOF ?)
                     {
                         string line_of_valid_code = full.Substring(last_valid_index);
-                        lines.Add(line_of_valid_code);
+                        lines.Add(line_index, line_of_valid_code);
                         last_valid_index = i + 1; // + 1 : don't take the '\n' char
-                        Debugging.print("adding last line of code ", lines.Count, " : ", line_of_valid_code);
+                        Debugging.print("adding last line of code ", line_index, " : ", line_of_valid_code);
                     }
                 }
                 else if (ml_close_flag.Length < remaining && full.Substring(i, ml_close_flag.Length) == ml_close_flag)
@@ -566,7 +598,7 @@ namespace Parser
         }
     }
 
-    static class Program
+    internal static class Program
     {
         // ReSharper disable HeuristicUnreachableCode
         // ReSharper disable once InconsistentNaming
@@ -576,7 +608,7 @@ namespace Parser
         {
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
             bool interactive = true;
-            Global.debug = false;
+            Global.debug = true;
             Global.trace_debug = false;
             Context.enabled = true;
 
@@ -589,9 +621,10 @@ namespace Parser
             {
                 List<string> exec_lines = new List<string>()
                 {
-                    "declare l [-3, 7]",
-                    "trace $l",
-                    "$l[0] = 4",
+                    "function auto test()",
+                    "print_str_endl(This is a TEST !!!)",
+                    "end-function",
+                    "decl i 5",
                 };
                 Interpreter.interactiveMode(exec_lines);
                 return;

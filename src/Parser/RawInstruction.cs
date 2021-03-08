@@ -74,16 +74,16 @@ namespace Parser
         /// the <see cref="_is_nested"/> and <see cref="_sub_instr_list"/> attributes.
         /// </summary>
         /// <param name="lines"> list of strings</param>
-        /// <param name="add_index_count"> offset to add to each line index</param>
         /// <returns> list of RawInstructions</returns>
-        public static List<RawInstruction> code2RawInstructions(List<string> lines, int add_index_count = 0)
+        public static List<RawInstruction> code2RawInstructions(Dictionary<int, string> lines)
         {
             int line_index = 0;
             List<RawInstruction> instructions = new List<RawInstruction> ();
 
             while (line_index < lines.Count) // using while loop bc index will be modified
             {
-                string line = lines.ElementAt(line_index);
+                string line = lines.Values.ElementAt(line_index);
+                int real_line_index = lines.Keys.ElementAt(line_index);
                 Debugging.print("doing line ", line);
                 if (line.StartsWith("#")) // macro preprocessor line
                 {
@@ -91,19 +91,27 @@ namespace Parser
                     continue;
                 }
 
-                RawInstruction instr = new RawInstruction (line, line_index + add_index_count);
+                RawInstruction instr = new RawInstruction (line, real_line_index);
 
-                foreach (KeyValuePair<string, string> val in Global.nested_instruction_flags)
+                foreach (KeyValuePair<string, string> flag in Global.nested_instruction_flags)
                 {
-                    if (line.StartsWith(val.Key + " "))
+                    if (line.StartsWith(flag.Key + " "))
                     {
-                        Debugging.print("FOUND " + val.Key);
+                        Debugging.print("FOUND " + flag.Key);
                         instr._is_nested = true;
                         int end_index =
-                            StringUtils.findCorrespondingElementIndex(lines, line_index + 1, val.Key, val.Value);
-                        List<string> sub_lines = lines.GetRange(line_index + 1, end_index - line_index - 1);
+                            StringUtils.findCorrespondingElementIndex(lines.Select(pair => pair.Value).ToList(), line_index + 1, flag.Key, flag.Value);
+                        //Dictionary<int, string> sub_lines = lines.GetRange(line_index + 1, end_index - line_index - 1);
+                        Dictionary<int, string> sub_lines = new Dictionary<int, string>();
+                        List<int> picked =
+                            lines.Select(pair => pair.Key).ToList().GetRange(line_index + 1,
+                                end_index - line_index - 1);
+                        foreach (int i in picked)
+                        {
+                            sub_lines.Add(i, lines[i]);
+                        }
 
-                        instr._sub_instr_list = code2RawInstructions(sub_lines, line_index + 1);
+                        instr._sub_instr_list = code2RawInstructions(sub_lines);
                         Debugging.print(line_index, " - ", end_index);
                         line_index = end_index;
                     }
@@ -171,7 +179,7 @@ namespace Parser
 
             Debugging.print("declare ?");
             // variable declaration
-            if (instr[0] == "declare")
+            if (instr[0] == "decl")
             {
                 // "declare type name" or "declare name value"
                 if (instr.Count < 3 || instr.Count > 4)
