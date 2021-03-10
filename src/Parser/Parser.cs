@@ -253,11 +253,11 @@ namespace Parser
             "for","end-for",
             "while", "end-while",
             "function", "end-function", //! add this to atom grammar package (end-function)
-            "decl",
+            "decl", "safe", "overwrite",
             "overwrite", // not yet
             "safe", // not yet
             "trace",
-            "void", "auto", "int", "float", "bool", "list",
+            "null", "auto", "int", "float", "bool", "list",
         };
 
         /// <summary>
@@ -345,8 +345,8 @@ namespace Parser
         /// <para/>* '}' is "&gt;="
         /// <para/>* '{' is "&lt;="
         /// </summary>
-        public static readonly char[] al_operations = { '^', '&', '|', ':', '~', '}', '{', '>', '<', '-', '+', '/', '*', '%'};//, '<', '>', '{', '}', '~', ':', '|', '&', '^' }; // '!' missing. special case
-        // real priority order: { '^', '&', '|', ':', '~', '}', '{', '>', '<', '%', '*', '/', '+', '-' };
+        public static readonly char[] al_operations = { '&', '^', '|', ':', '~', '}', '{', '>', '<', '-', '+', '/', '*', '%'};//, '<', '>', '{', '}', '~', ':', '|', '&', '^' }; // '!' missing. special case
+        // real priority order: { '&', '^', '|', ':', '~', '}', '{', '>', '<', '%', '*', '/', '+', '-' };
 
         /// <summary>
         /// If set to true, all the <see cref="Debugging.print"/> calls will output their content to the default stdout
