@@ -250,7 +250,8 @@ namespace Parser
             // execute line here
             try
             {
-                List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(lines.ToDictionary(_ => 0, x => x));
+                int temp_i = 0;
+                List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(lines.ToDictionary(_ => temp_i++, x => x));
                 List<Instruction> instructions = buildInstructions(raw_instructions);
                 foreach (Instruction instr in instructions)
                 {
@@ -272,7 +273,7 @@ namespace Parser
         /// </summary>
         /// <param name="input"> command line from the interactive-mode</param>
         /// <returns> should the command be executed ?</returns>
-        private static bool processInterpreterInput(string input)
+        internal static bool processInterpreterInput(string input)
         {
             switch (input)
             {

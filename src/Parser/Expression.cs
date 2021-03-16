@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
@@ -273,6 +274,8 @@ namespace Parser
         private static Variable variableFromName(string var_name)
         {
             if (var_name.StartsWith("$")) var_name = var_name.Substring(1);
+            Debugging.print(Global.variables.Count);
+            Interpreter.processInterpreterInput("vars");
             Debugging.assert(Global.variables.ContainsKey(var_name));
             Variable variable = Global.variables[var_name];
             return variable;

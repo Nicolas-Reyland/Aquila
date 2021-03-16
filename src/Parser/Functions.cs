@@ -18,12 +18,14 @@ namespace Parser
         public readonly List<string> func_args;
         private readonly List<Instruction> _instructions;
         private bool _in_function_scope; // = false;
-        public Function(string name, string type, List<string> func_args, List<Instruction> instructions)
+        private readonly bool _resp_function;
+        public Function(string name, string type, List<string> func_args, List<Instruction> instructions, bool resp_function)
         {
             _name = name;
             _type = type;
             this.func_args = func_args;
             _instructions = instructions;
+            _resp_function = resp_function;
         }
 
         public string getName() => _name;
@@ -32,16 +34,16 @@ namespace Parser
 
         private void initialize(Dictionary<string, Variable> args)
         {
-            if (_in_function_scope) throw new Exception("Already in function scope");
+            if (!_resp_function && _in_function_scope) throw new Exception("Already in function scope");// recursive ?
             _var_copy = new Dictionary<string, Variable>(Global.variables);
             
             Debugging.print("num global vars 0: " + _var_copy.Count);
-            Global.variables.Clear();
-            
+            Global.variables = new Dictionary<string, Variable>(Global.default_variables);
+
             foreach (KeyValuePair<string,Variable> pair in args)
             {
                 // This is equivalent to a declaration & assignment
-                Global.variables.Add(pair.Key, pair.Value);
+                Global.variables.Add(pair.Key, pair.Value); // maybe linq or something ?
             }
 
             if (Context.isFrozen())
@@ -76,7 +78,7 @@ namespace Parser
                     Expression return_value_expression = new Expression(return_value_string);
                     Variable return_value = return_value_expression.evaluate();
 
-                    if (_type != "auto") Debugging.assert(return_value.getTypeString() == _type && _type != "null");
+                    if (_type != "auto" && _type != "null") Debugging.assert(return_value.getTypeString() == _type);
                     restore();
                     return return_value;
                 }
@@ -90,16 +92,13 @@ namespace Parser
 
         private void restore()
         {
-            if (!_in_function_scope) throw new Exception("Not in function scope");
-
+            if (!_resp_function && !_in_function_scope) throw new Exception("Not in function scope");
             Debugging.print("num global vars 1: " + _var_copy.Count);
+            
             Global.variables.Clear(); // clear function variables
-            /*foreach (KeyValuePair<string,Variable> pair in _var_copy)
-            {
-                Global.variables[pair.Key] = pair.Value; // manually copy each var ?
-            }*/
             Global.variables = new Dictionary<string, Variable>(_var_copy); // restore the Global variables
             _var_copy.Clear(); // this will prevent from difficult-to-detect mistakes
+            
             Debugging.print("num global vars 2: " + _var_copy.Count);
 
             if (!Context.isFrozen())
@@ -126,10 +125,19 @@ namespace Parser
         public static Function readFunction(string declaration_line, List<RawInstruction> function_declaration)
         {
             Debugging.assert(function_declaration.Count > 0); // >= 1
+            bool resp = false;
             
-            // function type
+            // function decl
             List<string> decl =
                 StringUtils.splitStringKeepingStructureIntegrity(declaration_line, ' ', Global.base_delimiters);
+            if (decl.Count == 4)
+            {
+                // function KEYWORD type name(args)
+                Debugging.print("special function. definition with count 4: " + decl[1]);
+                Debugging.assert(decl[1] == "recursive"); // hardcoded.
+                decl.RemoveAt(1);
+                resp = true; // REPLACE WITH "rec-function", "end-rec-function"
+            }
             Debugging.assert(decl.Count == 3); // function type name(args)
             Debugging.assert(decl[0] == "function");
             // type
@@ -157,7 +165,7 @@ namespace Parser
             // Instructions
             List<Instruction> instr_list = function_declaration.Select(raw_instruction => raw_instruction.toInstr()).ToList();
 
-            return new Function(function_name, type_str, function_args, instr_list);
+            return new Function(function_name, type_str, function_args, instr_list, resp);
         }
         
         public static void addUserFunction(Function func)
@@ -241,6 +249,23 @@ namespace Parser
         {
             int rand = new Random().Next();
             return new Integer(rand);
+        }
+
+        private static Variable sqrtFunction(Expression expr)
+        {
+            Variable v = expr.evaluate();
+            if (v is Integer)
+            {
+                int raw_int = v.getValue();
+                // ReSharper disable once RedundantCast
+                float raw_float = (float) raw_int;
+                v = new FloatVar(raw_float);
+            }
+            Debugging.assert(v is FloatVar);
+            double real = (double) v.getValue();
+            float real_sqrt = (float) Math.Sqrt(real);
+            
+            return new FloatVar(real_sqrt);
         }
 
 
@@ -442,7 +467,7 @@ namespace Parser
 
         /// <summary>
         /// Holds all the non-void value_functions. There are some default value_functions, but you can add your
-        /// own through the <see cref="Functions.addFunction"/> method.
+        /// own through the <see cref="addFunction"/> method.
         /// </summary>
         private static readonly Dictionary<string, Delegate> functions_dict = new Dictionary<string, Delegate>
         {
@@ -450,6 +475,7 @@ namespace Parser
             {"list_at", new Func<Expression, Expression, Variable>(listAtFunction)},
             {"copy_list", new Func<Expression, Variable>(copyListFunction)},
             {"random", new Func<Variable>(randomNumber)},
+            {"sqrt", new Func<Expression, Variable>(sqrtFunction)},
 
             {"return", new Func<Expression, NullVar>(returnFunction)}, // NullVar is equivalent of void, null or none
             {"print", new Func<Expression, NullVar>(printFunction)},
@@ -479,8 +505,8 @@ namespace Parser
 
         /// <summary>
         /// Overwrite default value_functions or your own value_functions using this method. The function has to exist
-        /// in the <see cref="functions_dict"/> or <see cref="functions_dict"/> dictionary.
-        /// <para/>You cannot overwrite the <see cref="Functions.returnFunction"/> function
+        /// in the <see cref="functions_dict"/> or <see cref="user_functions"/> dictionary.
+        /// <para/>You cannot overwrite the <see cref="returnFunction"/> function
         /// </summary>
         /// <param name="function_name"> function name to overwrite (key)</param>
         /// <param name="function"> Delegate function (value)</param>

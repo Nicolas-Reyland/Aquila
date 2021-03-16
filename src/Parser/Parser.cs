@@ -6,6 +6,7 @@ using System.IO;
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
 // ReSharper disable ArrangeObjectCreationWhenTypeEvident
+// ReSharper disable SuggestVarOrType_Elsewhere
 
 namespace Parser
 {
@@ -252,7 +253,7 @@ namespace Parser
             "if", "else", "end-if",
             "for","end-for",
             "while", "end-while",
-            "function", "end-function", //! add this to atom grammar package (end-function)
+            "function", "end-function", "recursive",
             "decl", "safe", "overwrite",
             "overwrite", // not yet
             "safe", // not yet
@@ -261,9 +262,15 @@ namespace Parser
         };
 
         /// <summary>
+        /// All default available variables in Aquila
+        /// </summary>
+        public static readonly Dictionary<string, Variable> default_variables = new Dictionary<string, Variable>
+            {{"null", new NullVar()}};
+
+        /// <summary>
         /// Those are all the variables that the analysed algorithm uses
         /// </summary>
-        public static Dictionary<string, Variable> variables = new Dictionary<string, Variable>();
+        public static Dictionary<string, Variable> variables = new Dictionary<string, Variable>(default_variables);
 
         /// <summary>
         /// All the variables that are not NullVar (thus have a graphical representable value)
@@ -359,6 +366,11 @@ namespace Parser
         public static bool trace_debug = true;
 
         /// <summary>
+        /// Should function names be checked before or during runtime ?
+        /// </summary>
+        public static bool check_function_names_before_runtime = false;
+
+        /// <summary>
         /// List of all the variable tracers
         /// </summary>
         public static readonly List<VarTracer> var_tracers = new List<VarTracer>();
@@ -390,6 +402,7 @@ namespace Parser
         public static void resetEnv()
         {
             variables.Clear();
+            variables = new Dictionary<string, Variable>(default_variables);
             Functions.user_functions.Clear();
             var_tracers.Clear();
             func_tracers.Clear();
@@ -412,8 +425,8 @@ namespace Parser
         {
             if (!condition)
             {
-                StackTrace stackTrace = new StackTrace();
-                string call_name = stackTrace.GetFrame(1).GetMethod().Name;
+                StackTrace stack_trace = new StackTrace();
+                string call_name = stack_trace.GetFrame(1).GetMethod().Name;
                 throw new Exception(call_name + " (" + Global.current_line_index + "): Debugging.Assertion Error. CUSTOM ERROR");
             }
         }
@@ -485,15 +498,20 @@ namespace Parser
                     // multiple-line comment start
                     if (ml_open_flag.Length < remaining && full.Substring(i, ml_open_flag.Length) == ml_open_flag)
                     {
-                        lines.Add(line_index, full.Substring(last_valid_index, i - last_valid_index));
+                        string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
+                        Debugging.print("adding line of code ", line_index, " : ", line_of_valid_code);
+                        lines.Add(line_index, line_of_valid_code);
                         in_comment = true;
                         Debugging.print("in multiple line comment");
                     }
                     // single line comment start
                     else if (sl_flag.Length < remaining && full.Substring(i, sl_flag.Length) == sl_flag)
                     {
-                        int next_line_index = full.IndexOf('\n', i);
-                        lines.Add(line_index, full.Substring(last_valid_index, i - last_valid_index));
+                        int next_line_index = full.IndexOf('\n', i) + 1;
+                        string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
+                        line_index++; // increment index
+                        Debugging.print("adding line of code ", line_index, " : ", line_of_valid_code);
+                        lines.Add(line_index, line_of_valid_code);
                         last_valid_index = next_line_index; // new last_valid_index (in future)
                         remaining -= next_line_index - i; // decrement remaining
                         i = next_line_index; // updating i
@@ -607,7 +625,7 @@ namespace Parser
         static void Main(string[] args)
         {
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
-            bool interactive = true;
+            bool interactive = false;
             Global.debug = true;
             Global.trace_debug = false;
             Context.enabled = true;
@@ -621,10 +639,15 @@ namespace Parser
             {
                 List<string> exec_lines = new List<string>()
                 {
-                    "function auto test()",
-                    "print_str_endl(This is a TEST !!!)",
+                    "function resp auto test(n)",
+                    "if ($n ~ 0)",
+                    "print_str_endl(yes!)",
+                    "return(0)",
+                    "end-if",
+                    "print($n)",
+                    "print_endl()",
+                    "return(test($n - 1))",
                     "end-function",
-                    "decl i 5",
                 };
                 Interpreter.interactiveMode(exec_lines);
                 return;
@@ -632,7 +655,7 @@ namespace Parser
 
             Console.WriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : "bubble sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            string src_code = args.Length == 1 ? args[0] : "merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
             bool interpreter_after = false;
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);

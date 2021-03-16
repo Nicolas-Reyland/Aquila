@@ -594,7 +594,7 @@ namespace Parser
             int missing_spaces = max_call_name_length - call_name.Length - Context.getStatus().ToString().Length - 2; // 2: parentheses
 
             // debugging mode is on
-            Console.Write(prefix + space_separator + call_name + "(" + Context.getStatus() + ")");
+            Console.Write(prefix  + " [" + Global.current_line_index + "]" + space_separator + call_name + "(" + Context.getStatus() + ")");
             Console.Write(new String(' ', missing_spaces));
 
             Console.Write(" : ");

@@ -258,7 +258,7 @@ namespace Parser
             Debugging.print("function definition ?");
             if (instr[0] == "function") {
                 Debugging.assert(raw_instr._is_nested); // syntax???
-                Debugging.assert(instr.Count == 3); // "function" "type" "name(args)"
+                Debugging.assert(instr.Count == 3 || instr.Count == 4); // "function" "type" ("keyword"?) "name(args)"
 
                 Function func = Functions.readFunction(raw_instr._instr, raw_instr._sub_instr_list);
                 return new FunctionDef(line_index, func);
@@ -364,7 +364,7 @@ namespace Parser
                 
                 // function name
                 string function_name = instr[0].Split('(')[0]; // extract function name
-                Functions.assertFunctionExists(function_name); // assert function exists
+                if (Global.check_function_names_before_runtime) Functions.assertFunctionExists(function_name); // assert function exists
                 Debugging.print("expr_string for function call ", instr[0]);
                 // extract args
                 string exprs = instr[0].Substring(function_name.Length + 1); // + 1 : '('

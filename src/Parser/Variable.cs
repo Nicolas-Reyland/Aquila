@@ -587,6 +587,8 @@ namespace Parser
             // manually set context
             Context.setStatus(Context.StatusEnum.predefined_function_call);
             Context.setInfo(this);
+            // for resp functions:
+            bool frozen_at_start = Context.isFrozen();
 
             _called = true;
             // from list to array of objects
@@ -602,7 +604,7 @@ namespace Parser
             }
 
             // reset Context
-            Context.reset();
+            if (!frozen_at_start) Context.reset();
 
             return result;
         }

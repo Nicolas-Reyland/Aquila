@@ -1,0 +1,55 @@
+/** Merge Sort Algorithm - TopDown Implementation **/
+decl l [9, 1, 5, 6, 0, 3]
+decl len length($l)
+
+function recursive null top_down_merge(a, i_begin, i_middle, i_end, b)
+  decl int i $i_begin
+  decl int j $i_middle
+  // While there are elements in the left or right runs...
+  for (decl k $i_begin, $k < $i_end, $k = $k + 1)
+    if ($i < $i_middle & ($j } $i_end | $a[$i] { $a[$j]))
+      $b[$k] = $a[$i]
+      $i = $i + 1
+    else
+      $b[$k] = $a[$j]
+      $j = $j + 1
+    end-if
+  end-for
+end-function
+
+function recursive null top_down_split_merge(b, i_begin, i_end, a)
+  if ($i_end - $i_begin { 1)
+    return($null)
+  end-if
+  // split the run longer than 1 item into halves
+  decl int i_middle (($i_end + $i_begin) / 2)
+  // recursively sort both runs from list $a into $b
+  top_down_split_merge($a, $i_begin, $i_middle, $b)
+  top_down_split_merge($a, $i_middle, $i_end, $b)
+  // merge the resulting runs from list $b into $a
+  top_down_merge($b, $i_begin, $i_middle, $i_end, $a)
+end-function
+
+function recursive null top_down_merge_sort(a, b, n)
+  $b = copy_list($a)
+  top_down_split_merge($b, 0, $n, $a)
+end-function
+
+decl list result
+
+$result = top_down_merge_sort($l, [], $len)
+
+return($result)
+
+
+
+
+
+
+
+
+
+
+
+
+//
