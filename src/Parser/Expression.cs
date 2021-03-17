@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
@@ -266,7 +265,7 @@ namespace Parser
         }
 
         /// <summary>
-        /// Get the <see cref="Variable"/> from the <see cref="Global.variables"/> Dictionary.
+        /// Get the <see cref="Variable"/> from the current variable Dictionary.
         /// You an give the variable name with or without the "$" prefix
         /// </summary>
         /// <param name="var_name"> The variable name (with or without the "$" as a prefix)</param>
@@ -274,11 +273,8 @@ namespace Parser
         private static Variable variableFromName(string var_name)
         {
             if (var_name.StartsWith("$")) var_name = var_name.Substring(1);
-            Debugging.print(Global.variables.Count);
-            Interpreter.processInterpreterInput("vars");
-            Debugging.assert(Global.variables.ContainsKey(var_name));
-            Variable variable = Global.variables[var_name];
-            return variable;
+            Debugging.assert(Global.variableExistsInCurrentScope(var_name));
+            return Global.variableFromName(var_name);
         }
 
         /// <summary>

@@ -177,7 +177,7 @@ namespace Parser
 
     public class NullVar : Variable
     {
-        public override Variable cloneTypeToVal(dynamic value) => throw new NotImplementedException();
+        public override Variable cloneTypeToVal(dynamic value) => throw Global.aquilaError(); // wtf
 
         public override dynamic getValue() => throw Global.aquilaError(); // RuntimeError (never supposed to happen whatsoever)
 
@@ -592,6 +592,7 @@ namespace Parser
 
             _called = true;
             // from list to array of objects
+            // ReSharper disable once SuggestVarOrType_Elsewhere
             object[] args = _arg_expr_list.Select(x => (object) x).ToArray();
             // call by name
             Variable result = Functions.callFunctionByName(_function_name, args);

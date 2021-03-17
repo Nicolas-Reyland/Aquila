@@ -13,19 +13,18 @@ namespace Parser
     public class Function
     {
         private readonly string _name;
-        private Dictionary<string, Variable> _var_copy;
         private readonly string _type;
         public readonly List<string> func_args;
         private readonly List<Instruction> _instructions;
         private bool _in_function_scope; // = false;
-        private readonly bool _resp_function;
-        public Function(string name, string type, List<string> func_args, List<Instruction> instructions, bool resp_function)
+        private readonly bool _rec_function;
+        public Function(string name, string type, List<string> func_args, List<Instruction> instructions, bool recFunction)
         {
             _name = name;
             _type = type;
             this.func_args = func_args;
             _instructions = instructions;
-            _resp_function = resp_function;
+            _rec_function = recFunction;
         }
 
         public string getName() => _name;
@@ -34,17 +33,12 @@ namespace Parser
 
         private void initialize(Dictionary<string, Variable> args)
         {
-            if (!_resp_function && _in_function_scope) throw new Exception("Already in function scope");// recursive ?
-            _var_copy = new Dictionary<string, Variable>(Global.variables);
-            
-            Debugging.print("num global vars 0: " + _var_copy.Count);
-            Global.variables = new Dictionary<string, Variable>(Global.default_variables);
-
-            foreach (KeyValuePair<string,Variable> pair in args)
-            {
-                // This is equivalent to a declaration & assignment
-                Global.variables.Add(pair.Key, pair.Value); // maybe linq or something ?
-            }
+            if (!_rec_function && _in_function_scope) throw new Exception("Already in function scope");// recursive ?
+                        
+            // new main context scope (entering a function)
+            Global.newMainContextScope();
+            // new local context scope using custom function args
+            Global.newLocalContextScope(args);
 
             if (Context.isFrozen())
             {
@@ -92,14 +86,10 @@ namespace Parser
 
         private void restore()
         {
-            if (!_resp_function && !_in_function_scope) throw new Exception("Not in function scope");
-            Debugging.print("num global vars 1: " + _var_copy.Count);
+            if (!_rec_function && !_in_function_scope) throw new Exception("Not in function scope");
             
-            Global.variables.Clear(); // clear function variables
-            Global.variables = new Dictionary<string, Variable>(_var_copy); // restore the Global variables
-            _var_copy.Clear(); // this will prevent from difficult-to-detect mistakes
-            
-            Debugging.print("num global vars 2: " + _var_copy.Count);
+            // reset main context scope (exiting a function)
+            Global.resetMainContextScope();
 
             if (!Context.isFrozen())
             {
@@ -339,25 +329,28 @@ namespace Parser
         }
 
         /// <summary>
-        /// Remove a <see cref="Variable"/> from the <see cref="Global.variables"/> dictionary
+        /// Remove a <see cref="Variable"/> from the current variable dictionary
         /// </summary>
-        /// <param name="expr"> <see cref="Expression"/> resulting in a <see cref="Variable"/> from <see cref="Global.variables"/></param>
+        /// <param name="expr"> <see cref="Expression"/> resulting in a <see cref="Variable"/> from the current variable dict</param>
         /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
         private static NullVar deleteVarFunction(Expression expr)
         {
             // evaluate every expression
             Variable variable = expr.evaluate();
             // delete var
-            Debugging.assert(Global.variables.ContainsValue(variable)); // UnknownVariableNameException
-            // search the first element which matches the variable
-            KeyValuePair<string, Variable> item = Global.variables.First(kvp => kvp.Value == variable);
-            // remove the variable by key (cannot remove by value)
-            Global.variables.Remove(item.Key);
+            Debugging.assert(Global.getCurrentDict().ContainsKey(variable.getName())); // UnknownVariableNameException
+            // remove the variable by key
+            Global.getCurrentDict().Remove(variable.getName());
 
             return new NullVar();
         }
 
-
+        /// <summary>
+        /// Delete the nth value of a list
+        /// </summary>
+        /// <param name="list_expr"> expression resulting in a <see cref="DynamicList"/> variable</param>
+        /// <param name="index_expr"> expression resulting in a <see cref="Integer"/> variable</param>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
         private static NullVar deleteValueAt(Expression list_expr, Expression index_expr)
         {
             // extract list

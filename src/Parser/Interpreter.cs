@@ -118,7 +118,7 @@ namespace Parser
             short depth = 0;
             foreach (string line in lines)
             {
-                foreach (KeyValuePair<string,string> nested_instruction_flag in Global.nested_instruction_flags)
+                foreach (var nested_instruction_flag in Global.nested_instruction_flags)
                 {
                     if (line.StartsWith(nested_instruction_flag.Key))
                     {
@@ -273,7 +273,7 @@ namespace Parser
         /// </summary>
         /// <param name="input"> command line from the interactive-mode</param>
         /// <returns> should the command be executed ?</returns>
-        internal static bool processInterpreterInput(string input)
+        private static bool processInterpreterInput(string input)
         {
             switch (input)
             {
@@ -305,19 +305,27 @@ namespace Parser
                     return false;
                 case "vars":
                 {
-                    foreach (KeyValuePair<string, Variable> variable in Global.variables)
+                    int i = 0;
+                    foreach (var dict in Global.getCurrentDictList())
                     {
-                        Console.Write(variable.Key + " : ");
-                        Console.WriteLine(variable.Value.ToString());
+                        foreach (var (key, value) in dict)
+                        {
+                            Console.Write(new string('\t', i));
+                            Console.Write(key + " : ");
+                            Console.WriteLine(value.ToString());
+                        }
+
+                        i++;
                     }
+                    
                     return false;
                 }
                 // ReSharper disable once StringLiteralTypo
                 case "funcs":
                 {
-                    foreach (KeyValuePair<string,Function> pair in Functions.user_functions)
+                    foreach (var (key, value) in Functions.user_functions)
                     {
-                        Console.WriteLine("func: " + pair.Key + " -> (" + pair.Value.func_args.Count + ") " + pair.Value.getType());
+                        Console.WriteLine("func: " + key + " -> (" + value.func_args.Count + ") " + value.getType());
                     }
 
                     return false;
@@ -381,11 +389,16 @@ namespace Parser
                     Console.WriteLine("type of Integer: " + typeof(Integer));
 
                     return false;
+                case "scope_info":
+                    Console.WriteLine("local scope depth: " + Global.getLocalScopeDepth());
+                    Console.WriteLine("main scope depth: " + Global.getMainScopeDepth());
+
+                    return false;
             }
 
-            if (input[0] == '$' && Global.variables.ContainsKey(input.Substring(1)))
+            if (input[0] == '$' && Global.variableExistsInCurrentScope(input.Substring(1)))
             {
-                Console.WriteLine(Global.variables[input.Substring(1)].ToString());
+                Console.WriteLine(Global.variableFromName(input.Substring(1)).ToString());
                 return false;
             }
 
@@ -410,7 +423,7 @@ namespace Parser
                 var_name = StringUtils.purgeLine(var_name);
                 if (var_name != "")
                 {
-                    Variable var_ = Global.variables[var_name];
+                    Variable var_ = Global.variableFromName(var_name);
                     Console.WriteLine("name     : " + var_.getName());
                     Console.WriteLine("type     : " + var_.getTypeString());
                     Console.WriteLine("value    : " + var_);
