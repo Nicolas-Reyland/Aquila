@@ -85,18 +85,17 @@ namespace Parser
             instruction_main_finished   // 14
         }
 
-        /// <summary>
-        /// The last local 'main' scope. The main scope would be defined at the beginning of your program
-        /// or at every function call. This is updated every time the 'accessible variables' list changes
-        /// </summary>
-        public static int last_main_scope_depth;
-
         // status
         /// <summary>
         /// explicit naming
         /// </summary>
         /// <returns> current status</returns>
         public static int getStatus() => _status;
+        /// <summary>
+        /// Used for verifying set/reset calls
+        /// </summary>
+        /// <returns> status stack count</returns>
+        public static int getStatusStackCount() => previous_status.Count;
         /// <summary>
         /// check for status
         /// </summary>
@@ -175,6 +174,13 @@ namespace Parser
             Debugging.assert(!_frozen);
             _frozen = true;
         }
+
+        public static bool tryFreeze()
+        {
+            if (_frozen) return false;
+            freeze();
+            return true;
+        }
         /// <summary>
         /// unfreeze the status
         /// <para/>Exception will be raised if the context is not frozen
@@ -236,6 +242,13 @@ namespace Parser
     /// <para/>List of the attributes:
     /// <para/>* <see cref="reserved_keywords"/> : string[]
     /// <para/>* <see cref="_variable_stack"/> : Stack( (int, Dictionary(string, Variable)) )
+    ///
+    ///
+    ///
+    ///
+    ///
+    ///
+    /// 
     /// <para/>* <see cref="usable_variables"/> : List(string)
     /// <para/>* <see cref="single_line_comment_string"/> : string
     /// <para/>* <see cref="multiple_lines_comment_string"/>
@@ -317,10 +330,9 @@ namespace Parser
         /// </summary>
         public static void newMainContextScope()
         {
-            Debugging.print("new main scope from (current): ", getMainScopeDepth());
-            addVariableStackLayer();
-            addVariableStackElement(default_variables); // initialize default variables
-            Debugging.print("new main scope: " + getMainScopeDepth());
+            Debugging.print("new main scope depth from (current): ", getMainScopeDepth());
+            addVariableStackLayer(); // defaults are added automatically
+            Debugging.print("new main scope depth: " + getMainScopeDepth());
         }
 
         /// <summary>
@@ -329,10 +341,10 @@ namespace Parser
         /// </summary>
         public static void resetMainContextScope()
         {
-            Debugging.print("exiting main scope (current): " + getMainScopeDepth());
+            Debugging.print("exiting main scope depth (current): " + getMainScopeDepth());
             Debugging.assert(getMainScopeDepth() > 0); // cannot exit a function call or something in the main instruction loop
             removeVariableStackLayer();
-            Debugging.print("new main scope: " + getMainScopeDepth());
+            Debugging.print("new main scope depth: " + getMainScopeDepth());
         }
 
         /// <summary>
@@ -367,9 +379,9 @@ namespace Parser
         /// </summary>
         public static void newLocalContextScope(Dictionary<string, Variable> vars = null)
         {
-            Debugging.print("new local scope from (current): ", getLocalScopeDepth());
+            Debugging.print("new local scope depth from (current): ", getLocalScopeDepth());
             addVariableStackElement(vars);
-            Debugging.print("new local scope: " + getLocalScopeDepth());
+            Debugging.print("new local scope depth: " + getLocalScopeDepth());
         }
 
         /// <summary>
@@ -779,13 +791,13 @@ namespace Parser
                     "function recursive auto test(n)",
                     "if ($n { 0)",
                     "print_str_endl(yes!)",
-                    "return(0)",
+                    "return(random() % 5)",
                     "end-if",
                     "print($n)",
                     "print_endl()",
                     "return(test($n - 1) + test($n - 2))",
                     "end-function",
-                    "eval test(2)"
+                    "print(test(2))"
                 };
                 Interpreter.interactiveMode(exec_lines);
                 return;

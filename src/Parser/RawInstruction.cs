@@ -93,16 +93,15 @@ namespace Parser
 
                 RawInstruction instr = new RawInstruction (line, real_line_index);
 
-                foreach (var (key, value) in Global.nested_instruction_flags.Where(flag => line.StartsWith(flag.Key + " ")))
+                foreach (var pair in Global.nested_instruction_flags.Where(flag => line.StartsWith(flag.Key + " ")))
                 {
-                    Debugging.print("FOUND " + key);
+                    Debugging.print("FOUND " + pair.Key);
                     instr._is_nested = true;
                     int end_index =
-                        StringUtils.findCorrespondingElementIndex(lines.Select(pair => pair.Value).ToList(), line_index + 1, key, value);
-                    //Dictionary<int, string> sub_lines = lines.GetRange(line_index + 1, end_index - line_index - 1);
+                        StringUtils.findCorrespondingElementIndex(lines.Select(pair_ => pair_.Value).ToList(), line_index + 1, pair.Key, pair.Value);
                     Dictionary<int, string> sub_lines = new Dictionary<int, string>();
                     List<int> picked =
-                        lines.Select(pair => pair.Key).ToList().GetRange(line_index + 1,
+                        lines.Select(pair_ => pair_.Key).ToList().GetRange(line_index + 1,
                             end_index - line_index - 1);
                     foreach (int i in picked)
                     {

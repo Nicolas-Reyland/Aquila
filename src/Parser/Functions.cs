@@ -18,6 +18,10 @@ namespace Parser
         private readonly List<Instruction> _instructions;
         private bool _in_function_scope; // = false;
         private readonly bool _rec_function;
+        private int _call_depth;
+
+        public int start_status;
+        
         public Function(string name, string type, List<string> func_args, List<Instruction> instructions, bool recFunction)
         {
             _name = name;
@@ -25,6 +29,7 @@ namespace Parser
             this.func_args = func_args;
             _instructions = instructions;
             _rec_function = recFunction;
+            _call_depth = 0;
         }
 
         public string getName() => _name;
@@ -33,21 +38,13 @@ namespace Parser
 
         private void initialize(Dictionary<string, Variable> args)
         {
+            _call_depth++;
+            Debugging.print("calling function with depth: ", _call_depth);
+            Debugging.assert(Context.isFrozen());
             if (!_rec_function && _in_function_scope) throw new Exception("Already in function scope");// recursive ?
-                        
-            // new main context scope (entering a function)
-            Global.newMainContextScope();
+            
             // new local context scope using custom function args
             Global.newLocalContextScope(args);
-
-            if (Context.isFrozen())
-            {
-                Debugging.print("Context already frozen in function init: " + _name);
-            }
-            else
-            {
-                Context.freeze();
-            }
             
             _in_function_scope = true;
         }
@@ -86,20 +83,12 @@ namespace Parser
 
         private void restore()
         {
+            _call_depth--;
             if (!_rec_function && !_in_function_scope) throw new Exception("Not in function scope");
+            Debugging.assert(Context.isFrozen());
             
-            // reset main context scope (exiting a function)
-            Global.resetMainContextScope();
+            // no need to pop local context stack bc whole stack layer will be removed
 
-            if (!Context.isFrozen())
-            {
-                Debugging.print("Context was not frozen in function restore: " + _name);
-            }
-            else
-            {
-                Context.unfreeze();
-            }
-            
             _in_function_scope = false;
         }
     }
@@ -272,6 +261,12 @@ namespace Parser
             // this Exception will stop the function/algorithm from executing
             throw new AquilaExceptions.ReturnValueException(expr.expr);
         }
+
+	private static NullVar interactiveCallFunction(Expression expr)
+	{
+		Interpreter.processInterpreterInput(expr.expr);
+		return new NullVar();
+	}
 
         /// <summary>
         /// Prints the value of an <see cref="Expression"/> to the stdout. Doesn't add a return '\n' symbol
@@ -471,6 +466,7 @@ namespace Parser
             {"sqrt", new Func<Expression, Variable>(sqrtFunction)},
 
             {"return", new Func<Expression, NullVar>(returnFunction)}, // NullVar is equivalent of void, null or none
+	    {"interactive_call", new Func<Expression, NullVar>(interactiveCallFunction)},
             {"print", new Func<Expression, NullVar>(printFunction)},
             {"print_str", new Func<Expression, NullVar>(printStrFunction)},
             {"print_str_endl", new Func<Expression, NullVar>(printStrEndlFunction)},
@@ -521,16 +517,27 @@ namespace Parser
         {
             if (functions_dict.ContainsKey(name))
             {
+                // no new context scope needed, because no function defined here would benefit from it. plus, wouldn't it break some functionalities ?
+                
                 Context.assertStatus(Context.StatusEnum.predefined_function_call);
                 Debugging.print("invoking value function ", name, " dynamically with ", args.Length, " argument(s)");
                 //handleValueFunctionTracing(name, args); // cannot use expressions, have to use variables ...
                 return functions_dict[name].DynamicInvoke(args) as Variable;
+                
+                //return result;
             }
             if (user_functions.ContainsKey(name))
             {
                 Debugging.print("calling user function: " + name);
                 Dictionary<string, Variable> arg_dict = args2Dict(name, args);
-                return user_functions[name].callFunction(arg_dict);
+                
+                bool unfreeze = Context.tryFreeze();
+                Global.newMainContextScope();
+                Variable result = user_functions[name].callFunction(arg_dict);
+                Global.resetMainContextScope();
+                if (unfreeze) Context.unfreeze();
+                
+                return result;
             }
 
             throw Global.aquilaError(); // UnknownFunctionNameException

@@ -86,13 +86,13 @@ namespace Parser
             // printTrace alter info about the call if needed
             if (add_call_info != "") printTrace(add_call_info);
             // check for new usable variables
-            foreach (var (key, value) in Global.getCurrentDict().Where(pair => !Global.usable_variables.Contains(pair.Key)))
+            foreach (var pair in Global.getCurrentDict().Where(pair => !Global.usable_variables.Contains(pair.Key)))
             {
-                printTrace("checking potential var ", value is NullVar ? "null" : value.getName());
-                if (!(value is NullVar) && value.assigned)
+                printTrace("checking potential var ", pair.Value is NullVar ? "null" : pair.Value.getName());
+                if (!(pair.Value is NullVar) && pair.Value.assigned)
                 {
-                    printTrace("var ", value.getName(), " is usable (non-null & assigned)");
-                    Global.usable_variables.Add(key);
+                    printTrace("var ", pair.Value.getName(), " is usable (non-null & assigned)");
+                    Global.usable_variables.Add(pair.Key);
                 }
             }
 

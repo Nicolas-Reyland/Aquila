@@ -213,19 +213,23 @@ namespace Parser
         public BooleanVar or(BooleanVar other)
         {
             assertAssignment();
-            return new BooleanVar(_bool_value || other.getValue());
-        }
-
-        public BooleanVar and(BooleanVar other)
-        {
-            assertAssignment();
-            return new BooleanVar(_bool_value && other.getValue());
+            // lazy or
+            return _bool_value ? new BooleanVar(true) : new BooleanVar(_bool_value || other.getValue());
         }
 
         public BooleanVar xor(BooleanVar other)
         {
             assertAssignment();
             return new BooleanVar(_bool_value ^ other.getValue());
+        }
+
+        public BooleanVar and(BooleanVar other)
+        {
+            assertAssignment();
+            // lazy and
+            return _bool_value
+                ? new BooleanVar(_bool_value && other.getValue())
+                : new BooleanVar(false);
         }
 
         public override Variable cloneTypeToVal(dynamic value) => new BooleanVar(value);
@@ -584,16 +588,18 @@ namespace Parser
 
         public Variable callFunction()
         {
+            Debugging.print("calling \"" + _function_name + "\" as value");
             // manually set context
             Context.setStatus(Context.StatusEnum.predefined_function_call);
             Context.setInfo(this);
-            // for resp functions:
+            // for rec functions:
             bool frozen_at_start = Context.isFrozen();
 
             _called = true;
             // from list to array of objects
             // ReSharper disable once SuggestVarOrType_Elsewhere
             object[] args = _arg_expr_list.Select(x => (object) x).ToArray();
+            
             // call by name
             Variable result = Functions.callFunctionByName(_function_name, args);
 

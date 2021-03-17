@@ -273,7 +273,7 @@ namespace Parser
         /// </summary>
         /// <param name="input"> command line from the interactive-mode</param>
         /// <returns> should the command be executed ?</returns>
-        private static bool processInterpreterInput(string input)
+        internal static bool processInterpreterInput(string input)
         {
             switch (input)
             {
@@ -308,11 +308,11 @@ namespace Parser
                     int i = 0;
                     foreach (var dict in Global.getCurrentDictList())
                     {
-                        foreach (var (key, value) in dict)
+                        foreach (var pair in dict)
                         {
                             Console.Write(new string('\t', i));
-                            Console.Write(key + " : ");
-                            Console.WriteLine(value.ToString());
+                            Console.Write(pair.Key + " : ");
+                            Console.WriteLine(pair.Value.ToString());
                         }
 
                         i++;
@@ -323,9 +323,9 @@ namespace Parser
                 // ReSharper disable once StringLiteralTypo
                 case "funcs":
                 {
-                    foreach (var (key, value) in Functions.user_functions)
+                    foreach (var pair in Functions.user_functions)
                     {
-                        Console.WriteLine("func: " + key + " -> (" + value.func_args.Count + ") " + value.getType());
+                        Console.WriteLine("func: " + pair.Key + " -> (" + pair.Value.func_args.Count + ") " + pair.Value.getType());
                     }
 
                     return false;

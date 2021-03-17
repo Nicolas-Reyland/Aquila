@@ -185,14 +185,14 @@ namespace Parser
         public static Dictionary<int, string> purgeLines(Dictionary<int, string> lines)
         {
             Dictionary<int, string> new_lines = new Dictionary<int, string>();
-            foreach (var (key, value) in lines)
+            foreach (var pair in lines)
             {
-                string new_line = purgeLine(value);
+                string new_line = purgeLine(pair.Value);
 
                 // if the line has content, add it
                 if (new_line != "")
                 {
-                    new_lines.Add(key, new_line);
+                    new_lines.Add(pair.Key, new_line);
                 }
             }
 
@@ -303,13 +303,13 @@ namespace Parser
 
             for (int i = 0; i < line.Length; i++)
             {
-                foreach (var (key, value) in section_delimiters)
+                foreach (var pair in section_delimiters)
                 {
-                    if (line[i] == key)
+                    if (line[i] == pair.Key)
                     {
                         section_depth++;
                     }
-                    else if (line[i] == value)
+                    else if (line[i] == pair.Value)
                     {
                         section_depth--;
                     }
@@ -436,16 +436,16 @@ namespace Parser
             for (int i = 0; i < expr.Length; i++)
             {
                 var look = true;
-                foreach (var (key, value) in Global.base_delimiters)
+                foreach (var pair in Global.base_delimiters)
                 {
-                    if (expr[i] == key)
+                    if (expr[i] == pair.Key)
                     {
                         depth++;
                         look = false;
                         break;
                     }
 
-                    if (expr[i] == value)
+                    if (expr[i] == pair.Value)
                     {
                         depth--;
                         look = false;
