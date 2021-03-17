@@ -772,10 +772,10 @@ namespace Parser
         static void Main(string[] args)
         {
             Global.initVariables();
-            
+
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
             bool interactive = true;
-            Global.debug = true;
+            Global.debug = false;
             Global.trace_debug = false;
             Context.enabled = true;
 
@@ -788,16 +788,12 @@ namespace Parser
             {
                 List<string> exec_lines = new List<string>()
                 {
-                    "function recursive auto test(n)",
-                    "if ($n { 0)",
-                    "print_str_endl(yes!)",
-                    "return(random() % 5)",
+                    "function recursive int fib(n)",
+                    "if ($n < 2)",
+                    "return($n)",
                     "end-if",
-                    "print($n)",
-                    "print_endl()",
-                    "return(test($n - 1) + test($n - 2))",
+                    "return(fib($n - 1) + fib($n - 2))",
                     "end-function",
-                    "print(test(2))"
                 };
                 Interpreter.interactiveMode(exec_lines);
                 return;

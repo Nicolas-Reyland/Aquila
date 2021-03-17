@@ -20,8 +20,6 @@ namespace Parser
         private readonly bool _rec_function;
         private int _call_depth;
 
-        public int start_status;
-        
         public Function(string name, string type, List<string> func_args, List<Instruction> instructions, bool recFunction)
         {
             _name = name;
@@ -35,6 +33,8 @@ namespace Parser
         public string getName() => _name;
 
         public string getType() => _type;
+
+        public bool isRec() => _rec_function;
 
         private void initialize(Dictionary<string, Variable> args)
         {

@@ -289,10 +289,10 @@ namespace Parser
                         "eval %expr", // expr
                         "var %var_name", "vars", "$%var_name", // variables
                         // ReSharper disable once StringLiteralTypo
-                        "funcs", // functions
+                        "funcs", "type", // functions
                         "trace_info", "trace_uniq_stacks", "rewind %n %var_name", "peek_event $%traced_value", // trace
                         "get_context", "set_status", "set_info_null", "reset_context", // context
-                        //"",
+                        "scope_info", // scope
                     })
                     {
                         Console.WriteLine("  -> " + command);
@@ -325,7 +325,7 @@ namespace Parser
                 {
                     foreach (var pair in Functions.user_functions)
                     {
-                        Console.WriteLine("func: " + pair.Key + " -> (" + pair.Value.func_args.Count + ") " + pair.Value.getType());
+                        Console.WriteLine(" * " + pair.Key + (pair.Value.isRec() ? " : [rec] " : " : ") + "(" + pair.Value.func_args.Count + ") -> " + pair.Value.getType());
                     }
 
                     return false;
