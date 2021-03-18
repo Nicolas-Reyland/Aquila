@@ -93,28 +93,24 @@ namespace Parser
 
                 RawInstruction instr = new RawInstruction (line, real_line_index);
 
-                foreach (KeyValuePair<string, string> flag in Global.nested_instruction_flags)
+                foreach (var pair in Global.nested_instruction_flags.Where(flag => line.StartsWith(flag.Key + " ")))
                 {
-                    if (line.StartsWith(flag.Key + " "))
+                    Debugging.print("FOUND " + pair.Key);
+                    instr._is_nested = true;
+                    int end_index =
+                        StringUtils.findCorrespondingElementIndex(lines.Select(pair_ => pair_.Value).ToList(), line_index + 1, pair.Key, pair.Value);
+                    Dictionary<int, string> sub_lines = new Dictionary<int, string>();
+                    List<int> picked =
+                        lines.Select(pair_ => pair_.Key).ToList().GetRange(line_index + 1,
+                            end_index - line_index - 1);
+                    foreach (int i in picked)
                     {
-                        Debugging.print("FOUND " + flag.Key);
-                        instr._is_nested = true;
-                        int end_index =
-                            StringUtils.findCorrespondingElementIndex(lines.Select(pair => pair.Value).ToList(), line_index + 1, flag.Key, flag.Value);
-                        //Dictionary<int, string> sub_lines = lines.GetRange(line_index + 1, end_index - line_index - 1);
-                        Dictionary<int, string> sub_lines = new Dictionary<int, string>();
-                        List<int> picked =
-                            lines.Select(pair => pair.Key).ToList().GetRange(line_index + 1,
-                                end_index - line_index - 1);
-                        foreach (int i in picked)
-                        {
-                            sub_lines.Add(i, lines[i]);
-                        }
-
-                        instr._sub_instr_list = code2RawInstructions(sub_lines);
-                        Debugging.print(line_index, " - ", end_index);
-                        line_index = end_index;
+                        sub_lines.Add(i, lines[i]);
                     }
+
+                    instr._sub_instr_list = code2RawInstructions(sub_lines);
+                    Debugging.print(line_index, " - ", end_index);
+                    line_index = end_index;
                 }
 
                 instructions.Add(instr);
@@ -258,7 +254,7 @@ namespace Parser
             Debugging.print("function definition ?");
             if (instr[0] == "function") {
                 Debugging.assert(raw_instr._is_nested); // syntax???
-                Debugging.assert(instr.Count == 3); // "function" "type" "name(args)"
+                Debugging.assert(instr.Count == 3 || instr.Count == 4); // "function" "type" ("keyword"?) "name(args)"
 
                 Function func = Functions.readFunction(raw_instr._instr, raw_instr._sub_instr_list);
                 return new FunctionDef(line_index, func);
@@ -364,7 +360,7 @@ namespace Parser
                 
                 // function name
                 string function_name = instr[0].Split('(')[0]; // extract function name
-                Functions.assertFunctionExists(function_name); // assert function exists
+                if (Global.settings["check_func_existance_before_runtime"]) Functions.assertFunctionExists(function_name); // assert function exists
                 Debugging.print("expr_string for function call ", instr[0]);
                 // extract args
                 string exprs = instr[0].Substring(function_name.Length + 1); // + 1 : '('

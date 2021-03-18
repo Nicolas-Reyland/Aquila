@@ -59,11 +59,13 @@ namespace Parser
             setLineIndex();
             Context.setStatus(Context.StatusEnum.while_loop_execution);
             Context.setInfo(this);
+            Global.newLocalContextScope();
         }
 
         public override void execute()
         {
             setContext();
+            int context_integrity_check = Context.getStatusStackCount();
             while (test())
             {
                 in_loop  = true;
@@ -73,7 +75,9 @@ namespace Parser
                 }
             }
             in_loop = false;
+            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
+            Global.resetLocalContextScope();
         }
     }
 
@@ -94,11 +98,13 @@ namespace Parser
             setLineIndex();
             Context.setStatus(Context.StatusEnum.for_loop_execution);
             Context.setInfo(this);
+            Global.newLocalContextScope();
         }
 
         public override void execute()
         {
             setContext();
+            int context_integrity_check = Context.getStatusStackCount();
             _start.execute();
             while (test())
             {
@@ -111,7 +117,9 @@ namespace Parser
                 _step.execute();
             }
             in_loop = false;
+            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
+            Global.resetLocalContextScope();
           }
     }
 
@@ -133,12 +141,15 @@ namespace Parser
             setLineIndex();
             Context.setStatus(Context.StatusEnum.if_execution);
             Context.setInfo(this);
+            Global.newLocalContextScope();
         }
 
         public override void execute()
         {
             setContext();
-            if (((BooleanVar) _condition.evaluate()).getValue())
+            int context_integrity_check = Context.getStatusStackCount();
+            
+            if ( ((BooleanVar) _condition.evaluate()).getValue() )
             {
                 foreach (Instruction instr in instructions)
                 {
@@ -153,7 +164,9 @@ namespace Parser
                 }
             }
 
+            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
+            Global.resetLocalContextScope();
         }
     }
 
@@ -172,7 +185,8 @@ namespace Parser
             this._var_expr = var_expr;
             this._var_type = var_type;
             this._assignment = assignment;
-            bool var_exists = Global.variables.ContainsKey(var_name);
+            // the declaration is not initiated in the right scope... cannot do this here
+            /*bool var_exists = Global.variableExistsInCurrentScope(var_name);
             Debugging.print("new declaration: var_name = " + var_name + ", var_expr = " + var_expr.expr + ", var_type = " + var_type + ", assignment = ", assignment, ", overwrite = ", overwrite);
             // check variable naming
             Debugging.assert(StringUtils.validVariableName(var_name)); // InvalidNamingException
@@ -180,13 +194,13 @@ namespace Parser
             if (overwrite == 0) Debugging.assert(!var_exists); // DeclaredExistingVarException
             if (overwrite == 1) Debugging.assert(var_exists); // OverwriteNonExistingVariable
             // check for overwrite + tracer
-            if (overwrite != 0 && var_exists) Debugging.assert(!Global.variables[var_name].isTraced());
+            if (overwrite != 0 && var_exists) Debugging.assert(!Global.variableFromName(var_name).isTraced());
             // give a temp or predefined value
             Variable temp_value = _var_type == "auto"
                 ? new NullVar() // temporary variable. doesn't have any real value (if no explicit type)
                 : (Variable) Global.default_values_by_var_type[var_type].evaluate(); // (if explicit type)
             // add variable to dictionary
-            if (overwrite == 0 || overwrite == 2 && !var_exists) Global.variables.Add(var_name, temp_value);
+            if (overwrite == 0 || overwrite == 2 && !var_exists) Global.getCurrentDict().Add(var_name, temp_value);*/
         }
 
         protected override void setContext()
@@ -199,6 +213,7 @@ namespace Parser
         public override void execute()
         {
             setContext();
+            int context_integrity_check = Context.getStatusStackCount();
 
             // get variable value
             Variable variable = _var_expr.evaluate();
@@ -212,16 +227,17 @@ namespace Parser
                 Debugging.assert( variable.hasSameParent(default_value.evaluate()) ); // TypeException
             }
             // actually declare it to its value
-            Global.variables[_var_name] = variable; // DONT USE .setValue ! (overwriting in safe mode)
-            if (_assignment) Global.variables[_var_name].assign();
-            else Global.variables[_var_name].assigned = false;
-            Global.variables[_var_name].setName(_var_name);
-            Debugging.print("finished declaration with value assignment: ", Global.variables[_var_name].assigned);
+            Global.getCurrentDict()[_var_name] = variable; // overwriting is mandatory
+            if (_assignment) variable.assign(); // should not need this, but doing anyway
+            else variable.assigned = false;
+            variable.setName(_var_name);
+            Debugging.print("finished declaration with value assignment: ", variable.assigned);
 
             // update all tracers
             Tracer.updateTracers();
 
             // reset Context
+            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
     }
@@ -250,6 +266,7 @@ namespace Parser
         public override void execute()
         {
             setContext();
+            int context_integrity_check = Context.getStatusStackCount();
 
             // parsing new value
             Variable val = _var_value.evaluate();
@@ -263,6 +280,7 @@ namespace Parser
             Tracer.updateTracers();
 
             // reset Context
+            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
     }
@@ -290,12 +308,14 @@ namespace Parser
         public override void execute()
         {
             setContext();
+            int context_integrity_check = Context.getStatusStackCount();
 
             _called = true;
             Functions.callFunctionByName(_function_name, _args);
             // update all tracers
             Tracer.updateTracers();
 
+            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
 
@@ -312,19 +332,21 @@ namespace Parser
             this.line_index = line_index;
             this._func = func;
         }
+
+        protected override void setContext()
+        {
+            setLineIndex();
+            Context.setStatus(Context.StatusEnum.user_function_call);
+            Context.setInfo(this);
+        }
         
         public override void execute()
         {
             setContext();
+            int context_integrity_check = Context.getStatusStackCount();
             Functions.addUserFunction(_func);
+            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
-        }
-
-        protected override void setContext()
-        {
-            Context.setStatus(Context.StatusEnum.user_function_call);
-            Context.setInfo(this);
-            setLineIndex();
         }
     }
 
@@ -348,6 +370,7 @@ namespace Parser
         public override void execute()
         {
             setContext();
+            int context_integrity_check = Context.getStatusStackCount();
 
             // the tracing instruction execution doesn't take any Tracer.updateTracers() calls
             foreach (Expression traced_expr in _traced_vars)
@@ -357,6 +380,7 @@ namespace Parser
                 traced_var.startTracing();
             }
 
+            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
     }

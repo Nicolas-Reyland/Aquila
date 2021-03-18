@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
@@ -85,16 +86,13 @@ namespace Parser
             // printTrace alter info about the call if needed
             if (add_call_info != "") printTrace(add_call_info);
             // check for new usable variables
-            foreach (KeyValuePair<string,Variable> pair in Global.variables)
+            foreach (var pair in Global.getCurrentDict().Where(pair => !Global.usable_variables.Contains(pair.Key)))
             {
-                if (!Global.usable_variables.Contains(pair.Key))
+                printTrace("checking potential var ", pair.Value is NullVar ? "null" : pair.Value.getName());
+                if (!(pair.Value is NullVar) && pair.Value.assigned)
                 {
-                    printTrace("checking potential var ", pair.Value is NullVar ? "null" : pair.Value.getName());
-                    if (!(pair.Value is NullVar) && pair.Value.assigned)
-                    {
-                        printTrace("var ", pair.Value.getName(), " is usable (non-null & assigned)");
-                        Global.usable_variables.Add(pair.Key);
-                    }
+                    printTrace("var ", pair.Value.getName(), " is usable (non-null & assigned)");
+                    Global.usable_variables.Add(pair.Key);
                 }
             }
 
@@ -175,7 +173,7 @@ namespace Parser
         public static void printTrace(params object[] args)
         {
             // if not in debugging mode, return
-            if (!Global.trace_debug) return;
+            if (!Global.settings["trace_debug"]) return;
 
             // default settings
             int max_call_name_length = 30;

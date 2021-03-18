@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
 // ReSharper disable ArrangeObjectCreationWhenTypeEvident
+// ReSharper disable SuggestVarOrType_Elsewhere
 
 namespace Parser
 {
@@ -57,11 +59,6 @@ namespace Parser
         /// </summary>
         private static bool _frozen; // default: false
         /// <summary>
-        /// You can disable the Context. If you do so, it will still update itself, but all
-        /// checks concerning the context (<see cref="assertStatus"/>) will not execute
-        /// </summary>
-        public static bool enabled = true;
-        /// <summary>
         /// Enum of all the existing status'
         /// </summary>
         public enum StatusEnum
@@ -89,6 +86,11 @@ namespace Parser
         /// </summary>
         /// <returns> current status</returns>
         public static int getStatus() => _status;
+        /// <summary>
+        /// Used for verifying set/reset calls
+        /// </summary>
+        /// <returns> status stack count</returns>
+        public static int getStatusStackCount() => previous_status.Count;
         /// <summary>
         /// check for status
         /// </summary>
@@ -167,6 +169,13 @@ namespace Parser
             Debugging.assert(!_frozen);
             _frozen = true;
         }
+
+        public static bool tryFreeze()
+        {
+            if (_frozen) return false;
+            freeze();
+            return true;
+        }
         /// <summary>
         /// unfreeze the status
         /// <para/>Exception will be raised if the context is not frozen
@@ -204,7 +213,7 @@ namespace Parser
         /// <exception cref="Exception"> the status is not the input status</exception>
         public static void assertStatus(StatusEnum supposed)
         {
-            if (enabled && !_frozen && (int) supposed != _status) // not sure about not being blocked ?
+            if (Global.settings["do_context_assertion"] && !_frozen && (int) supposed != _status) // not sure about not being blocked ?
             {
                 throw new Exception("Context Assertion Error. Supposed: " + supposed + " but actual: " + _status);
             }
@@ -227,7 +236,14 @@ namespace Parser
     ///
     /// <para/>List of the attributes:
     /// <para/>* <see cref="reserved_keywords"/> : string[]
-    /// <para/>* <see cref="variables"/> : Dictionary(string, Variable)
+    /// <para/>* <see cref="_variable_stack"/> : Stack( (int, Dictionary(string, Variable)) )
+    ///
+    ///
+    ///
+    ///
+    ///
+    ///
+    /// 
     /// <para/>* <see cref="usable_variables"/> : List(string)
     /// <para/>* <see cref="single_line_comment_string"/> : string
     /// <para/>* <see cref="multiple_lines_comment_string"/>
@@ -252,7 +268,7 @@ namespace Parser
             "if", "else", "end-if",
             "for","end-for",
             "while", "end-while",
-            "function", "end-function", //! add this to atom grammar package (end-function)
+            "function", "end-function", "recursive",
             "decl", "safe", "overwrite",
             "overwrite", // not yet
             "safe", // not yet
@@ -261,9 +277,143 @@ namespace Parser
         };
 
         /// <summary>
-        /// Those are all the variables that the analysed algorithm uses
+        /// All default available variables in Aquila
         /// </summary>
-        public static Dictionary<string, Variable> variables = new Dictionary<string, Variable>();
+        private static readonly Dictionary<string, Variable> default_variables = new Dictionary<string, Variable>
+            {{"null", new NullVar()}};
+
+        /// <summary>
+        /// The current variable stack.
+        /// </summary>
+        private static Stack<List<Dictionary<string, Variable>>> _variable_stack;
+
+        /// <summary>
+        /// Initialize the variable stack.
+        /// </summary>
+        public static void initVariables()
+        {
+            _variable_stack = new Stack<List<Dictionary<string, Variable>>>();
+            addVariableStackLayer();
+        }
+
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> main context scope depth</returns>
+        public static int getMainScopeDepth() => _variable_stack.Count;
+
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> local context scope depth</returns>
+        public static int getLocalScopeDepth() => _variable_stack.Peek().Count;
+        
+        /// <summary>
+        /// Add a new layer to the variable stack
+        /// </summary>
+        private static void addVariableStackLayer() => _variable_stack.Push(new List<Dictionary<string, Variable>>
+            {new Dictionary<string, Variable>(default_variables)});
+
+        /// <summary>
+        /// Remove the last variable stack layer
+        /// </summary>
+        private static void removeVariableStackLayer() => _variable_stack.Pop();
+
+        /// <summary>
+        /// Enter a new variable stack layer.
+        /// This is called when entering, for example, a function call
+        /// </summary>
+        public static void newMainContextScope()
+        {
+            Debugging.print("new main scope depth from (current): ", getMainScopeDepth());
+            addVariableStackLayer(); // defaults are added automatically
+            Debugging.print("new main scope depth: " + getMainScopeDepth());
+        }
+
+        /// <summary>
+        /// Removes the last added variable stack layer.
+        /// This is called when exiting, for example, a function call
+        /// </summary>
+        public static void resetMainContextScope()
+        {
+            Debugging.print("exiting main scope depth (current): " + getMainScopeDepth());
+            Debugging.assert(getMainScopeDepth() > 0); // cannot exit a function call or something in the main instruction loop
+            removeVariableStackLayer();
+            Debugging.print("new main scope depth: " + getMainScopeDepth());
+        }
+
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> list in the stack (head)</returns>
+        public static List<Dictionary<string, Variable>> getCurrentDictList() => _variable_stack.Peek();
+        
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> last element of the list in the stack (head)</returns>
+        public static Dictionary<string, Variable> getCurrentDict() =>
+            _variable_stack.Peek()[_variable_stack.Peek().Count - 1];
+
+        /// <summary>
+        /// Add a new local scope variable dict
+        /// </summary>
+        /// <param name="vars"> variable to use as new dict (empty dict if null)</param>
+        private static void addVariableStackElement(Dictionary<string, Variable> vars) =>
+            _variable_stack.Peek().Add(vars ?? new Dictionary<string, Variable>());
+
+        /// <summary>
+        /// Remove the last local scope variable dict
+        /// </summary>
+        private static void removeVariableStackElement() =>
+            _variable_stack.Peek().Remove(getCurrentDict()); // last element index
+        
+        /// <summary>
+        /// Add a new local context scope variable dict.
+        /// This is called when entering a nested instruction
+        /// </summary>
+        public static void newLocalContextScope(Dictionary<string, Variable> vars = null)
+        {
+            Debugging.print("new local scope depth from (current): ", getLocalScopeDepth());
+            addVariableStackElement(vars);
+            Debugging.print("new local scope depth: " + getLocalScopeDepth());
+        }
+
+        /// <summary>
+        /// Remove the last local context scope variable dict.
+        /// This is called when exiting a nested instruction
+        /// </summary>
+        public static void resetLocalContextScope()
+        {
+            Debugging.print("exiting local scope (current): ", getLocalScopeDepth());
+            Debugging.assert(getLocalScopeDepth() > 0);
+            removeVariableStackElement();
+            Debugging.print("new local scope: " + getLocalScopeDepth());
+        }
+
+        public static Variable variableFromName(string name)
+        {
+            int local_scope_depth = getLocalScopeDepth();
+            // reverse search (from last local scope to the oldest)
+            for (int i = local_scope_depth - 1; i >= 0; i--)
+            {
+                Dictionary<string, Variable> local_var_dict = _variable_stack.Peek()[i];
+                if (local_var_dict.ContainsKey(name))
+                {
+                    return local_var_dict[name];
+                }
+            }
+
+            throw aquilaError("Variable name \"" + name + "\" does not exist"); // variable does not exist
+        }
+
+        /// <summary>
+        /// Does the variable exist in the current variable scope ?
+        /// </summary>
+        /// <param name="name"> variable name</param>
+        /// <returns> var name in any of the dictionaries ?</returns>
+        public static bool variableExistsInCurrentScope(string name) =>
+            _variable_stack.Peek().Any(variables => variables.ContainsKey(name));
 
         /// <summary>
         /// All the variables that are not NullVar (thus have a graphical representable value)
@@ -349,16 +499,6 @@ namespace Parser
         // real priority order: { '&', '^', '|', ':', '~', '}', '{', '>', '<', '%', '*', '/', '+', '-' };
 
         /// <summary>
-        /// If set to true, all the <see cref="Debugging.print"/> calls will output their content to the default stdout
-        /// </summary>
-        public static bool debug = true;
-
-        /// <summary>
-        /// If set to true, all the <see cref="Tracer.printTrace"/> calls will output their content to the default stdout
-        /// </summary>
-        public static bool trace_debug = true;
-
-        /// <summary>
         /// List of all the variable tracers
         /// </summary>
         public static readonly List<VarTracer> var_tracers = new List<VarTracer>();
@@ -381,21 +521,30 @@ namespace Parser
         /// All the <see cref="aquilaError"/> calls should be later replaced by custom <see cref="Exception"/>s.
         /// </summary>
         /// <returns> new <see cref="NotImplementedException"/>("Error occurred. Custom Exceptions not implemented")</returns>
-        public static Exception aquilaError() =>
-            new Exception("Error occurred. Custom Exception not implemented for this use case");
+        public static Exception aquilaError(string message = "") =>
+            new Exception("Error occurred. " + (message == "" ? "Custom Exception not implemented for this use case" : message));
 
         /// <summary>
         /// Reset the current Environment to zero
         /// </summary>
         public static void resetEnv()
         {
-            variables.Clear();
+            initVariables();
             Functions.user_functions.Clear();
             var_tracers.Clear();
             func_tracers.Clear();
             usable_variables.Clear();
             Context.resetContext();
         }
+
+	    public static Dictionary<string, bool> settings = new Dictionary<string, bool>
+	    {
+		    {"interactive", false},
+		    {"debug", false},
+		    {"trace_debug", false},
+		    {"do_context_assertions", false},
+		    {"check_func_existence_before_runtime", false},
+	    };
     }
 
     /// <summary>
@@ -412,8 +561,8 @@ namespace Parser
         {
             if (!condition)
             {
-                StackTrace stackTrace = new StackTrace();
-                string call_name = stackTrace.GetFrame(1).GetMethod().Name;
+                StackTrace stack_trace = new StackTrace();
+                string call_name = stack_trace.GetFrame(1).GetMethod().Name;
                 throw new Exception(call_name + " (" + Global.current_line_index + "): Debugging.Assertion Error. CUSTOM ERROR");
             }
         }
@@ -425,7 +574,7 @@ namespace Parser
         public static void print(params object[] args)
         {
             // if not in debugging mode, return
-            if (!Global.debug) return;
+            if (!Global.settings["debug"]) return;
 
             // default settings
             int max_call_name_length = 30;
@@ -485,15 +634,20 @@ namespace Parser
                     // multiple-line comment start
                     if (ml_open_flag.Length < remaining && full.Substring(i, ml_open_flag.Length) == ml_open_flag)
                     {
-                        lines.Add(line_index, full.Substring(last_valid_index, i - last_valid_index));
+                        string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
+                        Debugging.print("adding line of code ", line_index, " : ", line_of_valid_code);
+                        lines.Add(line_index, line_of_valid_code);
                         in_comment = true;
                         Debugging.print("in multiple line comment");
                     }
                     // single line comment start
                     else if (sl_flag.Length < remaining && full.Substring(i, sl_flag.Length) == sl_flag)
                     {
-                        int next_line_index = full.IndexOf('\n', i);
-                        lines.Add(line_index, full.Substring(last_valid_index, i - last_valid_index));
+                        int next_line_index = full.IndexOf('\n', i) + 1;
+                        string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
+                        line_index++; // increment index
+                        Debugging.print("adding line of code ", line_index, " : ", line_of_valid_code);
+                        lines.Add(line_index, line_of_valid_code);
                         last_valid_index = next_line_index; // new last_valid_index (in future)
                         remaining -= next_line_index - i; // decrement remaining
                         i = next_line_index; // updating i
@@ -606,25 +760,27 @@ namespace Parser
 
         static void Main(string[] args)
         {
-            // ReSharper disable ConditionIsAlwaysTrueOrFalse
-            bool interactive = true;
-            Global.debug = true;
-            Global.trace_debug = false;
-            Context.enabled = true;
+            Global.initVariables();
+	    Global.settings["interactive"] = true;
+	    Global.settings["debug"] = false;
+	    Global.settings["trace_debug"] = false;
 
+            // ReSharper disable ConditionIsAlwaysTrueOrFalse
             Global.func_tracers.Add(new FuncTracer("list_at"));
             Global.func_tracers.Add(new FuncTracer("swap"));
 
-            if (args.Length > 0) interactive = false; // for Atom running!
+            if (args.Length > 0) Global.settings["interactive"] = false; // for Atom running!
 
-            if (interactive || args.Length > 0 && args[0] == "interactive")
+            if (Global.settings["interactive"] || args.Length > 0 && args[0] == "interactive")
             {
                 List<string> exec_lines = new List<string>()
                 {
-                    "function auto test()",
-                    "print_str_endl(This is a TEST !!!)",
+                    "function recursive int fib(n)",
+                    "if ($n < 2)",
+                    "return($n)",
+                    "end-if",
+                    "return(fib($n - 1) + fib($n - 2))",
                     "end-function",
-                    "decl i 5",
                 };
                 Interpreter.interactiveMode(exec_lines);
                 return;
@@ -632,7 +788,7 @@ namespace Parser
 
             Console.WriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : "bubble sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            string src_code = args.Length == 1 ? args[0] : "merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
             bool interpreter_after = false;
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);

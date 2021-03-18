@@ -13,45 +13,38 @@ namespace Parser
     public class Function
     {
         private readonly string _name;
-        private Dictionary<string, Variable> _var_copy;
         private readonly string _type;
         public readonly List<string> func_args;
         private readonly List<Instruction> _instructions;
         private bool _in_function_scope; // = false;
-        public Function(string name, string type, List<string> func_args, List<Instruction> instructions)
+        private readonly bool _rec_function;
+        private int _call_depth;
+
+        public Function(string name, string type, List<string> func_args, List<Instruction> instructions, bool recFunction)
         {
             _name = name;
             _type = type;
             this.func_args = func_args;
             _instructions = instructions;
+            _rec_function = recFunction;
+            _call_depth = 0;
         }
 
         public string getName() => _name;
 
         public string getType() => _type;
 
+        public bool isRec() => _rec_function;
+
         private void initialize(Dictionary<string, Variable> args)
         {
-            if (_in_function_scope) throw new Exception("Already in function scope");
-            _var_copy = new Dictionary<string, Variable>(Global.variables);
+            _call_depth++;
+            Debugging.print("calling function with depth: ", _call_depth);
+            Debugging.assert(Context.isFrozen());
+            if (!_rec_function && _in_function_scope) throw new Exception("Already in function scope");// recursive ?
             
-            Debugging.print("num global vars 0: " + _var_copy.Count);
-            Global.variables.Clear();
-            
-            foreach (KeyValuePair<string,Variable> pair in args)
-            {
-                // This is equivalent to a declaration & assignment
-                Global.variables.Add(pair.Key, pair.Value);
-            }
-
-            if (Context.isFrozen())
-            {
-                Debugging.print("Context already frozen in function init: " + _name);
-            }
-            else
-            {
-                Context.freeze();
-            }
+            // new local context scope using custom function args
+            Global.newLocalContextScope(args);
             
             _in_function_scope = true;
         }
@@ -76,7 +69,7 @@ namespace Parser
                     Expression return_value_expression = new Expression(return_value_string);
                     Variable return_value = return_value_expression.evaluate();
 
-                    if (_type != "auto") Debugging.assert(return_value.getTypeString() == _type && _type != "null");
+                    if (_type != "auto" && _type != "null") Debugging.assert(return_value.getTypeString() == _type);
                     restore();
                     return return_value;
                 }
@@ -90,27 +83,12 @@ namespace Parser
 
         private void restore()
         {
-            if (!_in_function_scope) throw new Exception("Not in function scope");
-
-            Debugging.print("num global vars 1: " + _var_copy.Count);
-            Global.variables.Clear(); // clear function variables
-            /*foreach (KeyValuePair<string,Variable> pair in _var_copy)
-            {
-                Global.variables[pair.Key] = pair.Value; // manually copy each var ?
-            }*/
-            Global.variables = new Dictionary<string, Variable>(_var_copy); // restore the Global variables
-            _var_copy.Clear(); // this will prevent from difficult-to-detect mistakes
-            Debugging.print("num global vars 2: " + _var_copy.Count);
-
-            if (!Context.isFrozen())
-            {
-                Debugging.print("Context was not frozen in function restore: " + _name);
-            }
-            else
-            {
-                Context.unfreeze();
-            }
+            _call_depth--;
+            if (!_rec_function && !_in_function_scope) throw new Exception("Not in function scope");
+            Debugging.assert(Context.isFrozen());
             
+            // no need to pop local context stack bc whole stack layer will be removed
+
             _in_function_scope = false;
         }
     }
@@ -126,10 +104,19 @@ namespace Parser
         public static Function readFunction(string declaration_line, List<RawInstruction> function_declaration)
         {
             Debugging.assert(function_declaration.Count > 0); // >= 1
+            bool resp = false;
             
-            // function type
+            // function decl
             List<string> decl =
                 StringUtils.splitStringKeepingStructureIntegrity(declaration_line, ' ', Global.base_delimiters);
+            if (decl.Count == 4)
+            {
+                // function KEYWORD type name(args)
+                Debugging.print("special function. definition with count 4: " + decl[1]);
+                Debugging.assert(decl[1] == "recursive"); // hardcoded.
+                decl.RemoveAt(1);
+                resp = true; // REPLACE WITH "rec-function", "end-rec-function"
+            }
             Debugging.assert(decl.Count == 3); // function type name(args)
             Debugging.assert(decl[0] == "function");
             // type
@@ -157,7 +144,7 @@ namespace Parser
             // Instructions
             List<Instruction> instr_list = function_declaration.Select(raw_instruction => raw_instruction.toInstr()).ToList();
 
-            return new Function(function_name, type_str, function_args, instr_list);
+            return new Function(function_name, type_str, function_args, instr_list, resp);
         }
         
         public static void addUserFunction(Function func)
@@ -243,6 +230,23 @@ namespace Parser
             return new Integer(rand);
         }
 
+        private static Variable sqrtFunction(Expression expr)
+        {
+            Variable v = expr.evaluate();
+            if (v is Integer)
+            {
+                int raw_int = v.getValue();
+                // ReSharper disable once RedundantCast
+                float raw_float = (float) raw_int;
+                v = new FloatVar(raw_float);
+            }
+            Debugging.assert(v is FloatVar);
+            double real = (double) v.getValue();
+            float real_sqrt = (float) Math.Sqrt(real);
+            
+            return new FloatVar(real_sqrt);
+        }
+
 
 
 
@@ -257,6 +261,12 @@ namespace Parser
             // this Exception will stop the function/algorithm from executing
             throw new AquilaExceptions.ReturnValueException(expr.expr);
         }
+
+	private static NullVar interactiveCallFunction(Expression expr)
+	{
+		Interpreter.processInterpreterInput(expr.expr);
+		return new NullVar();
+	}
 
         /// <summary>
         /// Prints the value of an <see cref="Expression"/> to the stdout. Doesn't add a return '\n' symbol
@@ -314,25 +324,28 @@ namespace Parser
         }
 
         /// <summary>
-        /// Remove a <see cref="Variable"/> from the <see cref="Global.variables"/> dictionary
+        /// Remove a <see cref="Variable"/> from the current variable dictionary
         /// </summary>
-        /// <param name="expr"> <see cref="Expression"/> resulting in a <see cref="Variable"/> from <see cref="Global.variables"/></param>
+        /// <param name="expr"> <see cref="Expression"/> resulting in a <see cref="Variable"/> from the current variable dict</param>
         /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
         private static NullVar deleteVarFunction(Expression expr)
         {
             // evaluate every expression
             Variable variable = expr.evaluate();
             // delete var
-            Debugging.assert(Global.variables.ContainsValue(variable)); // UnknownVariableNameException
-            // search the first element which matches the variable
-            KeyValuePair<string, Variable> item = Global.variables.First(kvp => kvp.Value == variable);
-            // remove the variable by key (cannot remove by value)
-            Global.variables.Remove(item.Key);
+            Debugging.assert(Global.getCurrentDict().ContainsKey(variable.getName())); // UnknownVariableNameException
+            // remove the variable by key
+            Global.getCurrentDict().Remove(variable.getName());
 
             return new NullVar();
         }
 
-
+        /// <summary>
+        /// Delete the nth value of a list
+        /// </summary>
+        /// <param name="list_expr"> expression resulting in a <see cref="DynamicList"/> variable</param>
+        /// <param name="index_expr"> expression resulting in a <see cref="Integer"/> variable</param>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
         private static NullVar deleteValueAt(Expression list_expr, Expression index_expr)
         {
             // extract list
@@ -442,7 +455,7 @@ namespace Parser
 
         /// <summary>
         /// Holds all the non-void value_functions. There are some default value_functions, but you can add your
-        /// own through the <see cref="Functions.addFunction"/> method.
+        /// own through the <see cref="addFunction"/> method.
         /// </summary>
         private static readonly Dictionary<string, Delegate> functions_dict = new Dictionary<string, Delegate>
         {
@@ -450,8 +463,10 @@ namespace Parser
             {"list_at", new Func<Expression, Expression, Variable>(listAtFunction)},
             {"copy_list", new Func<Expression, Variable>(copyListFunction)},
             {"random", new Func<Variable>(randomNumber)},
+            {"sqrt", new Func<Expression, Variable>(sqrtFunction)},
 
             {"return", new Func<Expression, NullVar>(returnFunction)}, // NullVar is equivalent of void, null or none
+	    {"interactive_call", new Func<Expression, NullVar>(interactiveCallFunction)},
             {"print", new Func<Expression, NullVar>(printFunction)},
             {"print_str", new Func<Expression, NullVar>(printStrFunction)},
             {"print_str_endl", new Func<Expression, NullVar>(printStrEndlFunction)},
@@ -479,8 +494,8 @@ namespace Parser
 
         /// <summary>
         /// Overwrite default value_functions or your own value_functions using this method. The function has to exist
-        /// in the <see cref="functions_dict"/> or <see cref="functions_dict"/> dictionary.
-        /// <para/>You cannot overwrite the <see cref="Functions.returnFunction"/> function
+        /// in the <see cref="functions_dict"/> or <see cref="user_functions"/> dictionary.
+        /// <para/>You cannot overwrite the <see cref="returnFunction"/> function
         /// </summary>
         /// <param name="function_name"> function name to overwrite (key)</param>
         /// <param name="function"> Delegate function (value)</param>
@@ -502,16 +517,27 @@ namespace Parser
         {
             if (functions_dict.ContainsKey(name))
             {
+                // no new context scope needed, because no function defined here would benefit from it. plus, wouldn't it break some functionalities ?
+                
                 Context.assertStatus(Context.StatusEnum.predefined_function_call);
                 Debugging.print("invoking value function ", name, " dynamically with ", args.Length, " argument(s)");
                 //handleValueFunctionTracing(name, args); // cannot use expressions, have to use variables ...
                 return functions_dict[name].DynamicInvoke(args) as Variable;
+                
+                //return result;
             }
             if (user_functions.ContainsKey(name))
             {
                 Debugging.print("calling user function: " + name);
                 Dictionary<string, Variable> arg_dict = args2Dict(name, args);
-                return user_functions[name].callFunction(arg_dict);
+                
+                bool unfreeze = Context.tryFreeze();
+                Global.newMainContextScope();
+                Variable result = user_functions[name].callFunction(arg_dict);
+                Global.resetMainContextScope();
+                if (unfreeze) Context.unfreeze();
+                
+                return result;
             }
 
             throw Global.aquilaError(); // UnknownFunctionNameException

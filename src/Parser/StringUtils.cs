@@ -185,7 +185,7 @@ namespace Parser
         public static Dictionary<int, string> purgeLines(Dictionary<int, string> lines)
         {
             Dictionary<int, string> new_lines = new Dictionary<int, string>();
-            foreach (KeyValuePair<int, string> pair in lines)
+            foreach (var pair in lines)
             {
                 string new_line = purgeLine(pair.Value);
 
@@ -303,13 +303,13 @@ namespace Parser
 
             for (int i = 0; i < line.Length; i++)
             {
-                foreach (KeyValuePair<char, char> section_delimiter in section_delimiters)
+                foreach (var pair in section_delimiters)
                 {
-                    if (line[i] == section_delimiter.Key)
+                    if (line[i] == pair.Key)
                     {
                         section_depth++;
                     }
-                    else if (line[i] == section_delimiter.Value)
+                    else if (line[i] == pair.Value)
                     {
                         section_depth--;
                     }
@@ -381,7 +381,7 @@ namespace Parser
 
         /// <summary>
         /// In the pseudo-code, the variable "x" is accessed with this syntax: "$x".
-        /// Returns the corresponding <see cref="Variable"/> in the <see cref="Global.variables"/> dictionary
+        /// Returns the corresponding <see cref="Variable"/> in the current scope variable dictionary
         /// </summary>
         /// <param name="s"> pseudo-code variable access</param>
         /// <returns> corresponding <see cref="Variable"/></returns>
@@ -391,8 +391,7 @@ namespace Parser
             Debugging.assert(s.StartsWith("$"));
             s = s.Substring(1);
             s = s.Replace(" ", "");
-            Debugging.assert(Global.variables.ContainsKey(s));
-            return Global.variables[s];
+            return Global.variableFromName(s);
         }
 
         /// <summary>
@@ -437,16 +436,16 @@ namespace Parser
             for (int i = 0; i < expr.Length; i++)
             {
                 var look = true;
-                foreach (KeyValuePair<char,char> delimiter in Global.base_delimiters)
+                foreach (var pair in Global.base_delimiters)
                 {
-                    if (expr[i] == delimiter.Key)
+                    if (expr[i] == pair.Key)
                     {
                         depth++;
                         look = false;
                         break;
                     }
 
-                    if (expr[i] == delimiter.Value)
+                    if (expr[i] == pair.Value)
                     {
                         depth--;
                         look = false;
@@ -594,7 +593,7 @@ namespace Parser
             int missing_spaces = max_call_name_length - call_name.Length - Context.getStatus().ToString().Length - 2; // 2: parentheses
 
             // debugging mode is on
-            Console.Write(prefix + space_separator + call_name + "(" + Context.getStatus() + ")");
+            Console.Write(prefix  + " [" + Global.current_line_index + "]" + space_separator + call_name + "(" + Context.getStatus() + ")");
             Console.Write(new String(' ', missing_spaces));
 
             Console.Write(" : ");

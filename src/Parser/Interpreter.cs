@@ -118,7 +118,7 @@ namespace Parser
             short depth = 0;
             foreach (string line in lines)
             {
-                foreach (KeyValuePair<string,string> nested_instruction_flag in Global.nested_instruction_flags)
+                foreach (var nested_instruction_flag in Global.nested_instruction_flags)
                 {
                     if (line.StartsWith(nested_instruction_flag.Key))
                     {
@@ -144,9 +144,11 @@ namespace Parser
         /// <returns> command input prefix</returns>
         private static string getInteractivePrefix()
         {
-            if (Global.debug && Global.trace_debug) return " (debug | trace)";
-            if (Global.debug) return " (debug)";
-            if (Global.trace_debug) return " (trace)";
+	    bool debug = Global.settings["debug"];
+	    bool trace_debug = Global.settings["trace_debug"];
+            if (debug && trace_debug) return " (debug | trace)";
+            if (debug) return " (debug)";
+            if (trace_debug) return " (trace)";
             return " ";
         }
 
@@ -165,7 +167,7 @@ namespace Parser
         /// </summary>
         public static void interactiveMode(List<string> exec_lines = null)
         {
-            Context.enabled = false; // disable context checks
+            Global.settings["do_context_assertions"] = false; // disable context checks
             bool new_line = true;
             List<string> current_lines = new List<string>();
 
@@ -250,7 +252,8 @@ namespace Parser
             // execute line here
             try
             {
-                List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(lines.ToDictionary(_ => 0, x => x));
+                int temp_i = 0;
+                List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(lines.ToDictionary(_ => temp_i++, x => x));
                 List<Instruction> instructions = buildInstructions(raw_instructions);
                 foreach (Instruction instr in instructions)
                 {
@@ -272,7 +275,7 @@ namespace Parser
         /// </summary>
         /// <param name="input"> command line from the interactive-mode</param>
         /// <returns> should the command be executed ?</returns>
-        private static bool processInterpreterInput(string input)
+        internal static bool processInterpreterInput(string input)
         {
             switch (input)
             {
@@ -288,10 +291,10 @@ namespace Parser
                         "eval %expr", // expr
                         "var %var_name", "vars", "$%var_name", // variables
                         // ReSharper disable once StringLiteralTypo
-                        "funcs", // functions
+                        "funcs", "type", // functions
                         "trace_info", "trace_uniq_stacks", "rewind %n %var_name", "peek_event $%traced_value", // trace
                         "get_context", "set_status", "set_info_null", "reset_context", // context
-                        //"",
+                        "scope_info", // scope
                     })
                     {
                         Console.WriteLine("  -> " + command);
@@ -304,28 +307,36 @@ namespace Parser
                     return false;
                 case "vars":
                 {
-                    foreach (KeyValuePair<string, Variable> variable in Global.variables)
+                    int i = 0;
+                    foreach (var dict in Global.getCurrentDictList())
                     {
-                        Console.Write(variable.Key + " : ");
-                        Console.WriteLine(variable.Value.ToString());
+                        foreach (var pair in dict)
+                        {
+                            Console.Write(new string('\t', i));
+                            Console.Write(pair.Key + " : ");
+                            Console.WriteLine(pair.Value.ToString());
+                        }
+
+                        i++;
                     }
+                    
                     return false;
                 }
                 // ReSharper disable once StringLiteralTypo
                 case "funcs":
                 {
-                    foreach (KeyValuePair<string,Function> pair in Functions.user_functions)
+                    foreach (var pair in Functions.user_functions)
                     {
-                        Console.WriteLine("func: " + pair.Key + " -> (" + pair.Value.func_args.Count + ") " + pair.Value.getType());
+                        Console.WriteLine(" * " + pair.Key + (pair.Value.isRec() ? " : [rec] " : " : ") + "(" + pair.Value.func_args.Count + ") -> " + pair.Value.getType());
                     }
 
                     return false;
                 }
                 case "debug":
-                    Global.debug = !Global.debug;
+                    Global.settings["debug"] = !Global.settings["debug"];
                     return false;
                 case "trace_debug":
-                    Global.trace_debug = !Global.trace_debug;
+                    Global.settings["trace_debug"] = !Global.settings["trace_debug"];
                     return false;
                 case "trace_info":
                 {
@@ -359,12 +370,12 @@ namespace Parser
                     Context.StatusEnum status_quote = (Context.StatusEnum) status;
                     object info = Context.getInfo();
                     bool blocked = Context.isFrozen();
-                    bool enabled = Context.enabled;
+                    bool enabled = Global.settings["do_context_assertions"];
                     Console.WriteLine("status  : " + status);
                     Console.WriteLine("quote   : " + status_quote);
                     Console.WriteLine("info    : " + info);
                     Console.WriteLine("blocked : " + blocked);
-                    Console.WriteLine("enabled : " + enabled);
+                    Console.WriteLine("asserts : " + enabled);
 
                     return false;
                 }
@@ -380,11 +391,16 @@ namespace Parser
                     Console.WriteLine("type of Integer: " + typeof(Integer));
 
                     return false;
+                case "scope_info":
+                    Console.WriteLine("local scope depth: " + Global.getLocalScopeDepth());
+                    Console.WriteLine("main scope depth: " + Global.getMainScopeDepth());
+
+                    return false;
             }
 
-            if (input[0] == '$' && Global.variables.ContainsKey(input.Substring(1)))
+            if (input[0] == '$' && Global.variableExistsInCurrentScope(input.Substring(1)))
             {
-                Console.WriteLine(Global.variables[input.Substring(1)].ToString());
+                Console.WriteLine(Global.variableFromName(input.Substring(1)).ToString());
                 return false;
             }
 
@@ -409,7 +425,7 @@ namespace Parser
                 var_name = StringUtils.purgeLine(var_name);
                 if (var_name != "")
                 {
-                    Variable var_ = Global.variables[var_name];
+                    Variable var_ = Global.variableFromName(var_name);
                     Console.WriteLine("name     : " + var_.getName());
                     Console.WriteLine("type     : " + var_.getTypeString());
                     Console.WriteLine("value    : " + var_);

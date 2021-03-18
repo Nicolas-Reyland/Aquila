@@ -177,7 +177,7 @@ namespace Parser
 
     public class NullVar : Variable
     {
-        public override Variable cloneTypeToVal(dynamic value) => throw new NotImplementedException();
+        public override Variable cloneTypeToVal(dynamic value) => throw Global.aquilaError(); // wtf
 
         public override dynamic getValue() => throw Global.aquilaError(); // RuntimeError (never supposed to happen whatsoever)
 
@@ -213,19 +213,23 @@ namespace Parser
         public BooleanVar or(BooleanVar other)
         {
             assertAssignment();
-            return new BooleanVar(_bool_value || other.getValue());
-        }
-
-        public BooleanVar and(BooleanVar other)
-        {
-            assertAssignment();
-            return new BooleanVar(_bool_value && other.getValue());
+            // lazy or
+            return _bool_value ? new BooleanVar(true) : new BooleanVar(_bool_value || other.getValue());
         }
 
         public BooleanVar xor(BooleanVar other)
         {
             assertAssignment();
             return new BooleanVar(_bool_value ^ other.getValue());
+        }
+
+        public BooleanVar and(BooleanVar other)
+        {
+            assertAssignment();
+            // lazy and
+            return _bool_value
+                ? new BooleanVar(_bool_value && other.getValue())
+                : new BooleanVar(false);
         }
 
         public override Variable cloneTypeToVal(dynamic value) => new BooleanVar(value);
@@ -243,7 +247,7 @@ namespace Parser
 
         public override string ToString()
         {
-            if (Global.debug || Global.trace_debug) return "Boolean (" + (_bool_value ? "true" : "false") + ")";
+            if (Global.settings["debug"] || Global.settings["trace_debug"]) return "Boolean (" + (_bool_value ? "true" : "false") + ")";
             return _bool_value ? "true" : "false"; // _bool_value.ToString() capitalizes "true" and "false"
         }
 
@@ -330,7 +334,7 @@ namespace Parser
 
         public override string ToString()
         {
-            if (Global.debug || Global.trace_debug) return "Integer (" + _int_value + ")";
+            if (Global.settings["debug"] || Global.settings["trace_debug"]) return "Integer (" + _int_value + ")";
             return _int_value.ToString();
         }
 
@@ -400,7 +404,7 @@ namespace Parser
 
         public override string ToString()
         {
-            if (Global.debug || Global.trace_debug) return "Float (" + _float_value + ")";
+            if (Global.settings["debug"] || Global.settings["trace_debug"]) return "Float (" + _float_value + ")";
             return _float_value.ToString(CultureInfo.InvariantCulture);
         }
     }
@@ -521,7 +525,7 @@ namespace Parser
             }
 
             s = "[" + s.Substring(0, s.Length - 2) + "]";
-            if (Global.debug || Global.trace_debug) s = "List (" + s + ")";
+            if (Global.settings["debug"] || Global.settings["trace_debug"]) s = "List (" + s + ")";
             return s;
         }
 
@@ -584,13 +588,18 @@ namespace Parser
 
         public Variable callFunction()
         {
+            Debugging.print("calling \"" + _function_name + "\" as value");
             // manually set context
             Context.setStatus(Context.StatusEnum.predefined_function_call);
             Context.setInfo(this);
+            // for rec functions:
+            bool frozen_at_start = Context.isFrozen();
 
             _called = true;
             // from list to array of objects
+            // ReSharper disable once SuggestVarOrType_Elsewhere
             object[] args = _arg_expr_list.Select(x => (object) x).ToArray();
+            
             // call by name
             Variable result = Functions.callFunctionByName(_function_name, args);
 
@@ -602,7 +611,7 @@ namespace Parser
             }
 
             // reset Context
-            Context.reset();
+            if (!frozen_at_start) Context.reset();
 
             return result;
         }
