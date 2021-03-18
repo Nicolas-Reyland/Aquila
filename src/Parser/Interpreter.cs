@@ -139,13 +139,13 @@ namespace Parser
 
         /// <summary>
         /// Get the interactive interpreter command prefix (debug, trace_debug related)
-        /// <para/>Looking at <see cref="Global.debug"/> and <see cref="Global.trace_debug"/>
+        /// <para/>Looking at <see cref="Global.getSetting"/>("debug") and <see cref="Global.getSetting"/>("trace debug")
         /// </summary>
         /// <returns> command input prefix</returns>
         private static string getInteractivePrefix()
         {
-	    bool debug = Global.settings["debug"];
-	    bool trace_debug = Global.settings["trace_debug"];
+	    bool debug = Global.getSetting("debug");
+	    bool trace_debug = Global.getSetting("trace debug");
             if (debug && trace_debug) return " (debug | trace)";
             if (debug) return " (debug)";
             if (trace_debug) return " (trace)";
@@ -165,19 +165,22 @@ namespace Parser
         /// <para/>* $var_name -> prints the value of a variable
         /// <para/>* debug -> switch the debugging mode (true to false, false to true)
         /// </summary>
-        public static void interactiveMode(List<string> exec_lines = null)
+        public static void interactiveMode(List<string> exec_lines = null, bool greeting = true)
         {
-            Global.settings["do_context_assertions"] = false; // disable context checks
+            Global.setSetting("fail on context assertions", false); // disable context checks
             bool new_line = true;
             List<string> current_lines = new List<string>();
 
             // exec mode
             bool exec_mode = exec_lines != null;
 
-            Console.WriteLine(" [ - Aquila Interactive Interpreter - ]");
-            Console.WriteLine(" [?] Type \"help\" to get a list of all the interactive-mode-only commands");
-            Console.WriteLine(" [?] See https://github.com/Nicolas-Reyland/Aquila/blob/main/Aquila_Documentation_unfinished.pdf for some unfinished documentation about Aquila itself");
-            if (exec_mode) Console.WriteLine(" [!] Exec mode enabled. There are executables lines saved. Use the \"exec\" command to run them");
+            if (greeting)
+            {
+                Console.WriteLine(" [ - Aquila Interactive Interpreter - ]");
+                Console.WriteLine(" [?] Type \"help\" to get a list of all the interactive-mode-only commands");
+                Console.WriteLine(" [?] See https://github.com/Nicolas-Reyland/Aquila/blob/main/Aquila_Documentation_unfinished.pdf for some unfinished documentation about Aquila itself");
+                if (exec_mode) Console.WriteLine(" [!] Exec mode enabled. There are executables lines saved. Use the \"exec\" command to run them");
+            }
 
             Context.setStatus(Context.StatusEnum.instruction_main_loop);
             Context.setInfo("Interactive Mode");
@@ -333,10 +336,10 @@ namespace Parser
                     return false;
                 }
                 case "debug":
-                    Global.settings["debug"] = !Global.settings["debug"];
+                    Global.setSetting("debug", !Global.getSetting("debug"));
                     return false;
                 case "trace_debug":
-                    Global.settings["trace_debug"] = !Global.settings["trace_debug"];
+                    Global.setSetting("trace debug", !Global.getSetting("trace debug"));
                     return false;
                 case "trace_info":
                 {
@@ -370,7 +373,7 @@ namespace Parser
                     Context.StatusEnum status_quote = (Context.StatusEnum) status;
                     object info = Context.getInfo();
                     bool blocked = Context.isFrozen();
-                    bool enabled = Global.settings["do_context_assertions"];
+                    bool enabled = Global.getSetting("fail on context assertions");
                     Console.WriteLine("status  : " + status);
                     Console.WriteLine("quote   : " + status_quote);
                     Console.WriteLine("info    : " + info);

@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Net.Http.Headers;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
@@ -49,6 +52,7 @@ namespace Parser
         /// </summary>
         /// <param name="expr_string"> expression to parse</param>
         /// <returns> Variable object containing the value of the evaluated expression value (at time t)</returns>
+        [SuppressMessage("ReSharper.DPA", "DPA0002: Excessive memory allocations in SOH")]
         public static Variable parse(string expr_string)
         {
             /* Order of operations:
@@ -167,11 +171,25 @@ namespace Parser
                         Debugging.print("operation ", expr_string, " and op: ", op);
                         List<string> splitted_str =
                             StringUtils.splitStringKeepingStructureIntegrity(expr_string, op, Global.base_delimiters);
-                        List<Variable> splitted_var = new List<Variable>();
-                        foreach (string split_expr_str in splitted_str)
+                        
+                        // custom: logic operations laziness here (tmp) //!
+                        Variable variable = parse(splitted_str[0]);
+                        if (Global.getSetting("lazy logic") && variable is BooleanVar)
                         {
-                            splitted_var.Add(parse(split_expr_str));
+                            Debugging.print("lazy logic evaluation");
+                            bool first = (variable as BooleanVar).getValue();
+                            switch (op)
+                            {
+                                case '|' when first:
+                                    return new BooleanVar(true);
+                                case '&' when !first:
+                                    return new BooleanVar(false);
+                            }
                         }
+
+                        var splitted_var = new List<Variable>{ variable };
+                        splitted_var.AddRange(splitted_str.GetRange(1, splitted_str.Count - 1).Select(parse));
+
                         // reduce the list to a list of one element
                         // e.g. expr1 + expr2 + expr3 => final_expr
                         while (splitted_var.Count > 1)

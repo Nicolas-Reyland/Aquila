@@ -40,7 +40,7 @@ namespace Parser
         {
             _call_depth++;
             Debugging.print("calling function with depth: ", _call_depth);
-            Debugging.assert(Context.isFrozen());
+            Debugging.assert(Global.getSetting("flame mode") || Context.isFrozen());
             if (!_rec_function && _in_function_scope) throw new Exception("Already in function scope");// recursive ?
             
             // new local context scope using custom function args
@@ -85,7 +85,7 @@ namespace Parser
         {
             _call_depth--;
             if (!_rec_function && !_in_function_scope) throw new Exception("Not in function scope");
-            Debugging.assert(Context.isFrozen());
+            Debugging.assert(Global.getSetting("flame mode") || Context.isFrozen());
             
             // no need to pop local context stack bc whole stack layer will be removed
 
@@ -219,7 +219,7 @@ namespace Parser
             Debugging.assert(var_ is DynamicList); // TypeError
             DynamicList list = var_ as DynamicList;
             // copy list
-            List<Variable> copy = list.getValue();
+            var copy = new List<Variable>(list.getValue());
             return new DynamicList(copy);
         }
 

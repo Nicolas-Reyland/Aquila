@@ -599,7 +599,7 @@ namespace Parser
             Console.Write(" : ");
             foreach (dynamic arg in args)
             {
-                Console.Write(arg.ToString());
+                Console.Write(arg == null ? "(.net null)" : arg.ToString());
             }
             Console.WriteLine();
         }

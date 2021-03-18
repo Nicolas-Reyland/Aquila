@@ -166,6 +166,7 @@ namespace Parser
         /// </summary>
         public static void freeze()
         {
+            if (Global.getSetting("flame mode")) return;
             Debugging.assert(!_frozen);
             _frozen = true;
         }
@@ -182,6 +183,7 @@ namespace Parser
         /// </summary>
         public static void unfreeze()
         {
+            if (Global.getSetting("flame mode")) return;
             Debugging.assert(_frozen);
             _frozen = false;
         }
@@ -206,14 +208,14 @@ namespace Parser
         /// <summary>
         /// Assert that the status is the one given as input.
         /// Does not assert if:
-        /// <para/>* the Context is not <see cref="Global.settings"/>["do_context_assertions"]
+        /// <para/>* the Context is not <see cref="Global.settings"/>["fail on context assertions"]
         /// <para/>* the Context is <see cref="_frozen"/>
         /// </summary>
         /// <param name="supposed"> wanted status</param>
         /// <exception cref="Exception"> the status is not the input status</exception>
         public static void assertStatus(StatusEnum supposed)
         {
-            if (Global.settings["do_context_assertions"] && !_frozen && (int) supposed != _status) // not sure about not being blocked ?
+            if (Global.getSetting("fail on context assertions") && !_frozen && (int) supposed != _status) // not sure about not being blocked ?
             {
                 throw new Exception("Context Assertion Error. Supposed: " + supposed + " but actual: " + _status);
             }
@@ -537,14 +539,22 @@ namespace Parser
             Context.resetContext();
         }
 
-	    public static readonly Dictionary<string, bool> settings = new Dictionary<string, bool>
+	    private static readonly Dictionary<string, bool> settings = new Dictionary<string, bool>
 	    {
 		    {"interactive", false},
 		    {"debug", false},
-		    {"trace_debug", false},
-		    {"do_context_assertions", false},
-		    {"check_func_existence_before_runtime", false},
+		    {"trace debug", false},
+		    {"fail on context assertions", false},
+		    {"check func existence before runtime", false},
+            {"lazy logic", true},
+            {"allow tracing in frozen context", true},
+            //{"permafrost", false}, // see Context.frozen
+            {"flame mode", false}, // disables Context freezing
 	    };
+
+        public static void setSetting(string key, bool value) => settings[key] = value;
+
+        public static bool getSetting(string key) => settings[key];
     }
 
     /// <summary>
@@ -573,7 +583,7 @@ namespace Parser
         public static void print(params object[] args)
         {
             // if not in debugging mode, return
-            if (!Global.settings["debug"]) return;
+            if (!Global.getSetting("debug")) return;
 
             // default settings
             int max_call_name_length = 30;
@@ -760,27 +770,29 @@ namespace Parser
         static void Main(string[] args)
         {
             Global.initVariables();
-	    Global.settings["interactive"] = true;
-	    Global.settings["debug"] = false;
-	    Global.settings["trace_debug"] = false;
+	        Global.setSetting("interactive", false);
+	        Global.setSetting("debug", false);
+	        Global.setSetting("trace debug", false);
+            Global.setSetting("flame mode", false);
 
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
             Global.func_tracers.Add(new FuncTracer("list_at"));
             Global.func_tracers.Add(new FuncTracer("swap"));
 
-            if (args.Length > 0) Global.settings["interactive"] = false; // for Atom running!
+            if (args.Length > 0) Global.setSetting("interactive", false); // for Atom running!
 
-            if (Global.settings["interactive"] || args.Length > 0 && args[0] == "interactive")
+            List<string> exec_lines = new List<string>()
             {
-                List<string> exec_lines = new List<string>()
-                {
-                    "function recursive int fib(n)",
-                    "if ($n < 2)",
-                    "return($n)",
-                    "end-if",
-                    "return(fib($n - 1) + fib($n - 2))",
-                    "end-function",
-                };
+                "function recursive int fib(n)",
+                "if ($n < 2)",
+                "return($n)",
+                "end-if",
+                "return(fib($n - 1) + fib($n - 2))",
+                "end-function",
+            };
+            
+            if (Global.getSetting("interactive") || args.Length > 0 && args[0] == "interactive")
+            {
                 Interpreter.interactiveMode(exec_lines);
                 return;
             }
@@ -788,14 +800,28 @@ namespace Parser
             Console.WriteLine(args.Length > 0 ? args[0] : "");
 
             string src_code = args.Length == 1 ? args[0] : "merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
-            bool interpreter_after = false;
+            bool interactive_after_execution = args.Length == 0;
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
-            Variable return_value = Interpreter.runAlgorithm(algo);
+            try
+            {
+                Variable return_value = Interpreter.runAlgorithm(algo);
+                Console.WriteLine("returned value: " + return_value);
 
-            Console.WriteLine("returned value: " + return_value);
-
-            if (interpreter_after) Interpreter.interactiveMode();
+                if (interactive_after_execution)
+                {
+                    Console.WriteLine("Interactive interpreter after execution:");
+                    Interpreter.interactiveMode(exec_lines, false);
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Console.WriteLine("Error caught. Interactive interpreter instance given for debugging.");
+                Global.setSetting("debug", true);
+                Global.setSetting("trace debug", true);
+                Interpreter.interactiveMode(exec_lines, false);
+            }
 
             // ReSharper restore HeuristicUnreachableCode
             // ReSharper restore ConditionIsAlwaysTrueOrFalse

@@ -247,7 +247,7 @@ namespace Parser
 
         public override string ToString()
         {
-            if (Global.settings["debug"] || Global.settings["trace_debug"]) return "Boolean (" + (_bool_value ? "true" : "false") + ")";
+            if (Global.getSetting("debug") || Global.getSetting("trace debug")) return "Boolean (" + (_bool_value ? "true" : "false") + ")";
             return _bool_value ? "true" : "false"; // _bool_value.ToString() capitalizes "true" and "false"
         }
 
@@ -334,7 +334,7 @@ namespace Parser
 
         public override string ToString()
         {
-            if (Global.settings["debug"] || Global.settings["trace_debug"]) return "Integer (" + _int_value + ")";
+            if (Global.getSetting("debug") || Global.getSetting("trace debug")) return "Integer (" + _int_value + ")";
             return _int_value.ToString();
         }
 
@@ -404,7 +404,7 @@ namespace Parser
 
         public override string ToString()
         {
-            if (Global.settings["debug"] || Global.settings["trace_debug"]) return "Float (" + _float_value + ")";
+            if (Global.getSetting("debug") || Global.getSetting("trace debug")) return "Float (" + _float_value + ")";
             return _float_value.ToString(CultureInfo.InvariantCulture);
         }
     }
@@ -525,7 +525,7 @@ namespace Parser
             }
 
             s = "[" + s.Substring(0, s.Length - 2) + "]";
-            if (Global.settings["debug"] || Global.settings["trace_debug"]) s = "List (" + s + ")";
+            if (Global.getSetting("debug") || Global.getSetting("trace debug")) s = "List (" + s + ")";
             return s;
         }
 

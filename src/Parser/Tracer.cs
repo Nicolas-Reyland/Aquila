@@ -173,7 +173,7 @@ namespace Parser
         public static void printTrace(params object[] args)
         {
             // if not in debugging mode, return
-            if (!Global.settings["trace_debug"]) return;
+            if (!Global.getSetting("trace debug")) return;
 
             // default settings
             int max_call_name_length = 30;
@@ -276,7 +276,12 @@ namespace Parser
         public override void update(Event event_)
         {
             // blocked context ?
-            if (Context.isFrozen()) throw new Exception("Context is blocked in function tracer update call. Normal behaviour ?");
+            if (Context.isFrozen())
+            {
+                printTrace("Context is blocked in function tracer update call. Normal behaviour ?");
+                return;
+                //throw new Exception("Context is blocked in function tracer update call. Normal behaviour ?");
+            }
             // checks
             Debugging.assert(!corrupted);
             Debugging.assert(event_ != null);

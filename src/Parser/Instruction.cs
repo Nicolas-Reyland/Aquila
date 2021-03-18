@@ -71,7 +71,9 @@ namespace Parser
                 in_loop  = true;
                 foreach (Instruction instr in instructions)
                 {
+                    Global.newLocalContextScope();
                     instr.execute();
+                    Global.resetLocalContextScope();
                 }
             }
             in_loop = false;
@@ -111,7 +113,9 @@ namespace Parser
                 in_loop  = true;
                 foreach (Instruction instr in instructions)
                 {
+                    Global.newLocalContextScope();
                     instr.execute();
+                    Global.resetLocalContextScope();
                 }
                 // executing step independently bc of continue & break
                 _step.execute();
