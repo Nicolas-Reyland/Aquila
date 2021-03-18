@@ -278,6 +278,7 @@ namespace Parser
 
         /// <summary>
         /// All default available variables in Aquila
+<<<<<<< HEAD
         /// </summary>
         private static readonly Dictionary<string, Variable> default_variables = new Dictionary<string, Variable>
             {{"null", new NullVar()}};
@@ -410,6 +411,140 @@ namespace Parser
         /// <summary>
         /// Does the variable exist in the current variable scope ?
         /// </summary>
+=======
+        /// </summary>
+        private static readonly Dictionary<string, Variable> default_variables = new Dictionary<string, Variable>
+            {{"null", new NullVar()}};
+
+        /// <summary>
+        /// The current variable stack.
+        /// </summary>
+        private static Stack<List<Dictionary<string, Variable>>> _variable_stack;
+
+        /// <summary>
+        /// Initialize the variable stack.
+        /// </summary>
+        public static void initVariables()
+        {
+            _variable_stack = new Stack<List<Dictionary<string, Variable>>>();
+            addVariableStackLayer();
+        }
+
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> main context scope depth</returns>
+        public static int getMainScopeDepth() => _variable_stack.Count;
+
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> local context scope depth</returns>
+        public static int getLocalScopeDepth() => _variable_stack.Peek().Count;
+        
+        /// <summary>
+        /// Add a new layer to the variable stack
+        /// </summary>
+        private static void addVariableStackLayer() => _variable_stack.Push(new List<Dictionary<string, Variable>>
+            {new Dictionary<string, Variable>(default_variables)});
+
+        /// <summary>
+        /// Remove the last variable stack layer
+        /// </summary>
+        private static void removeVariableStackLayer() => _variable_stack.Pop();
+
+        /// <summary>
+        /// Enter a new variable stack layer.
+        /// This is called when entering, for example, a function call
+        /// </summary>
+        public static void newMainContextScope()
+        {
+            Debugging.print("new main scope depth from (current): ", getMainScopeDepth());
+            addVariableStackLayer(); // defaults are added automatically
+            Debugging.print("new main scope depth: " + getMainScopeDepth());
+        }
+
+        /// <summary>
+        /// Removes the last added variable stack layer.
+        /// This is called when exiting, for example, a function call
+        /// </summary>
+        public static void resetMainContextScope()
+        {
+            Debugging.print("exiting main scope depth (current): " + getMainScopeDepth());
+            Debugging.assert(getMainScopeDepth() > 0); // cannot exit a function call or something in the main instruction loop
+            removeVariableStackLayer();
+            Debugging.print("new main scope depth: " + getMainScopeDepth());
+        }
+
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> list in the stack (head)</returns>
+        public static List<Dictionary<string, Variable>> getCurrentDictList() => _variable_stack.Peek();
+        
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> last element of the list in the stack (head)</returns>
+        public static Dictionary<string, Variable> getCurrentDict() =>
+            _variable_stack.Peek()[_variable_stack.Peek().Count - 1];
+
+        /// <summary>
+        /// Add a new local scope variable dict
+        /// </summary>
+        /// <param name="vars"> variable to use as new dict (empty dict if null)</param>
+        private static void addVariableStackElement(Dictionary<string, Variable> vars) =>
+            _variable_stack.Peek().Add(vars ?? new Dictionary<string, Variable>());
+
+        /// <summary>
+        /// Remove the last local scope variable dict
+        /// </summary>
+        private static void removeVariableStackElement() =>
+            _variable_stack.Peek().Remove(getCurrentDict()); // last element index
+        
+        /// <summary>
+        /// Add a new local context scope variable dict.
+        /// This is called when entering a nested instruction
+        /// </summary>
+        public static void newLocalContextScope(Dictionary<string, Variable> vars = null)
+        {
+            Debugging.print("new local scope depth from (current): ", getLocalScopeDepth());
+            addVariableStackElement(vars);
+            Debugging.print("new local scope depth: " + getLocalScopeDepth());
+        }
+
+        /// <summary>
+        /// Remove the last local context scope variable dict.
+        /// This is called when exiting a nested instruction
+        /// </summary>
+        public static void resetLocalContextScope()
+        {
+            Debugging.print("exiting local scope (current): ", getLocalScopeDepth());
+            Debugging.assert(getLocalScopeDepth() > 0);
+            removeVariableStackElement();
+            Debugging.print("new local scope: " + getLocalScopeDepth());
+        }
+
+        public static Variable variableFromName(string name)
+        {
+            int local_scope_depth = getLocalScopeDepth();
+            // reverse search (from last local scope to the oldest)
+            for (int i = local_scope_depth - 1; i >= 0; i--)
+            {
+                Dictionary<string, Variable> local_var_dict = _variable_stack.Peek()[i];
+                if (local_var_dict.ContainsKey(name))
+                {
+                    return local_var_dict[name];
+                }
+            }
+
+            throw aquilaError("Variable name \"" + name + "\" does not exist"); // variable does not exist
+        }
+
+        /// <summary>
+        /// Does the variable exist in the current variable scope ?
+        /// </summary>
+>>>>>>> dd766080ef4e184693532d9692bf8f4f44ed7f20
         /// <param name="name"> variable name</param>
         /// <returns> var name in any of the dictionaries ?</returns>
         public static bool variableExistsInCurrentScope(string name) =>
@@ -499,6 +634,24 @@ namespace Parser
         // real priority order: { '&', '^', '|', ':', '~', '}', '{', '>', '<', '%', '*', '/', '+', '-' };
 
         /// <summary>
+<<<<<<< HEAD
+=======
+        /// If set to true, all the <see cref="Debugging.print"/> calls will output their content to the default stdout
+        /// </summary>
+        public static bool debug = true;
+
+        /// <summary>
+        /// If set to true, all the <see cref="Tracer.printTrace"/> calls will output their content to the default stdout
+        /// </summary>
+        public static bool trace_debug = true;
+
+        /// <summary>
+        /// Should function names be checked before or during runtime ?
+        /// </summary>
+        public static bool check_function_names_before_runtime = false;
+
+        /// <summary>
+>>>>>>> dd766080ef4e184693532d9692bf8f4f44ed7f20
         /// List of all the variable tracers
         /// </summary>
         public static readonly List<VarTracer> var_tracers = new List<VarTracer>();
@@ -761,9 +914,18 @@ namespace Parser
         static void Main(string[] args)
         {
             Global.initVariables();
+<<<<<<< HEAD
 	    Global.settings["interactive"] = true;
 	    Global.settings["debug"] = false;
 	    Global.settings["trace_debug"] = false;
+=======
+
+            // ReSharper disable ConditionIsAlwaysTrueOrFalse
+            bool interactive = true;
+            Global.debug = false;
+            Global.trace_debug = false;
+            Context.enabled = true;
+>>>>>>> dd766080ef4e184693532d9692bf8f4f44ed7f20
 
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
             Global.func_tracers.Add(new FuncTracer("list_at"));

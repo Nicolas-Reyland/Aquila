@@ -360,7 +360,11 @@ namespace Parser
                 
                 // function name
                 string function_name = instr[0].Split('(')[0]; // extract function name
+<<<<<<< HEAD
                 if (Global.settings["check_func_existance_before_runtime"]) Functions.assertFunctionExists(function_name); // assert function exists
+=======
+                if (Global.check_function_names_before_runtime) Functions.assertFunctionExists(function_name); // assert function exists
+>>>>>>> dd766080ef4e184693532d9692bf8f4f44ed7f20
                 Debugging.print("expr_string for function call ", instr[0]);
                 // extract args
                 string exprs = instr[0].Substring(function_name.Length + 1); // + 1 : '('
