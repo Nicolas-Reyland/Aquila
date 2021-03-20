@@ -538,18 +538,21 @@ namespace Parser
             usable_variables.Clear();
             Context.resetContext();
         }
-
+        /// <summary>
+        /// List of parameters that exist & that could be tweaked. Some combinations will break everything.
+        /// Please read their description in the source code
+        /// </summary>
 	    private static readonly Dictionary<string, bool> settings = new Dictionary<string, bool>
-	    {
-		    {"interactive", false},
-		    {"debug", false},
-		    {"trace debug", false},
-		    {"fail on context assertions", false},
-		    {"check func existence before runtime", false},
-            {"lazy logic", true},
-            {"allow tracing in frozen context", true},
-            //{"permafrost", false}, // see Context.frozen
-            {"flame mode", false}, // disables Context freezing
+	    { // These parameters default values should be set to work with the Graphics & Animation part
+		    {"interactive", false},                             // get interactive interpreter on run
+		    {"debug", false},                                   // enable debugging
+		    {"trace debug", false},                             // enable tracing debugging
+		    {"fail on context assertions", false},              // throw an Exception on Context.assertStatus fails
+		    {"check func existence before runtime", false},     // Trust the user for defining used functions later in the code /!\ disables recursive functions if set to true /!\
+            {"lazy logic", true},                               // enable lazy logic operations
+            {"allow tracing in frozen context", false},         // trace even if the Context is frozen
+            {"permafrost", false},                              // freeze Context permanently
+            {"flame mode", false},                              // disables Context freezing completely
 	    };
 
         public static void setSetting(string key, bool value) => settings[key] = value;
@@ -803,7 +806,8 @@ namespace Parser
 	        Global.setSetting("interactive", false);
 	        Global.setSetting("debug", false);
 	        Global.setSetting("trace debug", false);
-            Global.setSetting("flame mode", false);
+            Global.setSetting("allow tracing in frozen context", true);
+            Global.setSetting("flame mode", true); // can set to false bc "allow tracing in frozen context" is set to true. but to be sure: true
 
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
             Global.func_tracers.Add(new FuncTracer("list_at"));

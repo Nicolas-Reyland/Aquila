@@ -273,7 +273,7 @@ namespace Parser
                 Debugging.print("index: " + index_expr.expr);
 
                 // create a value function call (list_at call)
-                object[] args = new object[] { var_name_expr, index_expr };
+                object[] args = { var_name_expr, index_expr };
                 return Functions.callFunctionByName("list_at", args);
             }
 

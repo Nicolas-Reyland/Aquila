@@ -232,6 +232,7 @@ namespace Parser
             }
             // actually declare it to its value
             Global.getCurrentDict()[_var_name] = Variable.fromRawValue(variable.getRawValue()); // overwriting is mandatory
+            Global.getCurrentDict()[_var_name].setName(_var_name);
             if (_assignment) variable.assign(); // should not need this, but doing anyway
             else variable.assigned = false;
             variable.setName(_var_name);

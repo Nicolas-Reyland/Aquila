@@ -218,7 +218,7 @@ namespace Parser
         public override void update(Event event_)
         {
             // blocked context ?
-            if (Context.isFrozen()) return;
+            if (Context.isFrozen() && !Global.getSetting("allow tracing in frozen context")) return;
             // checks
             Debugging.assert(!corrupted);
             Debugging.assert(event_.alter != null); // variable events can only hold Alterations, so checking for null
@@ -276,11 +276,10 @@ namespace Parser
         public override void update(Event event_)
         {
             // blocked context ?
-            if (Context.isFrozen())
+            if (Context.isFrozen() && !Global.getSetting("allow tracing in frozen context"))
             {
                 printTrace("Context is blocked in function tracer update call. Normal behaviour ?");
                 return;
-                //throw new Exception("Context is blocked in function tracer update call. Normal behaviour ?");
             }
             // checks
             Debugging.assert(!corrupted);

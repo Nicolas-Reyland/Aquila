@@ -41,7 +41,7 @@ namespace Parser
             _call_depth++;
             Debugging.print("calling function with depth: ", _call_depth);
             Debugging.assert(Global.getSetting("flame mode") || Context.isFrozen());
-            if (!_rec_function && _in_function_scope) throw new Exception("Already in function scope");// recursive ?
+            if (!_rec_function && _in_function_scope) throw Global.aquilaError("Already in function scope. Missing \"recursive\" keyword ?");// recursive ?
             
             // new local context scope using custom function args
             Global.newLocalContextScope(args);
@@ -84,10 +84,10 @@ namespace Parser
         private void restore()
         {
             _call_depth--;
-            if (!_rec_function && !_in_function_scope) throw new Exception("Not in function scope");
+            if (!_rec_function && !_in_function_scope) throw new Exception("Not in function scope.");//" Missing \"recursive\" keyword ?");
             Debugging.assert(Global.getSetting("flame mode") || Context.isFrozen());
-            
-            // no need to pop local context stack bc whole stack layer will be removed
+
+            Global.resetLocalContextScope();
 
             _in_function_scope = false;
         }
