@@ -433,11 +433,16 @@ namespace Parser
         }
 
         // float2int
-
-
-
+        private static Variable float2intFunction(Expression expr)
+        {
+            throw new NotImplementedException();
+        }
 
         // int2float
+        private static Variable int2floatFunction(Expression expr)
+        {
+            throw new NotImplementedException();
+        }
 
         /*
         value function:
@@ -452,7 +457,6 @@ namespace Parser
          */
 
 
-
         /// <summary>
         /// Holds all the non-void value_functions. There are some default value_functions, but you can add your
         /// own through the <see cref="addFunction"/> method.
@@ -462,11 +466,13 @@ namespace Parser
             {"length", new Func<Expression, Variable>(lengthFunction)}, // functions which return a value
             {"list_at", new Func<Expression, Expression, Variable>(listAtFunction)},
             {"copy_list", new Func<Expression, Variable>(copyListFunction)},
+            //{"float2int", new Func<Expression, Variable>(float2intFunction)},
+            //{"int2float", new Func<Expression, Variable>(int2floatFunction)},
             {"random", new Func<Variable>(randomNumber)},
             {"sqrt", new Func<Expression, Variable>(sqrtFunction)},
 
             {"return", new Func<Expression, NullVar>(returnFunction)}, // NullVar is equivalent of void, null or none
-	    {"interactive_call", new Func<Expression, NullVar>(interactiveCallFunction)},
+            {"interactive_call", new Func<Expression, NullVar>(interactiveCallFunction)},
             {"print", new Func<Expression, NullVar>(printFunction)},
             {"print_str", new Func<Expression, NullVar>(printStrFunction)},
             {"print_str_endl", new Func<Expression, NullVar>(printStrEndlFunction)},

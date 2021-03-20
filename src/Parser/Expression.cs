@@ -180,10 +180,10 @@ namespace Parser
                             bool first = (variable as BooleanVar).getValue();
                             switch (op)
                             {
-                                case '|' when first:
-                                    return new BooleanVar(true);
-                                case '&' when !first:
-                                    return new BooleanVar(false);
+                                case '|':// when first:
+                                    if (first) return new BooleanVar(true);
+                                case '&':// when !first:
+                                    if (!first) return new BooleanVar(false);
                             }
                         }
 
