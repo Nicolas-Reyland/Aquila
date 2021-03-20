@@ -231,7 +231,7 @@ namespace Parser
                 Debugging.assert( variable.hasSameParent(default_value.evaluate()) ); // TypeException
             }
             // actually declare it to its value
-            Global.getCurrentDict()[_var_name] = variable; // overwriting is mandatory
+            Global.getCurrentDict()[_var_name] = Variable.fromRawValue(variable.getRawValue()); // overwriting is mandatory
             if (_assignment) variable.assign(); // should not need this, but doing anyway
             else variable.assigned = false;
             variable.setName(_var_name);
@@ -274,7 +274,7 @@ namespace Parser
 
             // parsing new value
             Variable val = _var_value.evaluate();
-            Debugging.print("assigning " + _var_name + " with expr " + _var_value.expr + " (2nd value assigned: " + val.assigned + ") and type: " + val.getTypeString());
+            Debugging.print("assigning " + _var_name + " with expr " + _var_value.expr + " with value " + val + " (2nd value assigned: " + val.assigned + ") and type: " + val.getTypeString());
             // assert the new is not an unassigned (only declared) variable
             val.assertAssignment();
             // set the new value

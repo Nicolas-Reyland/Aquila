@@ -219,8 +219,8 @@ namespace Parser
             Debugging.assert(var_ is DynamicList); // TypeError
             DynamicList list = var_ as DynamicList;
             // copy list
-            var copy = new List<Variable>(list.getValue());
-            return new DynamicList(copy);
+            var raw = new List<dynamic>(list.getRawValue());
+            return Variable.fromRawValue(raw);
         }
 
         // random number function

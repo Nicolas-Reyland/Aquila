@@ -24,7 +24,7 @@ namespace Parser
         /// <param name="print_index"> false by default. if true, index of line (starting 0) will be printed as prefix</param>
         public static void printStringList(List<string> list, bool print_index = false)
         {
-            short index = 0;
+            short index = 1;
             foreach (string line in list)
             {
                 if (print_index) Console.Write("{0} ", index++);

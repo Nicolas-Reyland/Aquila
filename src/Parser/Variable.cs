@@ -165,7 +165,7 @@ namespace Parser
         /// <param name="o"> value to interpret as a <see cref="Variable"/></param>
         /// <returns> corresponding <see cref="Variable"/></returns>
         /// <exception cref="NotImplementedException"></exception>
-        protected static Variable fromRawValue(dynamic o)
+        public static Variable fromRawValue(dynamic o)
         {
             if (o is int) return new Integer(o);
             if (o is float) return new FloatVar(o);
@@ -326,7 +326,21 @@ namespace Parser
         public override void setValue(Variable other_value)
         {
             if (!assigned) assign();
+            
+            /*if (getName() != "k" && getName() != "j")
+            {
+                Console.WriteLine("setValue on " + getName() + "\nbefore");
+                Interpreter.processInterpreterInput("vars");
+            }*/
+
             _int_value = other_value.getValue();
+            
+            /*if (getName() != "k" && getName() != "j"){
+                Console.WriteLine("after");
+                Interpreter.processInterpreterInput("vars");
+                Console.WriteLine();
+            }*/
+
             trace("setValue", new dynamic[] { other_value.getValue() });
         }
 
@@ -556,14 +570,12 @@ namespace Parser
         /// <returns></returns>
         public bool equals(DynamicList other)
         {
-            Console.WriteLine("Equal");
             if (length() != other.length()) return false;
 
             List<Variable> other_list = other.getValue();
 
             for (int i = 0; i < _list.Count; i++)
             {
-                Console.WriteLine("Equal? : " + other_list[i] + " & " + _list[i]);
                 if (other_list[i] != _list[i]) return false;
             }
 

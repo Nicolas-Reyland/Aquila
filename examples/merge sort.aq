@@ -20,6 +20,13 @@ function recursive null top_down_merge(a, i_begin, i_middle, i_end, b)
 end-function
 
 function recursive null top_down_split_merge(b, i_begin, i_end, a)
+
+  print_str_endl(call)
+  print($a)
+  print_endl()
+  print($b)
+  print_endl()
+
   decl bool cont true
   if ($i_end - $i_begin { 1)
     $cont = false // fix this pls

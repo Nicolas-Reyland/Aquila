@@ -631,27 +631,56 @@ namespace Parser
             int last_valid_index = 0; // for adding to lines
             int remaining = full.Length + 1; // remaining chars, for SubStrings
 
-            int line_index = 0; // start at 0, bc will be incremented before the line is appended (debut of for loop)
+            int line_index = 1; // start at 0, bc will be incremented before the line is appended (debut of for loop)
+
+            string constructed_line = "";
+            int ml_comment_line_index_start = -1;
+            int ml_section_count = 1;
 
             for (int i = 0; i < full.Length; i++)
             {
                 remaining--;
-                if (full[i] == '\n') line_index++; // next line starts
-
+                bool add_eol = true;
+                if (full[i] == '\n')
+                {
+                    if (line_index++ == ml_comment_line_index_start)
+                    {
+                        constructed_line += full.Substring(last_valid_index, i - last_valid_index - 1);
+                        Debugging.print("adding ml comment concatenated line: \"" + constructed_line + "\"");
+                        lines.Add(line_index, constructed_line);
+                        constructed_line = ""; // reset constructed line
+                        //i += i - last_valid_index;
+                        add_eol = false;
+                        last_valid_index += ml_section_count; // idk why ??
+                        ml_section_count = 1;
+                    }
+                } // next line starts
+                
                 if (!in_comment)
                 {
                     // multiple-line comment start
                     if (ml_open_flag.Length < remaining && full.Substring(i, ml_open_flag.Length) == ml_open_flag)
                     {
                         string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
-                        Debugging.print("adding line of code ", line_index, " : ", line_of_valid_code);
-                        lines.Add(line_index, line_of_valid_code);
+                        /*if (ml_comment_line_index_start < line_index)
+                        {
+                            Debugging.print("adding line of code ", line_index, " : ", line_of_valid_code);
+                            lines.Add(line_index, line_of_valid_code);
+                            ml_comment_line_index_start = line_index;
+                        }
+                        else
+                        {*/
+                        Debugging.print("debut of line section: ", line_index, " : ", line_of_valid_code);
+                        ml_section_count++;
+                        constructed_line += line_of_valid_code;
+
                         in_comment = true;
                         Debugging.print("in multiple line comment");
                     }
                     // single line comment start
                     else if (sl_flag.Length < remaining && full.Substring(i, sl_flag.Length) == sl_flag)
                     {
+                        if (!full.Substring(i).Contains("\n")) break; // EOF incoming, no more data
                         int next_line_index = full.IndexOf('\n', i) + 1;
                         string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
                         line_index++; // increment index
@@ -663,26 +692,27 @@ namespace Parser
                         Debugging.print("jumped to ", i);
                     }
                     // end-of-line (EOL)
-                    else if (full[i] == '\n')
+                    else if (full[i] == '\n' && add_eol)
                     {
                         string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
+                        Debugging.print("adding line of code eol ", line_index, " : ", line_of_valid_code);
                         lines.Add(line_index, line_of_valid_code);
                         last_valid_index = i + 1; // + 1 : don't take the '\n' char
-                        Debugging.print("adding line of code ", line_index, " : ", line_of_valid_code);
                     }
                     // end-of-file (EOF)
                     else if (i == full.Length - 1) // in case the file just ends there (could check EOF ?)
                     {
                         string line_of_valid_code = full.Substring(last_valid_index);
+                        Debugging.print("adding last line of code ", line_index, " : ", line_of_valid_code);
                         lines.Add(line_index, line_of_valid_code);
                         last_valid_index = i + 1; // + 1 : don't take the '\n' char
-                        Debugging.print("adding last line of code ", line_index, " : ", line_of_valid_code);
                     }
                 }
                 else if (ml_close_flag.Length < remaining && full.Substring(i, ml_close_flag.Length) == ml_close_flag)
                 {
                     in_comment = false;
                     last_valid_index = i + ml_close_flag.Length;
+                    ml_comment_line_index_start = line_index;
                     Debugging.print("out of multiple line comment");
                 }
             }
@@ -783,12 +813,10 @@ namespace Parser
 
             List<string> exec_lines = new List<string>()
             {
-                "function recursive int fib(n)",
-                "if ($n < 2)",
-                "return($n)",
-                "end-if",
-                "return(fib($n - 1) + fib($n - 2))",
-                "end-function",
+                "decl l [1, 5, 2, 9]",
+                "decl k [0, 0, 0, 0]",
+                "top_down_merge($l, 0, 2, 4, $k)",
+                "interactive_call(vars)"
             };
             
             if (Global.getSetting("interactive") || args.Length > 0 && args[0] == "interactive")
