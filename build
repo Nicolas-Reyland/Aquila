@@ -1,1 +1,0 @@
-mcs -target:exe -out:program.exe src/Parser/*.cs

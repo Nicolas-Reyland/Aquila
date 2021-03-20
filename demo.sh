@@ -12,4 +12,4 @@ src_code=$1
 /bin/echo "========================================================"
 /bin/echo "press Enter to run"
 read
-/bin/mono program.exe "${src_code}"
+/bin/mono interpreter.exe "${src_code}"
