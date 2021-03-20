@@ -1,8 +1,8 @@
 /** Merge Sort Algorithm - TopDown Implementation **/
-decl l [9, 1, 5, 1]
+decl l [9, 2, 5, 1, 3, -6, -1, 0, 7, 8, 9, 5, -7]
 decl len length($l)
 
-// trace $l
+trace $l
 
 function recursive null top_down_merge(a, i_begin, i_middle, i_end, b)
   decl int i $i_begin
@@ -21,12 +21,6 @@ end-function
 
 function recursive null top_down_split_merge(b, i_begin, i_end, a)
 
-  print_str_endl(call)
-  print($a)
-  print_endl()
-  print($b)
-  print_endl()
-
   decl bool cont true
   if ($i_end - $i_begin { 1)
     $cont = false // fix this pls
@@ -42,15 +36,19 @@ function recursive null top_down_split_merge(b, i_begin, i_end, a)
   end-if
 end-function
 
-function recursive auto top_down_merge_sort(a, b, n)
+function recursive null top_down_merge_sort(a, b, n)
   $b = copy_list($a)
   top_down_split_merge($b, 0, $n, $a)
-  return([$a, $b])
 end-function
 
-top_down_merge_sort($l, [], $len)
+decl list l2
+
+top_down_merge_sort($l, $l2, $len)
 
 return($l)
+
+
+
 
 
 
