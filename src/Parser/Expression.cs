@@ -181,8 +181,10 @@ namespace Parser
                             {
                                 case '|':// when first:
                                     if (first) return new BooleanVar(true);
+                                    break;
                                 case '&':// when !first:
                                     if (!first) return new BooleanVar(false);
+                                    break;
                             }
                         }
 
