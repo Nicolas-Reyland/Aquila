@@ -1,5 +1,6 @@
 # Aquila
 You can find an Aquila interpreter here. It is still in development. Come back in June 2021 to have a final product!
+The documentation is unfinished, but you can stil peak into it :^) !
 If you reallt want to test it, look at the Parser.cs file.
 
 To compile the Interpreter:
@@ -40,8 +41,6 @@ On Linux:
 ```
 mono program.exe interactive
 ```
-
-The documentation is unfinished, but you can stil peak into it :^) !
 
 Credits:
  - Nicolas Reyland
