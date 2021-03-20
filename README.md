@@ -11,8 +11,7 @@ dotnet build
 ```
 On Linux:
 ```
-cd src/Parser
-mcs -target:exe -out:program.exe *.cs
+mcs -target:exe -out:interpreter.exe src/Parser/*.cs
 ```
 
 You can run an Aquila code file by giving its path as argument:
