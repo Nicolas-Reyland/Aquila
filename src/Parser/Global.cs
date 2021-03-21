@@ -34,7 +34,7 @@ namespace Parser
     /// <para/>* <see cref="aquilaError"/> : () -> Exception
     /// <para/>* <see cref="resetEnv"/> : () -> void
     /// </summary>
-    static class Global
+    public static class Global
     {
         /// <summary>
         /// All the reserved keywords

@@ -433,12 +433,14 @@ namespace Parser
         }
 
         // float2int
+        // ReSharper disable once InconsistentNaming
         private static Variable float2intFunction(Expression expr)
         {
             throw new NotImplementedException();
         }
 
         // int2float
+        // ReSharper disable once InconsistentNaming
         private static Variable int2floatFunction(Expression expr)
         {
             throw new NotImplementedException();
@@ -466,8 +468,8 @@ namespace Parser
             {"length", new Func<Expression, Variable>(lengthFunction)}, // functions which return a value
             {"list_at", new Func<Expression, Expression, Variable>(listAtFunction)},
             {"copy_list", new Func<Expression, Variable>(copyListFunction)},
-            //{"float2int", new Func<Expression, Variable>(float2intFunction)},
-            //{"int2float", new Func<Expression, Variable>(int2floatFunction)},
+            {"float2int", new Func<Expression, Variable>(float2intFunction)},
+            {"int2float", new Func<Expression, Variable>(int2floatFunction)},
             {"random", new Func<Variable>(randomNumber)},
             {"sqrt", new Func<Expression, Variable>(sqrtFunction)},
 

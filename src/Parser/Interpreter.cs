@@ -18,7 +18,7 @@ namespace Parser
     /// <para/>* Call the <see cref="runAlgorithm"/> function on the generated <see cref="Algorithm"/>
     /// You an also use the <see cref="algorithmFromSrcCode"/>, then call the <see cref="runAlgorithm"/> on it
     /// </summary>
-    static class Interpreter
+    internal static class Interpreter
     {
         /// <summary>
         /// This function is used to read a raw Aquila source code text-based file and

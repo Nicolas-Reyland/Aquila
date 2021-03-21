@@ -9,7 +9,7 @@ namespace Parser
     /// <summary>
     /// 
     /// </summary>
-    public static class AquilaExceptions // Aquila -> name of the programming language
+    internal static class AquilaExceptions // Aquila -> name of the programming language
     {
         /// <summary>
         /// 

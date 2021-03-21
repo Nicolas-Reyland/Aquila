@@ -15,7 +15,7 @@ namespace Parser
     /// All the string parsing, comparisons, splitting, reunification, etc. needed for a project like this.
     /// The function names are relatively self-explanatory, but you are welcome to read the documentation anyways.
     /// </summary>
-    public static class StringUtils
+    internal static class StringUtils
     {
         /// <summary>
         /// Print a List&lt;string&gt;. One line per string
@@ -520,6 +520,35 @@ namespace Parser
             catch
             {
                 return value.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Convert a string value into a Boolean value.
+        /// <para/>This function is the mapping of the following:
+        /// <para/>* "0" -> false
+        /// <para/>* "false" -> false
+        /// <para/>* "False" -> false
+        /// <para/>* "FALSE" -> false
+        /// <para/>* "1" -> true
+        /// <para/>* "true" -> true
+        /// <para/>* "True" -> true
+        /// <para/>* "TRUE" -> true
+        /// Any other case will throw a <see cref="NotImplementedException"/>
+        /// </summary>
+        /// <param name="val"> string value to convert to a boolean one</param>
+        /// <returns> corresponding boolean value</returns>
+        /// <exception cref="NotImplementedException"> The string is not recognized</exception>
+        public static bool string2BoolValue(string val)
+        {
+            switch (val)
+            {
+                case "true": case "1": case "True": case "TRUE":
+                    return true;
+                case "false": case "0": case "False": case "FALSE":
+                    return false;
+                default:
+                    throw new NotImplementedException("boolean value \"" + (val ?? "(.net null)") + "\" not supported");
             }
         }
 

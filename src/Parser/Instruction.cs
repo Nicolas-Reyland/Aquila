@@ -16,14 +16,14 @@ namespace Parser
         protected abstract void setContext();
     }
 
-    public abstract class NestedInstruction : Instruction // ex: for, while, if, etc.
+    internal abstract class NestedInstruction : Instruction // ex: for, while, if, etc.
     {
         // attributes
         protected int depth;
         internal List<Instruction> instructions;
     }
 
-    public abstract class Loop : NestedInstruction //! NEVER NEED TO UPDATE TRACERS IN LOOPS (already in all sub-instructions)
+    internal abstract class Loop : NestedInstruction //! NEVER NEED TO UPDATE TRACERS IN LOOPS (already in all sub-instructions)
     {
         private readonly Expression _condition;
         protected bool in_loop;
@@ -47,7 +47,7 @@ namespace Parser
         public bool isInLoop() => in_loop;
     }
 
-    public class WhileLoop : Loop
+    internal class WhileLoop : Loop
     {
         public WhileLoop(int line_index, Expression condition, List<Instruction> instructions) : base(line_index, condition, instructions)
         {
@@ -83,7 +83,7 @@ namespace Parser
         }
     }
 
-    public class ForLoop : Loop
+    internal class ForLoop : Loop
     {
         private readonly Instruction _start;
         private readonly Instruction _step;
@@ -127,7 +127,7 @@ namespace Parser
           }
     }
 
-    public class IfCondition : NestedInstruction // Don't need to update tracers here either
+    internal class IfCondition : NestedInstruction // Don't need to update tracers here either
     {
         private readonly Expression _condition;
         private readonly List<Instruction> _else_instructions;
@@ -174,7 +174,7 @@ namespace Parser
         }
     }
 
-    public class Declaration : Instruction
+    internal class Declaration : Instruction
     {
         private readonly string _var_name;
         private readonly Expression _var_expr;
@@ -242,7 +242,7 @@ namespace Parser
         }
     }
 
-    public class Assignment : Instruction
+    internal class Assignment : Instruction
     {
         private readonly string _var_name;
         private readonly Expression _var_value;
@@ -285,7 +285,7 @@ namespace Parser
         }
     }
 
-    public class VoidFunctionCall : Instruction
+    internal class VoidFunctionCall : Instruction
     {
         private readonly string _function_name;
         private readonly object[] _args;
@@ -324,7 +324,7 @@ namespace Parser
         public bool hasBeenCalled() => _called;
     }
 
-    public class FunctionDef : Instruction
+    internal class FunctionDef : Instruction
     {
         private readonly Function _func;
         public FunctionDef(int line_index, Function func)
@@ -350,7 +350,7 @@ namespace Parser
         }
     }
 
-    public class Tracing : Instruction // no updateTracers bc values can't be changed here ...
+    internal class Tracing : Instruction // no updateTracers bc values can't be changed here ...
     {
         private readonly List<Expression> _traced_vars;
 
