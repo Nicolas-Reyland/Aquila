@@ -183,28 +183,23 @@ namespace Parser
 
         public Declaration(int line_index, string var_name, Expression var_expr, string var_type = "auto", bool assignment = true, int overwrite = 0)
         {
+            Debugging.assert(StringUtils.validObjectName(var_name)); // InvalidNamingException
             // overwrite: 0 -> new var (must not exist); 1 -> force overwrite (must exist); 2 -> safe overwrite (can exist)
             this.line_index = line_index;
             this._var_name = var_name;
             this._var_expr = var_expr;
             this._var_type = var_type;
             this._assignment = assignment;
-            // the declaration is not initiated in the right scope... cannot do this here
-            /*bool var_exists = Global.variableExistsInCurrentScope(var_name);
-            Debugging.print("new declaration: var_name = " + var_name + ", var_expr = " + var_expr.expr + ", var_type = " + var_type + ", assignment = ", assignment, ", overwrite = ", overwrite);
             // check variable naming
-            Debugging.assert(StringUtils.validVariableName(var_name)); // InvalidNamingException
+            Debugging.assert(StringUtils.validObjectName(var_name)); // InvalidNamingException
+            // the declaration is not initiated in the right scope... cannot do this here
+            bool var_exists = Global.variableExistsInCurrentScope(var_name);
+            Debugging.print("new declaration: var_name = " + var_name + ", var_expr = " + var_expr.expr + ", var_type = " + var_type + ", assignment = ", assignment, ", overwrite = ", overwrite, ", exists = ", var_exists);
             // check variable existence
             if (overwrite == 0) Debugging.assert(!var_exists); // DeclaredExistingVarException
             if (overwrite == 1) Debugging.assert(var_exists); // OverwriteNonExistingVariable
             // check for overwrite + tracer
             if (overwrite != 0 && var_exists) Debugging.assert(!Global.variableFromName(var_name).isTraced());
-            // give a temp or predefined value
-            Variable temp_value = _var_type == "auto"
-                ? new NullVar() // temporary variable. doesn't have any real value (if no explicit type)
-                : (Variable) Global.default_values_by_var_type[var_type].evaluate(); // (if explicit type)
-            // add variable to dictionary
-            if (overwrite == 0 || overwrite == 2 && !var_exists) Global.getCurrentDict().Add(var_name, temp_value);*/
         }
 
         protected override void setContext()

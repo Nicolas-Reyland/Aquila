@@ -170,7 +170,7 @@ namespace Parser
                         Debugging.print("operation ", expr_string, " and op: ", op);
                         List<string> splitted_str =
                             StringUtils.splitStringKeepingStructureIntegrity(expr_string, op, Global.base_delimiters);
-                        
+
                         // custom: logic operations laziness here (tmp) //!
                         Variable variable = parse(splitted_str[0]);
                         if (Global.getSetting("lazy logic") && variable is BooleanVar)

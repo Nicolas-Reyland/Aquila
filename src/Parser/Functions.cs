@@ -125,7 +125,7 @@ namespace Parser
             Debugging.assert(decl[2].Contains("(") && decl[2].Contains(")"));
             int name_sep_index = decl[2].IndexOf('(');
             string function_name = decl[2].Substring(0, name_sep_index);
-            Debugging.assert(function_name != "");
+            Debugging.assert(StringUtils.validObjectName(function_name)); // InvalidNamingException
             // args
             string function_args_str = decl[2].Substring(name_sep_index + 1);
             function_args_str = function_args_str.Substring(0, function_args_str.Length - 1);

@@ -475,27 +475,11 @@ namespace Parser
         /// </summary>
         /// <param name="var_name"> variable name </param>
         /// <returns> valid variable ?</returns>
-        public static bool validVariableName(string var_name)
+        public static bool validObjectName(string var_name)
         {
-            // alphabet UPPER & lower + _ + 0123456789
-            foreach (char c in var_name)
-            {
-                if (c < 0x30 ||
-                    (c > 0x39 && c < 0x41) ||
-                    (c > 0x5A && c < 0x5F) ||
-                    c == 0x60 ||
-                    c > 0x7A) return false;
-            }
-            // check first character for decimal
-            if (var_name[0] < 0x3D) return false;
-
-            // check for keywords
-            foreach (string keyword in Global.reserved_keywords)
-            {
-                if (var_name == keyword) return false;
-            }
-
-            return true;
+            const string PATTERN = @"^[a-zA-Z_]+[a-zA-Z0-9_]*$";
+            Regex rg = new Regex(PATTERN);
+            return rg.Match(var_name).Success;
         }
 
         /// <summary>
