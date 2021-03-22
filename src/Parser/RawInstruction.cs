@@ -77,6 +77,9 @@ namespace Parser
         /// <returns> list of RawInstructions</returns>
         public static List<RawInstruction> code2RawInstructions(Dictionary<int, string> lines)
         {
+            Context.setStatus(Context.StatusEnum.building_raw_instructions);
+            Context.setInfo(lines);
+            
             int line_index = 0;
             List<RawInstruction> instructions = new List<RawInstruction> ();
 
@@ -117,6 +120,7 @@ namespace Parser
                 line_index++;
             }
 
+            Context.reset();
             return instructions;
         }
 

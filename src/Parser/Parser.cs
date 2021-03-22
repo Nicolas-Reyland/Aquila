@@ -243,6 +243,11 @@ namespace Parser
             return macros;
         }
 
+        /// <summary>
+        /// Handle a preprocessor macro.
+        /// </summary>
+        /// <param name="key"> the macro key (after the '#')</param>
+        /// <param name="value"> the macro value (after the key)</param>
         public static void handleMacro(string key, string value)
         {
             Debugging.print("setting macro key: \"" + key + "\"" +

@@ -19,16 +19,15 @@ namespace Parser
         /// <para/>*  3: building raw instructions
         /// <para/>*  4: building instructions
         /// <para/>*  5: in the main algorithm main loop
-        /// <para/>*  6: in a function main loop
-        /// <para/>*  7: executing a trace instruction
-        /// <para/>*  8: in a while loop
-        /// <para/>*  9: in a for loop
-        /// <para/>* 10: in an if statement
-        /// <para/>* 11: executing a declaration instruction
-        /// <para/>* 12: executing a assignment instruction
-        /// <para/>* 13: executing a void function
-        /// <para/>* 14: executing a value function
-        /// <para/>* 15: algorithm main loop finished
+        /// <para/>*  6: trace instruction
+        /// <para/>*  7: while loop execution
+        /// <para/>*  8: for loop execution
+        /// <para/>*  9: if instruction execution
+        /// <para/>* 10: executing a declaration instruction
+        /// <para/>* 11: executing a assignment instruction
+        /// <para/>* 12: executing a predefined function
+        /// <para/>* 13: executing a user-defined function
+        /// <para/>* 14: algorithm main loop finished
         /// </summary>
         private static int _status = (int) StatusEnum.undefined;
         /// <summary>
@@ -71,7 +70,6 @@ namespace Parser
             user_function_call,         // 13
             instruction_main_finished   // 14
         }
-
         // status
         /// <summary>
         /// explicit naming
@@ -162,7 +160,12 @@ namespace Parser
             Debugging.assert(!_frozen);
             _frozen = true;
         }
-
+        /// <summary>
+        /// Try to freeze the context without triggering any asserts. If the <see cref="Context"/>
+        /// is already frozen, return false (did not achieve to freeze the <see cref="Context"/>).
+        /// True otherwise
+        /// </summary>
+        /// <returns> Successfully freeze the <see cref="Context"/> ?</returns>
         public static bool tryFreeze()
         {
             if (_frozen) return false;

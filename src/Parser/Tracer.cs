@@ -8,9 +8,20 @@ using System.Linq;
 
 namespace Parser
 {
+    /// <summary>
+    /// An <see cref="Event"/> describes a <see cref="Variable"/> alteration (<see cref="Alteration"/>).
+    /// It saves the current <see cref="Context"/> and the <see cref="Alteration"/>.
+    /// It should be saved into and Event-stack
+    /// </summary>
     public class Event
     {
+        /// <summary>
+        /// The <see cref="Context"/> status at the alteration time
+        /// </summary>
         private readonly int _status;
+        /// <summary>
+        /// The <see cref="Context"/> info at the alteration time
+        /// </summary>
         private readonly object _info;
         public readonly Alteration alter;
 

@@ -43,13 +43,12 @@ namespace Parser
         /// <returns> list of corresponding <see cref="Instruction"/>s</returns>
         private static List<Instruction> buildInstructions(List<RawInstruction> raw_instructions)
         {
-            List<Instruction> instructions = new List<Instruction>();
-            foreach (RawInstruction raw_instruction in raw_instructions)
-            {
-                Instruction instruction = raw_instruction.toInstr();
-                instructions.Add(instruction);
-            }
+            Context.setStatus(Context.StatusEnum.building_instructions);
+            Context.setInfo(raw_instructions);
 
+            List<Instruction> instructions = raw_instructions.Select(raw_instruction => raw_instruction.toInstr()).ToList();
+
+            Context.reset();
             return instructions;
         }
         
@@ -64,12 +63,24 @@ namespace Parser
         public static Algorithm algorithmFromSrcCode(string path, bool print_src = false, bool pretty_print = false, string default_name = "no-name-given")
         {
             // read code
+            Context.setStatus(Context.StatusEnum.read_purge);
+            Context.setInfo(path);
             Dictionary<int, string> lines = readSourceCode(path);
+            Context.reset();
 
             if (print_src) StringUtils.printStringList(lines.Select(pair => pair.Value).ToList(), true);
 
             // extract macros
+            Context.setStatus(Context.StatusEnum.macro_preprocessing);
+            Context.setInfo(null);
+            
             Dictionary<string, string> macros = Parser.getMacroPreprocessorValues(lines.Select(pair => pair.Value).ToList());
+            foreach (var pair in macros)
+            {
+                Parser.handleMacro(pair.Key, pair.Value);
+            }
+            
+            Context.reset();
 
             // Parse code into RawInstructions
             List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(lines);
@@ -157,13 +168,6 @@ namespace Parser
         /// you can code in Aquila. It is important to note that comments are not supported
         /// if written on the same line as code. You comment lines have to start with the "//"
         /// symbol. Multiple-line comments are not supported
-        /// <para/>There are special keywords that only exist in the interpreter mode:
-        /// <para/>* exit -> exits the interpreter mode
-        /// <para/>* clear -> clears the console output
-        /// <para/>* var var_name -> prints info about the variable named "var_name"
-        /// <para/>* vars -> prints all the existing variables
-        /// <para/>* $var_name -> prints the value of a variable
-        /// <para/>* debug -> switch the debugging mode (true to false, false to true)
         /// </summary>
         public static void interactiveMode(List<string> exec_lines = null, bool greeting = true)
         {
