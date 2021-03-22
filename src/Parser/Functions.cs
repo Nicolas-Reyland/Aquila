@@ -10,32 +10,72 @@ using System.Linq;
 
 namespace Parser
 {
+    /// <summary>
+    /// User-defined functions
+    /// </summary>
     public class Function
     {
+        /// <summary>
+        /// Name by which it is called
+        /// </summary>
         private readonly string _name;
+        /// <summary>
+        /// Return type (as a string)
+        /// </summary>
         private readonly string _type;
+        /// <summary>
+        /// List of variables which will be accessible inside the function. Only holds their names
+        /// </summary>
         public readonly List<string> func_args;
+        /// <summary>
+        /// The instructions inside the function. Same usage as in the <see cref="Algorithm"/> class
+        /// </summary>
         private readonly List<Instruction> _instructions;
+        /// <summary>
+        /// Are we in the function ?
+        /// </summary>
         private bool _in_function_scope; // = false;
+        /// <summary>
+        /// Is the function recursive ?
+        /// </summary>
         private readonly bool _rec_function;
+        /// <summary>
+        /// For recursive functions. Length of the call implicit stack
+        /// </summary>
         private int _call_depth;
 
-        public Function(string name, string type, List<string> func_args, List<Instruction> instructions, bool recFunction)
+        public Function(string name, string type, List<string> func_args, List<Instruction> instructions, bool rec_function)
         {
             _name = name;
             _type = type;
             this.func_args = func_args;
             _instructions = instructions;
-            _rec_function = recFunction;
+            _rec_function = rec_function;
             _call_depth = 0;
         }
 
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> Name of the function</returns>
         public string getName() => _name;
-
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> Type of the function</returns>
         public string getType() => _type;
-
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> Is the function recursive ?</returns>
         public bool isRec() => _rec_function;
 
+        /// <summary>
+        /// Should be called BEFORE executing the <see cref="Function"/>.
+        /// Initializes a new Main Context Stack, as well as a new Local Context Stack with the given variables
+        /// </summary>
+        /// <param name="args"> Given variables. Accessible in the Context Stack</param>
+        /// <exception cref="Exception"> If not a recursive function, already executing this very function</exception>
         private void initialize(Dictionary<string, Variable> args)
         {
             _call_depth++;
@@ -49,6 +89,11 @@ namespace Parser
             _in_function_scope = true;
         }
 
+        /// <summary>
+        /// Call the function with input parameters (args)
+        /// </summary>
+        /// <param name="args"> The variables defining the new Main Context Stack</param>
+        /// <returns> The return value of the function</returns>
         public Variable callFunction(Dictionary<string, Variable> args)
         {
             initialize(args);
@@ -81,6 +126,10 @@ namespace Parser
             return new NullVar();
         }
 
+        /// <summary>
+        /// Restore the Context at the end of the function
+        /// </summary>
+        /// <exception cref="Exception"> The Context (this method has already been called) has already been restored</exception>
         private void restore()
         {
             _call_depth--;
@@ -101,6 +150,12 @@ namespace Parser
     /// </summary>
     public static class Functions
     {
+        /// <summary>
+        /// Convert a list of <see cref="RawInstruction"/>s into a <see cref="Function"/>
+        /// </summary>
+        /// <param name="declaration_line"> First line, recursivity, name, arguments</param>
+        /// <param name="function_declaration"> The lines defining the function content</param>
+        /// <returns> the corresponding <see cref="Function"/> object</returns>
         public static Function readFunction(string declaration_line, List<RawInstruction> function_declaration)
         {
             Debugging.assert(function_declaration.Count > 0); // >= 1
@@ -147,11 +202,21 @@ namespace Parser
             return new Function(function_name, type_str, function_args, instr_list, resp);
         }
         
+        /// <summary>
+        /// Add a <see cref="Function"/> to the <see cref="user_functions"/> dict
+        /// </summary>
+        /// <param name="func"> <see cref="Function"/> object</param>
         public static void addUserFunction(Function func)
         {
             user_functions.Add(func.getName(), func);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
         private static Dictionary<string, Variable> args2Dict(string name, object[] args)
         {
             Dictionary<string, Variable> d = new Dictionary<string, Variable>();
