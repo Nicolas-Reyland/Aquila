@@ -14,16 +14,16 @@ namespace Parser
         public abstract void execute();
         protected void setLineIndex() => Global.current_line_index = line_index;
         protected abstract void setContext();
+        public abstract dynamic[] getTranslatorInfo();
     }
 
-    internal abstract class NestedInstruction : Instruction // ex: for, while, if, etc.
+    public abstract class NestedInstruction : Instruction // ex: for, while, if, etc.
     {
         // attributes
-        protected int depth;
         internal List<Instruction> instructions;
     }
 
-    internal abstract class Loop : NestedInstruction //! NEVER NEED TO UPDATE TRACERS IN LOOPS (already in all sub-instructions)
+    public abstract class Loop : NestedInstruction //! NEVER NEED TO UPDATE TRACERS IN LOOPS (already in all sub-instructions)
     {
         private readonly Expression _condition;
         protected bool in_loop;
@@ -45,9 +45,11 @@ namespace Parser
         }
 
         public bool isInLoop() => in_loop;
+
+        public override dynamic[] getTranslatorInfo() => new dynamic[] {_condition, instructions};
     }
 
-    internal class WhileLoop : Loop
+    public class WhileLoop : Loop
     {
         public WhileLoop(int line_index, Expression condition, List<Instruction> instructions) : base(line_index, condition, instructions)
         {
@@ -83,7 +85,7 @@ namespace Parser
         }
     }
 
-    internal class ForLoop : Loop
+    public class ForLoop : Loop
     {
         private readonly Instruction _start;
         private readonly Instruction _step;
@@ -124,10 +126,16 @@ namespace Parser
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
             Global.resetLocalContextScope();
-          }
+        }
+
+        public override dynamic[] getTranslatorInfo()
+        {
+            dynamic[] base_info = base.getTranslatorInfo();
+            return new[] {_start, base_info[0], _step, base_info[1]};
+        }
     }
 
-    internal class IfCondition : NestedInstruction // Don't need to update tracers here either
+    public class IfCondition : NestedInstruction // Don't need to update tracers here either
     {
         private readonly Expression _condition;
         private readonly List<Instruction> _else_instructions;
@@ -172,9 +180,11 @@ namespace Parser
             Context.reset();
             Global.resetLocalContextScope();
         }
+
+        public override dynamic[] getTranslatorInfo() => new dynamic[] { _condition, instructions, _else_instructions };
     }
 
-    internal class Declaration : Instruction
+    public class Declaration : Instruction
     {
         private readonly string _var_name;
         private readonly Expression _var_expr;
@@ -240,9 +250,11 @@ namespace Parser
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
+
+        public override dynamic[] getTranslatorInfo() => new dynamic[] { _var_name, _var_type, _var_expr };
     }
 
-    internal class Assignment : Instruction
+    public class Assignment : Instruction
     {
         private readonly string _var_name;
         private readonly Expression _var_value;
@@ -283,9 +295,11 @@ namespace Parser
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
+
+        public override dynamic[] getTranslatorInfo() => new dynamic[] { _var_name, _var_value };
     }
 
-    internal class VoidFunctionCall : Instruction
+    public class VoidFunctionCall : Instruction
     {
         private readonly string _function_name;
         private readonly object[] _args;
@@ -308,23 +322,25 @@ namespace Parser
         public override void execute()
         {
             setContext();
-            int context_integrity_check = Context.getStatusStackCount();
+            // int context_integrity_check = Context.getStatusStackCount();
 
             _called = true;
             Functions.callFunctionByName(_function_name, _args);
             // update all tracers
             Tracer.updateTracers();
 
-            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
+            // recursive: Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
 
         public object[] getArgs() => _args;
 
         public bool hasBeenCalled() => _called;
+
+        public override dynamic[] getTranslatorInfo() => new dynamic[] { _function_name, _args };
     }
 
-    internal class FunctionDef : Instruction
+    public class FunctionDef : Instruction
     {
         private readonly Function _func;
         public FunctionDef(int line_index, Function func)
@@ -348,6 +364,8 @@ namespace Parser
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
+
+        public override dynamic[] getTranslatorInfo() => _func.translatorInfo();
     }
 
     internal class Tracing : Instruction // no updateTracers bc values can't be changed here ...
@@ -383,5 +401,7 @@ namespace Parser
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
+
+        public override dynamic[] getTranslatorInfo() => null;
     }
 }
