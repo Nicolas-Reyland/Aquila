@@ -68,109 +68,102 @@ namespace Parser
         /// <returns> List of the lines, without the '\n' char or comments</returns>
         public static Dictionary<int, string> readLines(string path)
         {
-            Dictionary<int, string> lines = new Dictionary<int, string>();
+            // read file to end
             StreamReader file = new StreamReader(path);
-
             string full = file.ReadToEnd();
             file.Close();
-
+            
+            // get the comment strings
             string sl_flag = Global.single_line_comment_string; // single line comment string
             string ml_open_flag = Global.multiple_lines_comment_string; // multiple lines opening comment string
             char[] char_array = ml_open_flag.ToCharArray();
             Array.Reverse( char_array );
             string ml_close_flag = new string( char_array ); // multiple lines closing comment string
 
-            bool in_comment = false; // are we currently in a multiple-line comment
-            int last_valid_index = 0; // for adding to lines
-            int remaining = full.Length + 1; // remaining chars, for SubStrings
-
-            int line_index = 1; // start at 0, bc will be incremented before the line is appended (debut of for loop)
-
-            string constructed_line = "";
-            int ml_comment_line_index_start = -1;
-            int ml_section_count = 1;
+            // setup useful variables
+            string filtered = ""; // the filtered code, without comments
+            int in_comment = 0; // 0: in code, 1: in single line comment, 2: in multiple lines comment, 3: in multiple lines comment that is actually multiple lines long
+            bool line_passed = false; // has a line just passed ? ('\n')
 
             for (int i = 0; i < full.Length; i++)
             {
-                remaining--;
-                bool add_eol = true;
-                if (full[i] == '\n')
-                {
-                    if (line_index++ == ml_comment_line_index_start)
-                    {
-                        constructed_line += full.Substring(last_valid_index, i - last_valid_index - 1);
-                        Debugging.print("adding ml comment concatenated line: \"" + constructed_line + "\"");
-                        lines.Add(line_index, constructed_line);
-                        constructed_line = ""; // reset constructed line
-                        //i += i - last_valid_index;
-                        add_eol = false;
-                        last_valid_index += ml_section_count; // idk why ??
-                        ml_section_count = 1;
-                    }
-                } // next line starts
-                
-                if (!in_comment)
-                {
-                    // multiple-line comment start
-                    if (ml_open_flag.Length < remaining && full.Substring(i, ml_open_flag.Length) == ml_open_flag)
-                    {
-                        string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
-                        /*if (ml_comment_line_index_start < line_index)
-                        {
-                            Debugging.print("adding line of code ", line_index, " : ", line_of_valid_code);
-                            lines.Add(line_index, line_of_valid_code);
-                            ml_comment_line_index_start = line_index;
-                        }
-                        else
-                        {*/
-                        Debugging.print("debut of line section: ", line_index, " : ", line_of_valid_code);
-                        ml_section_count++;
-                        constructed_line += line_of_valid_code;
+                char c = full[i];
+                // new line incoming
+                if (c == '\n') line_passed = true;
 
-                        in_comment = true;
-                        Debugging.print("in multiple line comment");
-                    }
-                    // single line comment start
-                    else if (sl_flag.Length < remaining && full.Substring(i, sl_flag.Length) == sl_flag)
-                    {
-                        if (!full.Substring(i).Contains("\n")) break; // EOF incoming, no more data
-                        int next_line_index = full.IndexOf('\n', i) + 1;
-                        string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
-                        line_index++; // increment index
-                        Debugging.print("adding line of code ", line_index, " : ", line_of_valid_code);
-                        lines.Add(line_index, line_of_valid_code);
-                        last_valid_index = next_line_index; // new last_valid_index (in future)
-                        remaining -= next_line_index - i; // decrement remaining
-                        i = next_line_index; // updating i
-                        Debugging.print("jumped to ", i);
-                    }
-                    // end-of-line (EOL)
-                    else if (full[i] == '\n' && add_eol)
-                    {
-                        string line_of_valid_code = full.Substring(last_valid_index, i - last_valid_index);
-                        Debugging.print("adding line of code eol ", line_index, " : ", line_of_valid_code);
-                        lines.Add(line_index, line_of_valid_code);
-                        last_valid_index = i + 1; // + 1 : don't take the '\n' char
-                    }
-                    // end-of-file (EOF)
-                    else if (i == full.Length - 1) // in case the file just ends there (could check EOF ?)
-                    {
-                        string line_of_valid_code = full.Substring(last_valid_index);
-                        Debugging.print("adding last line of code ", line_index, " : ", line_of_valid_code);
-                        lines.Add(line_index, line_of_valid_code);
-                        last_valid_index = i + 1; // + 1 : don't take the '\n' char
-                    }
-                }
-                else if (ml_close_flag.Length < remaining && full.Substring(i, ml_close_flag.Length) == ml_close_flag)
+                /* if we are in a comment, we want to check two things:
+                 *  - if single-line comment: has the line just passed ?
+                 *  - if multiple-lines comment: has the line just passed & are we finished with multiple lines ?
+                 * if not in a comment:
+                 *  - check if current char is beginning of multiple/single-line(s) comment
+                 *  - if not, add the current char to the filtered output
+                 */
+                if (in_comment == 0) // -> in actual code
                 {
-                    in_comment = false;
-                    last_valid_index = i + ml_close_flag.Length;
-                    ml_comment_line_index_start = line_index;
-                    Debugging.print("out of multiple line comment");
+                    // single line comment
+                    if (i >= sl_flag.Length && full.Substring(i - sl_flag.Length, sl_flag.Length) == sl_flag)
+                    {
+                        filtered = filtered.Substring(0, filtered.Length - sl_flag.Length);
+                        in_comment = 1;
+                    }
+                    // multiple lines comment
+                    else if (i >= ml_open_flag.Length && full.Substring(i - ml_open_flag.Length, ml_open_flag.Length) == ml_open_flag)
+                    {
+                        filtered = filtered.Substring(0, filtered.Length - ml_open_flag.Length);
+                        in_comment = 2;
+                    }
+                    // in code !
+                    else
+                    {
+                        filtered += c;
+                    }
                 }
+                else if (in_comment == 1) // -> single line comment
+                {
+                    // line just passed
+                    if (line_passed)
+                    {
+                        in_comment = 0;
+                        filtered += "\n"; // add the current char (it will not be added at all if it is not done here)
+                    }
+                    else
+                    {
+                        filtered += " ";
+                    }
+                }
+                else // in_comment >= 2 -> multiple lines comment, with line passed or not (== 2 -> not, 3 is passed !)
+                {
+                    // closing ml comment tag
+                    if (i >= ml_close_flag.Length && full.Substring(i - ml_close_flag.Length, ml_close_flag.Length) == ml_close_flag)
+                    {
+                        filtered += in_comment == 3 ? "\n" : " "; // add correct char to filtered (this char literally replaced the ml comment)
+                        filtered += c; // would not be added if not done here
+                        in_comment = 0; // back to being in the code
+                    }
+                    else if (line_passed)
+                    {
+                        // the ml comment is actually multiple lines long
+                        in_comment = 3;
+                        filtered += "\n";
+                    }
+                    else
+                    {
+                        filtered += " ";
+                    }
+                }
+                
+                line_passed = false;
             }
 
-            if (in_comment) throw Global.aquilaError(); // InvalidCommentException
+            if (in_comment != 0) throw Global.aquilaError(); // InvalidComment(Tag?)Exception
+
+            // create new dict
+            string[] splitted = filtered.Split('\n');
+            Dictionary<int, string> lines = new Dictionary<int, string>();
+            for (int i = 0; i < splitted.Length; i++)
+            {
+                lines.Add(i + 1, splitted[i]);
+            }
 
             return lines;
         }
@@ -315,13 +308,25 @@ namespace Parser
         static void Main(string[] args)
         {
             Global.initVariables();
-	        Global.setSetting("interactive", false);
+            Global.setSetting("interactive", false);
 	        Global.setSetting("debug", false);
 	        Global.setSetting("trace debug", false);
             Global.setSetting("allow tracing in frozen context", true);
             Global.setSetting("flame mode", true); // can set to false bc "allow tracing in frozen context" is set to true. but to be sure: true
 
+            // translation
+            /*string path = args.Length > 0 ? args[0] : "merge sort.aq";
+            IEnumerable<Instruction> instructions = Translator.instructionsFromFile(path);
+            CSharpTranslator translator = new CSharpTranslator(instructions);
+            string[] output = translator.translate();
+
+            for (int i = 0; i < output.Length; i++)
+            {
+                Console.WriteLine(i + ": " + output[i]);
+            }*/
+            
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
+
             Global.func_tracers.Add(new FuncTracer("list_at"));
             Global.func_tracers.Add(new FuncTracer("swap"));
 
@@ -343,8 +348,8 @@ namespace Parser
 
             Console.WriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : "merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
-            bool interactive_after_execution = args.Length == 0;
+            string src_code = args.Length == 1 ? args[0] : @"C:\Users\Nicolas\Documents\EPITA\Code Vultus\Iris\csharp merge sort translation.aq";//"merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            bool interactive_after_execution = true;//args.Length == 0;
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
             try
@@ -366,6 +371,7 @@ namespace Parser
                 Global.setSetting("trace debug", true);
                 Interpreter.interactiveMode(exec_lines, false);
             }
+
 
             // ReSharper restore HeuristicUnreachableCode
             // ReSharper restore ConditionIsAlwaysTrueOrFalse

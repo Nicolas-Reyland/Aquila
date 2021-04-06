@@ -140,6 +140,8 @@ namespace Parser
 
             _in_function_scope = false;
         }
+
+        public dynamic[] translatorInfo() => new dynamic[] { _name, _type, func_args, _instructions, _rec_function };
     }
     
     /// <summary>

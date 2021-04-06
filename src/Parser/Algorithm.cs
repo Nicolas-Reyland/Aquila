@@ -44,8 +44,14 @@ namespace Parser
         /// <summary>
         /// Getter function for the name
         /// </summary>
-        /// <returns> function name</returns>
+        /// <returns> Function name</returns>
         public string getName() => _name;
+
+        /// <summary>
+        /// Getter function for the instructions (returns a copy to the list)
+        /// </summary>
+        /// <returns> Copy of the instructions</returns>
+        public IEnumerable<Instruction> getInstructions() => new List<Instruction>(_instructions);
 
         /// <summary>
         /// Set the Context status to <see cref="Context.StatusEnum.instruction_main_loop"/>.

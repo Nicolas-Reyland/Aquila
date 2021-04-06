@@ -377,8 +377,8 @@ namespace Parser
                     return new VoidFunctionCall(line_index, function_name);
                 }
 
-                List<Expression> arg_exprs = arg_expr_str.Select(x => new Expression(x)).ToList();
-                object[] args = arg_exprs.Select(x => (object) x).ToArray();
+                /*List<Expression> arg_exprs*/object[] args = arg_expr_str.Select(x => (object) new Expression(x)).ToArray();
+                //object[] args = arg_exprs.Select(x => (object) x).ToArray();
 
                 return new VoidFunctionCall(line_index, function_name, args);
             }
