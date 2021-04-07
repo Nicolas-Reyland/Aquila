@@ -326,7 +326,7 @@ namespace Parser
             {"allow tracing in frozen context", false},         // trace even if the Context is frozen
             {"permafrost", false},                              // freeze Context permanently
             {"flame mode", false},                              // disables Context freezing completely
-	    {"translator_debug", false},			// enable translator debugging
+	        {"translator_debug", false},			// enable translator debugging
 	    };
 
         public static void setSetting(string key, bool value) => settings[key] = value;

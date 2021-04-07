@@ -286,7 +286,15 @@ namespace Parser
             // assert the new is not an unassigned (only declared) variable
             val.assertAssignment();
             // set the new value
-            Expression.parse(_var_name).setValue(val);
+            Variable variable = Expression.parse(_var_name);
+            if (variable.hasSameParent(val))
+            {
+                variable.setValue(val);
+            }
+            else
+            {
+                throw Global.aquilaError("You cannot change the type of your variables (" + variable.getTypeString() + " -> " + val.getTypeString() + "). This will never be supported because it would be considered bad style.");
+            }
 
             // update all tracers
             Tracer.updateTracers();
