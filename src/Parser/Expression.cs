@@ -226,13 +226,15 @@ namespace Parser
             if (expr_string.Contains("("))
             {
                 string function_name = expr_string.Split('(')[0]; // extract function name
+                int func_call_length = function_name.Length;
+                function_name = StringUtils.purgeLine(function_name);
                 Debugging.print("function name: ", function_name);
                 Functions.assertFunctionExists(function_name);
-                expr_string = expr_string.Substring(function_name.Length); // remove function name
+                expr_string = expr_string.Substring(func_call_length); // remove function name
                 expr_string = expr_string.Substring(1, expr_string.Length - 2); // remove parenthesis
                 Debugging.print("expr_string for function call ", expr_string);
 
-                List<Expression> arg_list = new List<Expression>();
+                var arg_list = new List<Expression>();
                 foreach (string arg_string in StringUtils.splitStringKeepingStructureIntegrity(expr_string, ',', Global.base_delimiters))
                 {
                     string purged_arg_string = StringUtils.purgeLine(arg_string);

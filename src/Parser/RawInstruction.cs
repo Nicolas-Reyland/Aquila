@@ -355,6 +355,13 @@ namespace Parser
             }
 
             Debugging.print("function call ?");
+            // function call with spaces between function name and parenthesis
+            if (instr.Count == 2 && instr[1].StartsWith('('))
+            {
+                Debugging.print("function call with space between name and first parenthesis. Merging ", instr[0], " and ", instr[1]);
+                instr[0] += instr[1];
+                instr.RemoveAt(1);
+            }
             // void function call (no return value, or return value not used)
             if (instr[0].Contains('('))
             {
