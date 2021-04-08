@@ -97,7 +97,7 @@ namespace Parser
 
         public static void printTranslator(params object[] args)
         {
-            if (!Global.getSetting("translator_debug")) return;
+            if (!Global.getSetting("translator debug")) return;
             
             // default settings
             int max_call_name_length = 30;

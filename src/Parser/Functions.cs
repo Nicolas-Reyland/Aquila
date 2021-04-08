@@ -530,7 +530,7 @@ namespace Parser
         /// Holds all the non-void value_functions. There are some default value_functions, but you can add your
         /// own through the <see cref="addFunction"/> method.
         /// </summary>
-        private static readonly Dictionary<string, Delegate> functions_dict = new Dictionary<string, Delegate>
+        public static readonly Dictionary<string, Delegate> functions_dict = new Dictionary<string, Delegate>
         {
             {"length", new Func<Expression, Variable>(lengthFunction)}, // functions which return a value
             {"list_at", new Func<Expression, Expression, Variable>(listAtFunction)},

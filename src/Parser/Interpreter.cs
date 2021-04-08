@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
@@ -207,7 +208,7 @@ namespace Parser
 
                 if (!processInterpreterInput(input)) continue; // command should not be executed, then continue
 
-		        if (input == "exec_info")
+                if (input == "exec_info")
 		        {
 		            if (!exec_mode)
 		            {
@@ -298,7 +299,7 @@ namespace Parser
                         "eval %expr", // expr
                         "var %var_name", "vars", "$%var_name", // variables
                         // ReSharper disable once StringLiteralTypo
-                        "funcs", "type", // functions
+                        "funcs", "df_funcs", "type", // functions
                         "trace_info", "trace_uniq_stacks", "rewind %n %var_name", "peek_event $%traced_value", // trace
                         "get_context", "set_status", "set_info_null", "reset_context", // context
                         "scope_info", // scope
@@ -332,6 +333,7 @@ namespace Parser
                 // ReSharper disable once StringLiteralTypo
                 case "funcs":
                 {
+                    Console.WriteLine("User defined functions:");
                     foreach (var pair in Functions.user_functions)
                     {
                         Console.WriteLine(" * " + pair.Key + (pair.Value.isRec() ? " : [rec] " : " : ") + "(" + pair.Value.func_args.Count + ") -> " + pair.Value.getType());
@@ -339,6 +341,15 @@ namespace Parser
 
                     return false;
                 }
+                case "df_funcs":
+                    Console.WriteLine("Default (predefined) functions:");
+                    foreach (var pair in Functions.functions_dict)
+                    {
+                        MethodInfo method = pair.Value.GetMethodInfo();
+                        Console.WriteLine(" * " + pair.Key + " [?] : (" + method.GetParameters().Length + ") -> " + method.ReturnType);
+                    }
+
+                    return false;
                 case "debug":
                     Global.setSetting("debug", !Global.getSetting("debug"));
                     return false;
@@ -489,7 +500,27 @@ namespace Parser
 
                 return false;
             }
-            
+
+            if (input.StartsWith("#"))
+            {
+                Console.WriteLine("Handling macro parameter");
+                if (!input.Contains(' '))
+                {
+                    Parser.handleMacro(input.Substring(1), null);
+                    return false;
+                }
+
+                int index = input.IndexOf(' ');
+                // extract the key & value pair
+                string value = input.Substring(index);
+                input = input.Substring(1, index);
+                // purge pair
+                value = StringUtils.purgeLine(value);
+                input = StringUtils.purgeLine(input);
+                Parser.handleMacro(input, value);
+                return false;
+            }
+
             return true;
         }
     }

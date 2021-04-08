@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
@@ -205,6 +206,12 @@ namespace Parser
             // the declaration is not initiated in the right scope... cannot do this here
             bool var_exists = Global.variableExistsInCurrentScope(var_name);
             Debugging.print("new declaration: var_name = " + var_name + ", var_expr = " + var_expr.expr + ", var_type = " + var_type + ", assignment = ", assignment, ", overwrite = ", overwrite, ", exists = ", var_exists);
+            // should not check anything if this is true
+            if (Global.getSetting("implicit declaration in assignment"))
+            {
+                Debugging.print("implicit declaration in assignments, so skipping var existence checks (var exists: ", var_exists, ")");
+                return;
+            }
             // check variable existence
             if (overwrite == 0) Debugging.assert(!var_exists); // DeclaredExistingVarException
             if (overwrite == 1) Debugging.assert(var_exists); // OverwriteNonExistingVariable
@@ -286,7 +293,29 @@ namespace Parser
             // assert the new is not an unassigned (only declared) variable
             val.assertAssignment();
             // set the new value
-            Variable variable = Expression.parse(_var_name);
+            Variable variable;
+            try
+            {
+                variable = Expression.parse(_var_name);
+            }
+            catch (AquilaExceptions.NameError)
+            {
+                // implicit declaration
+                if (!Global.getSetting("implicit declaration in assignment")) throw;
+                Debugging.print("Implicit declaration in Assignment!");
+                Declaration decl = new Declaration(line_index, _var_name.Substring(1), _var_value); // in the Assignment constructor: already check if _var_name != ""
+                decl.execute();
+
+                // update all tracers
+                Tracer.updateTracers();
+
+                // reset Context
+                Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
+                Context.reset();
+
+                return;
+            }
+
             if (variable.hasSameParent(val))
             {
                 variable.setValue(val);

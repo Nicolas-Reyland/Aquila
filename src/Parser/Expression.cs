@@ -295,7 +295,7 @@ namespace Parser
         {
             if (var_name.StartsWith("$")) var_name = var_name.Substring(1);
             //Interpreter.processInterpreterInput("vars");
-            Debugging.assert(Global.variableExistsInCurrentScope(var_name));
+            if (!Global.variableExistsInCurrentScope(var_name)) throw new AquilaExceptions.NameError($"The variable {var_name} does not exist in the current context");
             return Global.variableFromName(var_name);
         }
 

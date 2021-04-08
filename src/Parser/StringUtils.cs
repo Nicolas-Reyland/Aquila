@@ -548,7 +548,7 @@ namespace Parser
                 case "false": case "0": case "False": case "FALSE":
                     return false;
                 default:
-                    throw new NotImplementedException("boolean value \"" + (val ?? "(.net null)") + "\" not supported");
+                    throw new ArgumentException("boolean value \"" + (val ?? "(.net null)") + "\" is invalid");
             }
         }
 

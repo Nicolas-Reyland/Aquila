@@ -45,8 +45,6 @@ namespace Parser
             "while", "end-while",
             "function", "end-function", "recursive",
             "decl", "safe", "overwrite",
-            "overwrite", // not yet
-            "safe", // not yet
             "trace",
             "null", "auto", "int", "float", "bool", "list",
         };
@@ -320,16 +318,21 @@ namespace Parser
 		    {"interactive", false},                             // get interactive interpreter on run
 		    {"debug", false},                                   // enable debugging
 		    {"trace debug", false},                             // enable tracing debugging
+	        {"translator debug", false},			            // enable translator debugging
 		    {"fail on context assertions", false},              // throw an Exception on Context.assertStatus fails
-		    {"check func existence before runtime", false},     // Trust the user for defining used functions later in the code /!\ disables recursive functions if set to true /!\
+		    {"check function existence before runtime", false}, // Trust the user for defining used functions later in the code /!\ disables recursive functions if set to true /!\
             {"lazy logic", true},                               // enable lazy logic operations
             {"allow tracing in frozen context", false},         // trace even if the Context is frozen
             {"permafrost", false},                              // freeze Context permanently
             {"flame mode", false},                              // disables Context freezing completely
-	        {"translator_debug", false},			// enable translator debugging
+            {"implicit declaration in assignment", false},      // enable implicit declaration in assignment
 	    };
 
-        public static void setSetting(string key, bool value) => settings[key] = value;
+        public static void setSetting(string key, bool value)
+        {
+            if (!settings.ContainsKey(key)) throw new KeyNotFoundException($"Setting: {key} not found.");
+            settings[key] = value;
+        }
 
         public static bool getSetting(string key) => settings[key];
     }

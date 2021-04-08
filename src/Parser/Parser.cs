@@ -250,6 +250,39 @@ namespace Parser
             bool bool_value;
             switch (key)
             {
+                /* -- Global -- */
+                case "setting":
+                    Debugging.print("settings config in macro handling");
+                    value ??= "";
+                    value = StringUtils.purgeLine(value);
+                    var list = StringUtils.splitStringKeepingStructureIntegrity(value, ' ', Global.base_delimiters);
+                    if (list.Count != 2)
+                    {
+                        Debugging.print("The setting macro takes exactly two args: key & value");
+                        return;
+                    }
+
+                    string setting_key = list[0];
+                    string setting_value = list[1];
+                    setting_key = StringUtils.removeRedundantMatchingDelimiters(setting_key, '(', ')');
+                    setting_key = StringUtils.removeRedundantMatchingDelimiters(setting_key, '[', ']');
+
+                    try
+                    {
+                        Debugging.print($"setting {setting_key} to {setting_value}");
+                        bool_value = StringUtils.string2BoolValue(setting_value ?? "true");
+                        Global.setSetting(setting_key, bool_value);
+                    }
+                    catch (KeyNotFoundException)
+                    {
+                        Debugging.print($"Setting {setting_key} does not exist.");
+                    }
+                    catch (ArgumentException)
+                    {
+                        Debugging.print("invalid boolean value: " + setting_value);
+                    }
+
+                    break;
                 /* --- Code Vultus --- */
                 case "name": // set the algorithm name
                     //TODO
@@ -279,9 +312,6 @@ namespace Parser
                 case "force_explicit_typing": // cannot use "auto" keyword (or implicit "auto" keyword)
                     //TODO
                     break;
-                case "force_variable_declaration": // no implicit declaration in assignments -> only with explicit "decl"
-                    //TODO
-                    break;
                 case "overwrite_variables": // // manually en/dis-able the "overwrite" keyword for variable overwriting
                     //TODO
                     break;
@@ -289,7 +319,7 @@ namespace Parser
                     //TODO
                     break;
                 /* --- list behaviour --- */
-                case "force_static_list": // lists can only hold one data type
+                case "force_mono_type_list": // lists can only hold one data type
                     //TODO
                     break;
                 case "list_as_array": // lists as arrays -> disable insert, remove, append, etc. (every length-modifying function) //! should create function to init an array with type for this
@@ -308,11 +338,12 @@ namespace Parser
         static void Main(string[] args)
         {
             Global.initVariables();
-            Global.setSetting("interactive", false);
-	        Global.setSetting("debug", false);
+            Global.setSetting("interactive", true);
+	        Global.setSetting("debug", true);
 	        Global.setSetting("trace debug", false);
             Global.setSetting("allow tracing in frozen context", true);
             Global.setSetting("flame mode", true); // can set to false bc "allow tracing in frozen context" is set to true. but to be sure: true
+            Global.setSetting("implicit declaration in assignment", true);
 
             // translation
             /*string path = args.Length > 0 ? args[0] : "merge sort.aq";
