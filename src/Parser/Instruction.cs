@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
@@ -405,7 +404,7 @@ namespace Parser
         public override dynamic[] getTranslatorInfo() => _func.translatorInfo();
     }
 
-    internal class Tracing : Instruction // no updateTracers bc values can't be changed here ...
+    public class Tracing : Instruction // no updateTracers bc values can't be changed here ...
     {
         private readonly List<Expression> _traced_vars;
 

@@ -44,6 +44,14 @@ namespace Parser
         /// </summary>
         private int _call_depth;
 
+        /// <summary>
+        /// Create a new <see cref="Function"/>
+        /// </summary>
+        /// <param name="name"> Name by which it will be called in the code</param>
+        /// <param name="type"> Return type</param>
+        /// <param name="func_args"> List of the variable argument names</param>
+        /// <param name="instructions"> List of instructions defining the content of the function</param>
+        /// <param name="rec_function"> Is the function recursive ?</param>
         public Function(string name, string type, List<string> func_args, List<Instruction> instructions, bool rec_function)
         {
             _name = name;
@@ -155,7 +163,7 @@ namespace Parser
         /// <summary>
         /// Convert a list of <see cref="RawInstruction"/>s into a <see cref="Function"/>
         /// </summary>
-        /// <param name="declaration_line"> First line, recursivity, name, arguments</param>
+        /// <param name="declaration_line"> First line, recursion, name, arguments</param>
         /// <param name="function_declaration"> The lines defining the function content</param>
         /// <returns> the corresponding <see cref="Function"/> object</returns>
         public static Function readFunction(string declaration_line, List<RawInstruction> function_declaration)
@@ -191,7 +199,7 @@ namespace Parser
             List<string> function_args = function_args_str.Split(',').ToList();
             for (int i = 0; i < function_args.Count; i++)
             {
-                function_args[i] = StringUtils.purgeLine(function_args[i]);
+                function_args[i] = StringUtils.normalizeWhiteSpaces(function_args[i]);
             }
 
             if (function_args.Count == 1 && function_args[0] == "") function_args.Clear();
@@ -239,7 +247,7 @@ namespace Parser
         /// Calculates the length of a <see cref="DynamicList"/> and returns it as an <see cref="Integer"/>
         /// </para>
         /// </summary>
-        /// <param name="list_expr"> the target <see cref="DynamicList"/></param>
+        /// <param name="list_expr"> The target <see cref="DynamicList"/></param>
         /// <returns> <see cref="Integer"/> which has the list's length as value</returns>
         private static Variable lengthFunction(Expression list_expr)
         {
@@ -249,6 +257,12 @@ namespace Parser
             return list.length();
         }
 
+        /// <summary>
+        /// Get the value at the index in a list
+        /// </summary>
+        /// <param name="list_expr"> The list</param>
+        /// <param name="index_expr"> The index</param>
+        /// <returns></returns>
         private static Variable listAtFunction(Expression list_expr, Expression index_expr)
         {
             // extract list
@@ -290,13 +304,21 @@ namespace Parser
             return Variable.fromRawValue(raw);
         }
 
-        // random number function
+        /// <summary>
+        /// Generate a random int
+        /// </summary>
+        /// <returns> A random int</returns>
         private static Variable randomNumber()
         {
             int rand = new Random().Next();
             return new Integer(rand);
         }
 
+        /// <summary>
+        /// Calculate the square root of a float
+        /// </summary>
+        /// <param name="expr"> The float</param>
+        /// <returns> The sqrt of the input float</returns>
         private static Variable sqrtFunction(Expression expr)
         {
             Variable v = expr.evaluate();
@@ -313,11 +335,7 @@ namespace Parser
             
             return new FloatVar(real_sqrt);
         }
-
-
-
-
-
+        
         /// <summary>
         /// Cannot be overwritten. Used to return a value in a function or the main algorithm.
         /// </summary>
@@ -329,11 +347,16 @@ namespace Parser
             throw new AquilaExceptions.ReturnValueException(expr.expr);
         }
 
-	private static NullVar interactiveCallFunction(Expression expr)
-	{
-		Interpreter.processInterpreterInput(expr.expr);
-		return new NullVar();
-	}
+        /// <summary>
+        /// Call an interactive-mode function
+        /// </summary>
+        /// <param name="expr"> Input expression holding the call</param>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
+	    private static NullVar interactiveCallFunction(Expression expr)
+	    {
+		    Interpreter.processInterpreterInput(expr.expr);
+		    return new NullVar();
+	    }
 
         /// <summary>
         /// Prints the value of an <see cref="Expression"/> to the stdout. Doesn't add a return '\n' symbol
@@ -428,8 +451,14 @@ namespace Parser
             return new NullVar();
         }
 
-
-        private static NullVar insertValueAt(Expression list_expr, Expression index_expr, Expression var_expr)
+        /// <summary>
+        /// Insert the given value in the list at the given index
+        /// </summary>
+        /// <param name="list_expr"> The list</param>
+        /// <param name="index_expr"> The index</param>
+        /// <param name="value_expr"> The value</param>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
+        private static NullVar insertValueAt(Expression list_expr, Expression index_expr, Expression value_expr)
         {
             // extract list
             Variable list_var = list_expr.evaluate();
@@ -440,13 +469,19 @@ namespace Parser
             Debugging.assert(index_var is Integer);
             Integer index = index_var as Integer;
             // extract var
-            Variable var_ = var_expr.evaluate();
+            Variable var_ = value_expr.evaluate();
             // insert
             list.insertValue(var_, index);
             return new NullVar();
         }
 
-        private static NullVar appendValue(Expression list_expr, Expression var_expr)
+        /// <summary>
+        /// Append a value to the end of a list
+        /// </summary>
+        /// <param name="list_expr"> The list</param>
+        /// <param name="value_expr"> The value</param>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
+        private static NullVar appendValue(Expression list_expr, Expression value_expr)
         {
             // extract list
             Variable list_var = list_expr.evaluate();
@@ -456,7 +491,7 @@ namespace Parser
             Integer index = list.length();
             Expression index_expr = new Expression(index.ToString());
             // insert
-            return insertValueAt(list_expr, index_expr, var_expr);
+            return insertValueAt(list_expr, index_expr, value_expr);
         }
 
         /// <summary>
@@ -498,49 +533,58 @@ namespace Parser
 
             return new NullVar();
         }
-
-        // float2int
+        
         // ReSharper disable once InconsistentNaming
+        /// <summary>
+        /// Convert a <see cref="FloatVar"/> into and <see cref="Integer"/>
+        /// </summary>
+        /// <param name="expr"> <see cref="Expression"/> resulting in a <see cref="float"/> value</param>
+        /// <returns> The new <see cref="Integer"/></returns>
+        /// <exception cref="Exception"> The value is not a <see cref="float"/></exception>
         private static Variable float2intFunction(Expression expr)
         {
-            throw new NotImplementedException();
+            dynamic value = expr.evaluate().getValue();
+            if (!(value is float)) throw Global.aquilaError($"Type should be float but is {value.GetType()}");
+            try
+            {
+                // ReSharper disable once PossibleInvalidCastException
+                return new Integer((int) value);
+            }
+            catch (InvalidCastException)
+            {
+                throw Global.aquilaError("The cast did not succeed (float to int)");
+            }
         }
 
-        // int2float
         // ReSharper disable once InconsistentNaming
+        /// <summary>
+        /// Convert an <see cref="Integer"/> into and <see cref="FloatVar"/>
+        /// </summary>
+        /// <param name="expr"> <see cref="Expression"/> resulting in an <see cref="int"/></param>
+        /// <returns> The new <see cref="FloatVar"/></returns>
+        /// <exception cref="Exception"> The value is not an <see cref="int"/></exception>
         private static Variable int2floatFunction(Expression expr)
         {
-            throw new NotImplementedException();
+            dynamic value = expr.evaluate().getValue();
+            if (!(value is float)) throw Global.aquilaError($"Type should be int but is {value.GetType()}");
+            return new FloatVar((float) value);
         }
 
-        /*
-        value function:
-          $x = value_function(arg1, arg2, ...)
-        void function:
-          void_function(arg1, arg2, ...)
-        */
-
-        /* $l = copy_list($l2)
-         * $l = delete_value_at($l, 1)
-         * $l = insert_value_at($l, 4, 3.1415)
-         */
-
-
         /// <summary>
-        /// Holds all the non-void value_functions. There are some default value_functions, but you can add your
-        /// own through the <see cref="addFunction"/> method.
+        /// Holds all the pre-defined (default) functions. This is basically the standard library of Aquila
         /// </summary>
         public static readonly Dictionary<string, Delegate> functions_dict = new Dictionary<string, Delegate>
         {
-            {"length", new Func<Expression, Variable>(lengthFunction)}, // functions which return a value
+            // Value functions
+            {"length", new Func<Expression, Variable>(lengthFunction)},
             {"list_at", new Func<Expression, Expression, Variable>(listAtFunction)},
             {"copy_list", new Func<Expression, Variable>(copyListFunction)},
             {"float2int", new Func<Expression, Variable>(float2intFunction)},
             {"int2float", new Func<Expression, Variable>(int2floatFunction)},
             {"random", new Func<Variable>(randomNumber)},
             {"sqrt", new Func<Expression, Variable>(sqrtFunction)},
-
-            {"return", new Func<Expression, NullVar>(returnFunction)}, // NullVar is equivalent of void, null or none
+            // Void functions
+            {"return", new Func<Expression, NullVar>(returnFunction)}, // NullVar is equivalent to void, null or none
             {"interactive_call", new Func<Expression, NullVar>(interactiveCallFunction)},
             {"print", new Func<Expression, NullVar>(printFunction)},
             {"print_str", new Func<Expression, NullVar>(printStrFunction)},
@@ -553,37 +597,14 @@ namespace Parser
             {"swap", new Func<Expression, Expression, Expression, NullVar>(swapFunction)},
         };
 
+        /// <summary>
+        /// The dictionary holding all the user-defined functions
+        /// </summary>
         public static readonly Dictionary<string, Function> user_functions = new Dictionary<string, Function>();
 
         /// <summary>
-        /// Add your own value_functions to the <see cref="functions_dict"/> dictionary. If the function
-        /// already exists in it, please use the <see cref="Functions.addFunctionOverwrite"/> method instead
-        /// </summary>
-        /// <param name="function_name"> function name to add (key)</param>
-        /// <param name="function"> Delegate function (value)</param>
-        public static void addFunction(string function_name, Delegate function)
-        {
-            Debugging.assert(!functions_dict.ContainsKey(function_name)); // UnknownFunctionNameException
-            functions_dict.Add(function_name, function);
-        }
-
-        /// <summary>
-        /// Overwrite default value_functions or your own value_functions using this method. The function has to exist
-        /// in the <see cref="functions_dict"/> or <see cref="user_functions"/> dictionary.
-        /// <para/>You cannot overwrite the <see cref="returnFunction"/> function
-        /// </summary>
-        /// <param name="function_name"> function name to overwrite (key)</param>
-        /// <param name="function"> Delegate function (value)</param>
-        public static void addFunctionOverwrite(string function_name, Delegate function)
-        {
-            assertFunctionExists(function_name); // OverwriteFunctionDoesNotExistException
-            functions_dict[function_name] = function;
-        }
-
-        /// <summary>
-        /// Call a function from the <see cref="functions_dict"/> or <see cref="functions_dict"/> dictionary. This can be a default
-        /// function or a custom function, which you added with <see cref="addFunction"/> or
-        /// overwrote using <see cref="addFunctionOverwrite"/>
+        /// Call a function from the <see cref="functions_dict"/> or <see cref="functions_dict"/> dictionary.
+        /// This can be a default function or a custom function
         /// </summary>
         /// <param name="name"> The function name (key)</param>
         /// <param name="args"> The arguments for you function</param>
@@ -592,14 +613,11 @@ namespace Parser
         {
             if (functions_dict.ContainsKey(name))
             {
-                // no new context scope needed, because no function defined here would benefit from it. plus, wouldn't it break some functionalities ?
+                // no new context scope needed, because no function defined here would benefit from it. plus, wouldn't it break some functionalities ? idk
                 
                 Context.assertStatus(Context.StatusEnum.predefined_function_call);
                 Debugging.print("invoking value function ", name, " dynamically with ", args.Length, " argument(s)");
-                //handleValueFunctionTracing(name, args); // cannot use expressions, have to use variables ...
                 return functions_dict[name].DynamicInvoke(args) as Variable;
-                
-                //return result;
             }
             if (user_functions.ContainsKey(name))
             {
@@ -619,24 +637,29 @@ namespace Parser
         }
 
         /// <summary>
-        /// Use this everytime you want to access a function in the <see cref="functions_dict"/> dictionary by its name (key)
+        /// Does the function exists in the <see cref="functions_dict"/> or in the <see cref="user_functions"/> dict ?
         /// </summary>
-        /// <param name="function_name"></param>
+        /// <param name="function_name"> Boolean value describing the function's existence</param>
         public static void assertFunctionExists(string function_name) =>
             Debugging.assert(functions_dict.ContainsKey(function_name) ^
                              user_functions.ContainsKey(function_name)); // UnknownFunctionNameException
 
+        /// <summary>
+        /// If a function is traced, we first want to wait for its execution to finish (so it can change the
+        /// input variables). That is why we want to leave the call <see cref="Event"/> pending, until the next instruction loop update
+        /// (which is done through <see cref="Tracer.updateTracers"/>)
+        /// </summary>
+        /// <param name="name"> Name of the called function</param>
+        /// <param name="affected"> The affected <see cref="Variable"/> object</param>
+        /// <param name="minor_values"> The other function arguments (apart from the variable). The order must be known</param>
         private static void handleValueFunctionTracing(string name, Variable affected, dynamic[] minor_values)
         {
-            Tracer.printTrace("checking all the " + Global.func_tracers.Count + " total function tracers for " + name);
-            foreach (FuncTracer tracer in Global.func_tracers)
+            Tracer.printTrace($"checking all the {Global.func_tracers.Count} total function tracers for {name}");
+            foreach (FuncTracer tracer in Global.func_tracers.Where(tracer => name == tracer.traced_func))
             {
-                if (name == tracer.traced_func)
-                {
-                    Tracer.printTrace("found traced function " + name);
-                    tracer.awaitTrace(new Event(new Alteration(name, affected, null, minor_values)));
-                    return;
-                }
+                Tracer.printTrace("found traced function " + name);
+                tracer.awaitTrace(new Event(new Alteration(name, affected, null, minor_values)));
+                return;
             }
         }
     }

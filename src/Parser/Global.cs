@@ -61,7 +61,7 @@ namespace Parser
         private static Stack<List<Dictionary<string, Variable>>> _variable_stack;
 
         /// <summary>
-        /// Initialize the variable stack.
+        /// Initialize the variable stack
         /// </summary>
         public static void initVariables()
         {
@@ -164,6 +164,12 @@ namespace Parser
             Debugging.print("new local scope: " + getLocalScopeDepth());
         }
 
+        /// <summary>
+        /// Get a <see cref="Variable"/> from its name
+        /// </summary>
+        /// <param name="name"> Name of the <see cref="Variable"/></param>
+        /// <returns> The actual <see cref="Variable"/></returns>
+        /// <exception cref="AquilaExceptions.NameError"> The variable name does not exist in the current Context</exception>
         public static Variable variableFromName(string name)
         {
             int local_scope_depth = getLocalScopeDepth();
@@ -177,7 +183,7 @@ namespace Parser
                 }
             }
 
-            throw aquilaError("Variable name \"" + name + "\" does not exist"); // variable does not exist
+            throw new AquilaExceptions.NameError($"Variable name \"{name}\" does not exist in the current Context"); // variable does not exist
         }
 
         /// <summary>
@@ -285,6 +291,7 @@ namespace Parser
         /// Function called on every tracer change
         /// </summary>
 #pragma warning disable 649
+        // ReSharper disable once UnassignedField.Global
         public static Func<Alteration, bool> graphical_function; // example: new Func<Alteration, bool>(graphicalFunction)
 #pragma warning restore 649
 
@@ -328,12 +335,23 @@ namespace Parser
             {"implicit declaration in assignment", false},      // enable implicit declaration in assignment
 	    };
 
+        /// <summary>
+        /// Set a <see cref="settings"/> key to a certain value
+        /// </summary>
+        /// <param name="key"> key</param>
+        /// <param name="value"> value</param>
+        /// <exception cref="KeyNotFoundException"> The key does not exist in the <see cref="settings"/> dict. You cannot invent settings !</exception>
         public static void setSetting(string key, bool value)
         {
             if (!settings.ContainsKey(key)) throw new KeyNotFoundException($"Setting: {key} not found.");
             settings[key] = value;
         }
 
+        /// <summary>
+        /// Get the value of a setting by its key
+        /// </summary>
+        /// <param name="key"> key</param>
+        /// <returns> Return the value of the setting</returns>
         public static bool getSetting(string key) => settings[key];
     }
 }

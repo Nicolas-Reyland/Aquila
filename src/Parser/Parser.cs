@@ -13,20 +13,23 @@ namespace Parser
     /// <summary>
     /// <see cref="Debugging"/> is used for assertions and logging (Enabled with the <see cref="Global.settings"/>["debug"] parameter).
     /// </summary>
-    internal static class Debugging
+    public static class Debugging
     {
         /// <summary>
-        /// Same as"System.Diagnostics.Debug.Assert, but can be called anywhere.
+        /// Same as "System.Diagnostics.Debug.Assert", but can be called anywhere.
         /// <param name="condition"> if condition is false, raises and exception</param>
+        /// <param name="custom_exception"> If the Assertion fails and this is not null, it will be raised instead of the generic Exception</param>
         /// </summary>
-        public static void assert(bool condition)
+        public static void assert(bool condition, Exception custom_exception = null)
         {
-            if (!condition)
-            {
-                StackTrace stack_trace = new StackTrace();
-                string call_name = stack_trace.GetFrame(1).GetMethod().Name;
-                throw new Exception(call_name + " (" + Global.current_line_index + "): Debugging.Assertion Error. CUSTOM ERROR");
-            }
+            // is the condition ok ?
+            if (condition) return;
+            // the assertion failed
+            if (custom_exception != null) throw custom_exception; // custom_exception has been given ?
+            // throw generic error
+            StackTrace stack_trace = new StackTrace();
+            string call_name = stack_trace.GetFrame(1).GetMethod().Name;
+            throw new Exception(call_name + " (" + Global.current_line_index + "): Debugging.Assertion Error. CUSTOM ERROR");
         }
 
         /// <summary>
@@ -254,7 +257,7 @@ namespace Parser
                 case "setting":
                     Debugging.print("settings config in macro handling");
                     value ??= "";
-                    value = StringUtils.purgeLine(value);
+                    value = StringUtils.normalizeWhiteSpaces(value);
                     var list = StringUtils.splitStringKeepingStructureIntegrity(value, ' ', Global.base_delimiters);
                     if (list.Count != 2)
                     {

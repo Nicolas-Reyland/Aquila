@@ -171,26 +171,66 @@ namespace Parser
             if (o is float) return new FloatVar(o);
             if (o is bool) return new BooleanVar(o);
             if (o is List<dynamic>) return new DynamicList(DynamicList.valueFromRawList(o));
-            throw new NotImplementedException("unsupported raw variable type: " + o);
+            throw Global.aquilaError("unsupported raw variable type: " + o.GetType());
         }
     }
 
+    /// <summary>
+    /// The <see cref="NullVar"/> represents the equivalent of the C# "null".
+    /// It is a valid function return-type
+    /// </summary>
     public class NullVar : Variable
     {
+        /// <summary>
+        /// Should never be called on a <see cref="NullVar"/>
+        /// </summary>
+        /// <param name="value"> Value</param>
+        /// <returns> Error thrown</returns>
         public override Variable cloneTypeToVal(dynamic value) => throw Global.aquilaError(); // wtf
 
+        /// <summary>
+        /// Should never be called on a <see cref="NullVar"/>
+        /// </summary>
+        /// <returns> Error thrown</returns>
         public override dynamic getValue() => throw Global.aquilaError(); // RuntimeError (never supposed to happen whatsoever)
 
+        /// <summary>
+        /// Should never be called on a <see cref="NullVar"/>
+        /// </summary>
+        /// <param name="other_value"> Other value</param>
         public override void setValue(Variable other_value) => throw Global.aquilaError(); // RuntimeError (never supposed to happen whatsoever)
 
+        /// <summary>
+        /// Should never be called on a <see cref="NullVar"/>
+        /// </summary>
+        /// <param name="value"> Value</param>
         public override void forceSetValue(dynamic value) => throw Global.aquilaError();
 
+        /// <summary>
+        /// We are considering that every <see cref="Variable"/> is also a <see cref="NullVar"/>.
+        /// Therefore this method is always returning true.
+        /// </summary>
+        /// <param name="other"> The other <see cref="Variable"/></param>
+        /// <returns> true</returns>
         public override bool hasSameParent(Variable other) => true;
 
+        /// <summary>
+        /// Returns "null"
+        /// </summary>
+        /// <returns> "null"</returns>
         public override string getTypeString() => "null"; // RuntimeError (never supposed to happen whatsoever)
 
+        /// <summary>
+        /// Returns "none"
+        /// </summary>
+        /// <returns> "none"</returns>
         public override string ToString() => "none";
 
+        /// <summary>
+        /// Should never be called on a <see cref="NullVar"/>
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
         public override int compare(Variable other) => throw Global.aquilaError();
     }
 
@@ -256,9 +296,6 @@ namespace Parser
         public override int compare(Variable other) => other.getValue() == _bool_value ? 0 : -1;
 
         public override string getTypeString() => "bool";
-
-        // ReSharper disable once UnusedMember.Global
-        public bool equals(BooleanVar other) => _bool_value == other.getValue();
     }
 
     public sealed class Integer : Variable
@@ -297,6 +334,8 @@ namespace Parser
         public Integer division(Integer other)
         {
             assertAssignment();
+            int other_value = other.getValue();
+            Debugging.assert(other_value != 0, new AquilaExceptions.ZeroDivisionException());
             return new Integer(_int_value / other.getValue());
         }
 
@@ -355,8 +394,6 @@ namespace Parser
         public override bool hasSameParent(Variable other_value) => other_value is Integer || other_value is NullVar;
 
         public override string getTypeString() => "int";
-
-        public bool equals(Integer other) => _int_value == other.getValue();
     }
 
     public sealed class FloatVar : Variable
@@ -385,8 +422,6 @@ namespace Parser
 
         public override string getTypeString() => "float";
 
-        public bool equals(FloatVar other) => other.getValue() == _float_value;
-
 
         public override int compare(Variable other)
         {
@@ -398,22 +433,28 @@ namespace Parser
 
         public Variable addition(FloatVar other)
         {
+            assertAssignment();
             return new FloatVar(_float_value + other.getValue());
         }
 
         public Variable subtraction(FloatVar other)
         {
+            assertAssignment();
             return new FloatVar(_float_value  - other.getValue());
         }
 
         public Variable mult(FloatVar other)
         {
+            assertAssignment();
             return new FloatVar(_float_value * other.getValue());
         }
 
         public Variable division(FloatVar other)
         {
-            return new FloatVar(_float_value / other.getValue());
+            assertAssignment();
+            float other_value = other.getValue();
+            Debugging.assert(other_value != 0, new AquilaExceptions.ZeroDivisionException());
+            return new FloatVar(_float_value / other_value);
         }
 
         public override string ToString()
@@ -514,7 +555,7 @@ namespace Parser
             }
             else
             {
-                throw new NotImplementedException("unsupported list raw data type: " + value);
+                throw Global.aquilaError("unsupported list raw data type: " + value);
             }
         }
 
@@ -532,11 +573,7 @@ namespace Parser
         public override string ToString()
         {
             if (_list.Count == 0) return "[]";
-            string s = "";
-            foreach (Variable variable in _list)
-            {
-                s += variable + ", ";
-            }
+            string s = _list.Aggregate("", (current, variable) => current + (variable + ", "));
 
             s = "[" + s.Substring(0, s.Length - 2) + "]";
             if (Global.getSetting("debug") || Global.getSetting("trace debug")) s = "List (" + s + ")";
@@ -553,34 +590,15 @@ namespace Parser
 
             List<Variable> other_list_value = other.getValue();
 
-            for (int i = 0; i < _list.Count; i++)
+            if (_list.Where((t, i) => other_list_value[i] != t).Any())
             {
-                if (other_list_value[i] != _list[i]) return -1;
+                return -1;
             }
 
             return 0;
         }
 
         public override string getTypeString() => "list";
-
-        /// <summary>
-        /// test
-        /// </summary>
-        /// <param name="other"></param>
-        /// <returns></returns>
-        public bool equals(DynamicList other)
-        {
-            if (length() != other.length()) return false;
-
-            List<Variable> other_list = other.getValue();
-
-            for (int i = 0; i < _list.Count; i++)
-            {
-                if (other_list[i] != _list[i]) return false;
-            }
-
-            return true;
-        }
     }
 
     public class FunctionCall : Variable

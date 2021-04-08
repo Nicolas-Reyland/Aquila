@@ -19,7 +19,7 @@ namespace Parser
     /// <para/>* Call the <see cref="runAlgorithm"/> function on the generated <see cref="Algorithm"/>
     /// You an also use the <see cref="algorithmFromSrcCode"/>, then call the <see cref="runAlgorithm"/> on it
     /// </summary>
-    internal static class Interpreter
+    public static class Interpreter
     {
         /// <summary>
         /// This function is used to read a raw Aquila source code text-based file and
@@ -54,7 +54,7 @@ namespace Parser
         }
         
         /// <summary>
-        /// Take source code and generate the corresponding <see cref="Algorithm"/>
+        /// Take source code and generates the corresponding <see cref="Algorithm"/>
         /// </summary>
         /// <param name="path"> path to your source code</param>
         /// <param name="print_src"> printTrace the generated purged code</param>
@@ -116,9 +116,9 @@ namespace Parser
         /// <summary>
         /// Checks if input lines from the <see cref="Interpreter.interactiveMode"/> are executable.
         /// <para/>Examples:
-        /// <para/>* declare int w // this is executable
+        /// <para/>* decl int w // this is executable
         /// <para/>* if ($x &lt; 4) // this is not executable
-        /// <para/>* for (declare i 0, $i &lt; 5, $i = $i + 1)
+        /// <para/>* for (decl i 0, $i &lt; 5, $i = $i + 1)
         /// <para/> - printTrace($i)
         /// <para/> - print_endl()
         /// <para/> - end-for // this is executable
@@ -196,7 +196,7 @@ namespace Parser
                 else Console.Write(getInteractivePrefix() + " - ");
                 string input = Console.ReadLine();
 
-                input = StringUtils.purgeLine(input);
+                input = StringUtils.normalizeWhiteSpaces(input);
 
                 if (input == "" || input.StartsWith("//")) continue;
 
@@ -440,7 +440,7 @@ namespace Parser
             if (input.StartsWith("var "))
             {
                 string var_name = input.Substring(4);
-                var_name = StringUtils.purgeLine(var_name);
+                var_name = StringUtils.normalizeWhiteSpaces(var_name);
                 if (var_name != "")
                 {
                     Variable var_ = Global.variableFromName(var_name);
@@ -515,8 +515,8 @@ namespace Parser
                 string value = input.Substring(index);
                 input = input.Substring(1, index);
                 // purge pair
-                value = StringUtils.purgeLine(value);
-                input = StringUtils.purgeLine(input);
+                value = StringUtils.normalizeWhiteSpaces(value);
+                input = StringUtils.normalizeWhiteSpaces(input);
                 Parser.handleMacro(input, value);
                 return false;
             }

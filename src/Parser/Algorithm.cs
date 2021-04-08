@@ -37,8 +37,8 @@ namespace Parser
         /// <param name="instructions"> list of <see cref="Instruction"/>s</param>
         public Algorithm(string name, List<Instruction> instructions)
         {
-            this._name = name;
-            this._instructions = instructions;
+            _name = name;
+            _instructions = instructions;
         }
 
         /// <summary>

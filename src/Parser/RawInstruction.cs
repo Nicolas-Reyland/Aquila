@@ -28,7 +28,10 @@ namespace Parser
         /// </summary>
         private string _instr;
 
-        private readonly int _line_index; // line index of this RawInstruction in the Source Code
+        /// <summary>
+        /// Line index of this RawInstruction in the Source Code
+        /// </summary>
+        private readonly int _line_index;
         
         /// <summary>
         /// Nested <see cref="RawInstruction"/>s are for-loops, if-statements, etc.
@@ -47,8 +50,8 @@ namespace Parser
         /// <param name="line_index"> index of the corresponding line in the src code</param>
         private RawInstruction(string instr, int line_index)
         {
-            this._instr = instr;
-            this._line_index = line_index;
+            _instr = instr;
+            _line_index = line_index;
         }
 
         /// <summary>
@@ -204,7 +207,8 @@ namespace Parser
                     else
                     {
                         type_declared = true;
-                        Debugging.assert(type_list.Contains(instr[1])); // UnknownTypeError
+                        Debugging.assert(type_list.Contains(instr[1]),
+                            new AquilaExceptions.UnknownTypeError($"The type \"{instr[1]}\" is not recognized"));
                     }
                 }
                 else if (instr[1] == "auto")
@@ -379,13 +383,13 @@ namespace Parser
                 List<string> arg_expr_str = StringUtils.splitStringKeepingStructureIntegrity(exprs, ',', Global.base_delimiters);
 
                 // no args ?
-                if (arg_expr_str.Count == 1 && StringUtils.purgeLine(arg_expr_str[0]) == "")
+                if (arg_expr_str.Count == 1 && StringUtils.normalizeWhiteSpaces(arg_expr_str[0]) == "")
                 {
                     return new VoidFunctionCall(line_index, function_name);
                 }
 
-                /*List<Expression> arg_exprs*/object[] args = arg_expr_str.Select(x => (object) new Expression(x)).ToArray();
-                //object[] args = arg_exprs.Select(x => (object) x).ToArray();
+                // ReSharper disable once SuggestVarOrType_Elsewhere
+                object[] args = arg_expr_str.Select(x => (object) new Expression(x)).ToArray();
 
                 return new VoidFunctionCall(line_index, function_name, args);
             }

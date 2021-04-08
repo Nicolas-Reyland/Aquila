@@ -15,7 +15,7 @@ namespace Parser
     /// All the string parsing, comparisons, splitting, reunification, etc. needed for a project like this.
     /// The function names are relatively self-explanatory, but you are welcome to read the documentation anyways.
     /// </summary>
-    internal static class StringUtils
+    public static class StringUtils
     {
         /// <summary>
         /// Print a List&lt;string&gt;. One line per string
@@ -33,103 +33,12 @@ namespace Parser
         }
 
         /// <summary>
-        /// DEPRECATED. ONLY KEPT FOR BACKUP PURPOSES.
-        /// <para/>If you want to use it, /** please be aware **/ that multiple-line comment tags don't work
-        /// if used on the same line. You cannot have multiple multiple-line comment tags on the same line
+        /// Remove all the unnecessary whitespaces from the input. The only whitespace in the output are spaces.
+        /// For an input that looks like this: " word_1  word_2\t ... word_n \t ", the output will look something like this: "word_1 word_2 ... word_n"
         /// </summary>
-        /// <param name="code"> lines of code</param>
-        /// <returns> list of lines without comment</returns>
-        /// <exception cref="Global.aquilaError"/>
-        public static List<string> removeComments(List<string> code)
-        {
-            Console.Error.WriteLine("DEPRECATION WARNING. the StringUtils.removeComments method is deprecated. use at your own risk");
-
-            List<string> new_code = new List<string>();
-            bool in_comment = false;
-
-            char[] char_array= Global.multiple_lines_comment_string.ToCharArray();
-            Array.Reverse(char_array);
-            string multiple_lines_comment_string_closing = new string(char_array);
-            Debugging.print("multiple comment closing is " + multiple_lines_comment_string_closing);
-
-            int index = 0; // lines start at 1
-
-            foreach (string line in code)
-            {
-                index++;
-                Debugging.print("comments - line ", index);
-                // in code
-                if (!in_comment)
-                {
-                    if (line.Contains(Global.single_line_comment_string))
-                    {
-                        Debugging.print("single comment on line");
-                        // no multiple line comment on same line
-                        if (!line.Contains(Global.multiple_lines_comment_string))
-                        {
-                            new_code.Add(line.Substring(0,
-                                line.IndexOf(Global.single_line_comment_string, StringComparison.Ordinal)));
-                            Debugging.print("adding as only simple comment on line ", index);
-                            continue;
-                        }
-
-                        Debugging.print("multiple comment on line too!");
-                        int simple_index = line.IndexOf(Global.single_line_comment_string, StringComparison.Ordinal);
-                        int multiple_index =
-                            line.IndexOf(Global.multiple_lines_comment_string, StringComparison.Ordinal);
-                        // simple comment
-                        if (simple_index > multiple_index)
-                        {
-                            Debugging.print("simple comment first on line ", index);
-                            new_code.Add(line.Substring(0, simple_index));
-                            continue;
-                        }
-                        // multiple comment
-                        Debugging.print("multiple comment first on line ", index);
-                        new_code.Add(line.Substring(0, multiple_index));
-                        in_comment = true;
-                        continue;
-                    }
-                    // only multiple line comment
-                    if (line.Contains(Global.multiple_lines_comment_string))
-                    {
-                        Debugging.print("multiple comment on line only");
-                        new_code.Add(line.Substring(0,
-                            line.IndexOf(Global.multiple_lines_comment_string, StringComparison.Ordinal)));
-                        in_comment = true;
-                        continue;
-                    }
-                    // nothing there
-                    Debugging.print("added line ", index, " as is");
-                    new_code.Add(line);
-                }
-                // in comment
-                else
-                {
-                    Debugging.print("line ", index, " is in comment");
-                    if (line.Contains(multiple_lines_comment_string_closing))
-                    {
-                        new_code.Add(line.Substring(
-                            line.IndexOf(multiple_lines_comment_string_closing, StringComparison.Ordinal) +
-                            multiple_lines_comment_string_closing.Length));
-                        in_comment = false;
-                    }
-                }
-            }
-
-            if (in_comment) throw Global.aquilaError(); // no closing comment tag: syntax
-
-            return new_code;
-        }
-
-        /// <summary>
-        /// Remove all the tabs (replaced by one space if needed) and unnecessary spaces from a pseudo-code line.
-        /// Also removes comments from lines (comments start with <see cref="Global.single_line_comment_string"/>).
-        /// <para/>The input should not have comments in it (<seealso cref="removeComments"/>
-        /// </summary>
-        /// <param name="line"> line of code, can be any string tho</param>
-        /// <returns> purged line</returns>
-        public static string purgeLine(string line)
+        /// <param name="line"> a string containing words and whitespaces</param>
+        /// <returns> normalized string</returns>
+        public static string normalizeWhiteSpaces(string line)
         {
             // replace all tabs with spaces
             string new_line = line.Replace("\t", " ");
@@ -154,7 +63,7 @@ namespace Parser
         }
 
         /// <summary>
-        /// Same as <see cref="purgeLine"/>, but one a List of lines. If the input lines contain a line only
+        /// Same as <see cref="normalizeWhiteSpaces"/>, but one a List of lines. If the input lines contain a line only
         /// containing spaces/tabs or a line that is simply empty, it will not be included in the
         /// returned list.
         /// </summary>
@@ -165,7 +74,7 @@ namespace Parser
             List<string> new_lines = new List<string>();
             foreach (string line in lines)
             {
-                string new_line = purgeLine(line);
+                string new_line = normalizeWhiteSpaces(line);
 
                 // if the line has content, add it
                 if (new_line != "")
@@ -178,16 +87,16 @@ namespace Parser
         }
 
         /// <summary>
-        /// Same as <see cref="purgeLines(System.Collections.Generic.List{string})"/>, but keeps the keys.
+        /// Same as <see cref="purgeLines(System.Collections.Generic.List{string})"/>, and keeps the keys.
         /// </summary>
-        /// <param name="lines"> dict, values must be the lines to purge</param>
-        /// <returns> purged dict</returns>
+        /// <param name="lines"> dict, values must be the lines to normalize</param>
+        /// <returns> normalized dict</returns>
         public static Dictionary<int, string> purgeLines(Dictionary<int, string> lines)
         {
             Dictionary<int, string> new_lines = new Dictionary<int, string>();
             foreach (var pair in lines)
             {
-                string new_line = purgeLine(pair.Value);
+                string new_line = normalizeWhiteSpaces(pair.Value);
 
                 // if the line has content, add it
                 if (new_line != "")
@@ -416,13 +325,13 @@ namespace Parser
         /// <summary>
         /// Takes an expression and removes the parts with lower priority.
         /// this can be described as "simplifying an expresion"
-        /// Examples:
-        /// input => "$l[5 + $i] - ((6 + $j) * (1 / 2)) + 4", '+'
-        /// output => "EXPR + EXPR"
-        /// input => "$l[5 + $i] - ((6 + $j) * (1 / 2)) + 4", '*'
-        /// output => EXPR
-        /// Note that the expressions that are not either simple or "simplified" to the "EXPR" string
-        /// This should only be used for expression analysis only, due to data integrity loss.
+        /// <para/>Examples:
+        /// <para/>* input => "$l[5 + $i] - ((6 + $j) * (1 / 2)) + 4", '+'
+        /// <para/>* output => "EXPR + EXPR"
+        /// <para/>* input => "$l[5 + $i] - ((6 + $j) * (1 / 2)) + 4", '*'
+        /// <para/>* output => EXPR
+        /// <para>Note that the expressions that are not either simple or "simplified" to the "EXPR" string are lost.
+        /// Therefore, this method should only be used for expression analysis only, due to data loss.</para>
         /// </summary>
         /// <param name="expr"> Expression to simplify. Should be purged</param>
         /// <param name="delimiters"> delimiters used to separate expression (look at Global.AL_OPERATIONS)</param>

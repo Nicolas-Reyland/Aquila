@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
@@ -25,15 +24,15 @@ namespace Parser
         /// <summary>
         /// The literal expresion, as a string (e.g. "$x + 5")
         /// </summary>
-        internal readonly string expr;
+        public readonly string expr;
 
         /// <summary>
-        /// Constructor
+        /// Create a new <see cref="Expression"/>
         /// </summary>
-        /// <param name="expr"> expression string</param>
+        /// <param name="expr"> Expression string</param>
         public Expression(string expr)
         {
-            this.expr = StringUtils.purgeLine(expr);
+            this.expr = StringUtils.normalizeWhiteSpaces(expr);
         }
 
         /// <summary>
@@ -46,12 +45,11 @@ namespace Parser
         /// Takes an arithmetical or logical expression and returns the corresponding variable
         /// <para/>Examples:
         /// <para/>* "5 + 6" : returns Integer (11)
-        /// <para/>* "$l[5 * (1 - $i)]" : returns the elements at index 5*(1-i) in the list/array l
+        /// <para/>* "$l[5 * (1 - $i)]" : returns the elements at index 5*(1-i) in the list "l"
         /// <para/>* "$l" : returns the list variable l
         /// </summary>
         /// <param name="expr_string"> expression to parse</param>
         /// <returns> Variable object containing the value of the evaluated expression value (at time t)</returns>
-        [SuppressMessage("ReSharper.DPA", "DPA0002: Excessive memory allocations in SOH")]
         public static Variable parse(string expr_string)
         {
             /* Order of operations:
@@ -67,7 +65,7 @@ namespace Parser
              */
             
             // clean expression
-            expr_string = StringUtils.purgeLine(expr_string);
+            expr_string = StringUtils.normalizeWhiteSpaces(expr_string);
 
             Debugging.print("input expression: " + expr_string);
 
@@ -227,7 +225,7 @@ namespace Parser
             {
                 string function_name = expr_string.Split('(')[0]; // extract function name
                 int func_call_length = function_name.Length;
-                function_name = StringUtils.purgeLine(function_name);
+                function_name = StringUtils.normalizeWhiteSpaces(function_name);
                 Debugging.print("function name: ", function_name);
                 Functions.assertFunctionExists(function_name);
                 expr_string = expr_string.Substring(func_call_length); // remove function name
@@ -237,7 +235,7 @@ namespace Parser
                 var arg_list = new List<Expression>();
                 foreach (string arg_string in StringUtils.splitStringKeepingStructureIntegrity(expr_string, ',', Global.base_delimiters))
                 {
-                    string purged_arg_string = StringUtils.purgeLine(arg_string);
+                    string purged_arg_string = StringUtils.normalizeWhiteSpaces(arg_string);
                     Expression arg_expr = new Expression(purged_arg_string);
                     arg_list.Add(arg_expr);
                 }
@@ -295,7 +293,8 @@ namespace Parser
         {
             if (var_name.StartsWith("$")) var_name = var_name.Substring(1);
             //Interpreter.processInterpreterInput("vars");
-            if (!Global.variableExistsInCurrentScope(var_name)) throw new AquilaExceptions.NameError($"The variable {var_name} does not exist in the current context");
+            Debugging.assert(Global.variableExistsInCurrentScope(var_name),
+                new AquilaExceptions.NameError($"Variable name \"{var_name}\" does not exist in the current Context"));
             return Global.variableFromName(var_name);
         }
 
