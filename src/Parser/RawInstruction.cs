@@ -61,8 +61,8 @@ namespace Parser
         /// <param name="depth"> indentation level</param>
         public void prettyPrint(uint depth = 0)
         {
-            for (uint i = 0; i < depth; i++) { Console.Write("\t"); }
-            Console.WriteLine(this._instr);
+            for (uint i = 0; i < depth; i++) { Global.stdoutWrite("\t"); }
+            Global.stdoutWriteLine(this._instr);
             
             if (!_is_nested) return;
             foreach (RawInstruction sub_instr in _sub_instr_list)
@@ -246,17 +246,31 @@ namespace Parser
 
             Debugging.print("assignment ?");
             // variable assignment
-            if (instr.Count > 1 && instr[1] == "=" && (instr[0][0] == '$' || instr[0].Contains("(")))
+            if (instr.Count > 1 && instr[1].EndsWith("=") && (instr[0][0] == '$' || instr[0].Contains("(")))
             {
                 Debugging.assert(instr.Count > 2); // syntax ?unfinished line?
                 string var_designation = instr[0];
+                string equal_sign = instr[1];
                 instr.RemoveAt(0); // remove "$name"
-                instr.RemoveAt(0); // remove "="
+                instr.RemoveAt(0); // remove "{op?}="
                 // reunite all on the right side of the "=" sign
                 string assignment_string = StringUtils.reuniteBySymbol(instr);
+                // custom operator in assignment
+                if (equal_sign.Length != 1)
+                {
+                    Debugging.print("Custom operator detected: ", equal_sign);
+                    Debugging.assert(equal_sign.Length == 2);
+                    assignment_string = $"{var_designation} {equal_sign[0]} ({assignment_string})";
+                }
                 // get the Expresion
                 Expression assignment = new Expression(assignment_string);
                 return new Assignment(line_index, var_designation, assignment);
+            }
+            // increment || decrement
+            if (instr.Count == 2 && (instr[1] == "++" || instr[1] == "--"))
+            {
+                Debugging.print("Increment or Decrement detected");
+                return new Assignment(line_index, instr[0], new Expression($"{instr[0]} {instr[1][0]} 1"));
             }
 
             Debugging.print("function definition ?");
@@ -360,7 +374,7 @@ namespace Parser
 
             Debugging.print("function call ?");
             // function call with spaces between function name and parenthesis
-            if (instr.Count == 2 && instr[1].StartsWith('('))
+            if (instr.Count == 2 && instr[1].StartsWith("("))
             {
                 Debugging.print("function call with space between name and first parenthesis. Merging ", instr[0], " and ", instr[1]);
                 instr[0] += instr[1];

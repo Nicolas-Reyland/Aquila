@@ -223,16 +223,16 @@ namespace Parser
         /// </summary>
         /// <param name="lines"> lines of code</param>
         /// <returns> (macro_name, string_value) dict</returns>
-        public static Dictionary<string, string> getMacroPreprocessorValues(List<string> lines)
+        public static List<(string, string)> getMacroPreprocessorValues(List<string> lines)
         {
-            Dictionary<string, string> macros = new Dictionary<string, string>();
+            List<(string, string)> macros = new List<(string, string)>();
             foreach (string line in lines)
             {
                 if (line.StartsWith("#"))
                 {
                     string macro_name = line.Split(' ')[0].Substring(1);
                     string macro_value = line.Length > macro_name.Length + 1 ? line.Substring(macro_name.Length + 2) : null; // [2] = [1 for '#' (start)] + [1 for ' ' (end)]
-                    macros.Add(macro_name, macro_value);
+                    macros.Add((macro_name, macro_value));
                 }
             }
 
@@ -256,7 +256,8 @@ namespace Parser
                 /* -- Global -- */
                 case "setting":
                     Debugging.print("settings config in macro handling");
-                    value ??= "";
+                    // ReSharper disable once ConvertToNullCoalescingCompoundAssignment
+                    value = value ?? ""; // not using "??=" bc of Unity C# version
                     value = StringUtils.normalizeWhiteSpaces(value);
                     var list = StringUtils.splitStringKeepingStructureIntegrity(value, ' ', Global.base_delimiters);
                     if (list.Count != 2)
@@ -341,12 +342,16 @@ namespace Parser
         static void Main(string[] args)
         {
             Global.initVariables();
-            Global.setSetting("interactive", true);
+            Global.setSetting("interactive", false);
 	        Global.setSetting("debug", true);
-	        Global.setSetting("trace debug", false);
+	        Global.setSetting("trace debug", true);
             Global.setSetting("allow tracing in frozen context", true);
             Global.setSetting("flame mode", true); // can set to false bc "allow tracing in frozen context" is set to true. but to be sure: true
             Global.setSetting("implicit declaration in assignment", true);
+
+            Global.setStdout(new StreamWriter("log.log"));
+
+            //throw new Exception("test");
 
             // translation
             /*string path = args.Length > 0 ? args[0] : "merge sort.aq";
@@ -356,7 +361,7 @@ namespace Parser
 
             for (int i = 0; i < output.Length; i++)
             {
-                Console.WriteLine(i + ": " + output[i]);
+                Global.stdoutWriteLine(i + ": " + output[i]);
             }*/
             
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
@@ -380,32 +385,31 @@ namespace Parser
                 return;
             }
 
-            Console.WriteLine(args.Length > 0 ? args[0] : "");
+            Global.stdoutWriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : @"C:\Users\Nicolas\Documents\EPITA\Code Vultus\Iris\csharp merge sort translation.aq";//"merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
-            bool interactive_after_execution = true;//args.Length == 0;
+            string src_code = args.Length == 1 ? args[0] : @"C:\Users\Nicolas\Code Vultus\Assets\Code Parsing\Aquila scripts\bubble sort.aq";//"merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            bool interactive_after_execution = false;//args.Length == 0;
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
             try
             {
                 Variable return_value = Interpreter.runAlgorithm(algo);
-                Console.WriteLine("returned value: " + return_value);
+                Global.stdoutWriteLine("returned value: " + return_value);
 
                 if (interactive_after_execution)
                 {
-                    Console.WriteLine("Interactive interpreter after execution:");
+                    Global.stdoutWriteLine("Interactive interpreter after execution:");
                     Interpreter.interactiveMode(exec_lines, false);
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
-                Console.WriteLine("Error caught. Interactive interpreter instance given for debugging.");
+                Global.stdoutWriteLine(e);
+                Global.stdoutWriteLine("Error caught. Interactive interpreter instance given for debugging.");
                 Global.setSetting("debug", true);
                 Global.setSetting("trace debug", true);
                 Interpreter.interactiveMode(exec_lines, false);
             }
-
 
             // ReSharper restore HeuristicUnreachableCode
             // ReSharper restore ConditionIsAlwaysTrueOrFalse

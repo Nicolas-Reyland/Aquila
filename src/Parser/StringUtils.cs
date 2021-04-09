@@ -27,8 +27,8 @@ namespace Parser
             short index = 1;
             foreach (string line in list)
             {
-                if (print_index) Console.Write("{0} ", index++);
-                Console.WriteLine(line);
+                if (print_index) Global.stdoutWrite($"{index++} ");
+                Global.stdoutWriteLine(line);
             }
         }
 
@@ -504,9 +504,9 @@ namespace Parser
             if (current_native_offset < _last_native_offset || current_method != _last_method)
             { // (current_native_offset < _last_native_offset) means that 1. new function call or 2. same function called again (recursive)
                 string delim = new String('=', num_new_method_separators);
-                Console.Write(prefix + space_separator + delim);
-                Console.Write(" " + call_name + " (" + num_frames + ") ");
-                Console.WriteLine(delim);
+                Global.stdoutWrite(prefix + space_separator + delim);
+                Global.stdoutWrite(" " + call_name + " (" + num_frames + ") ");
+                Global.stdoutWriteLine(delim);
             }
             _last_native_offset = current_native_offset;
             _last_method = current_method;
@@ -515,15 +515,15 @@ namespace Parser
             int missing_spaces = max_call_name_length - call_name.Length - Context.getStatus().ToString().Length - 2; // 2: parentheses
 
             // debugging mode is on
-            Console.Write(prefix  + " [" + Global.current_line_index + "]" + space_separator + call_name + "(" + Context.getStatus() + ")");
-            Console.Write(new String(' ', missing_spaces));
+            Global.stdoutWrite(prefix  + " [" + Global.current_line_index + "]" + space_separator + call_name + "(" + Context.getStatus() + ")");
+            Global.stdoutWrite(new String(' ', missing_spaces));
 
-            Console.Write(" : ");
+            Global.stdoutWrite(" : ");
             foreach (dynamic arg in args)
             {
-                Console.Write(arg == null ? "(.net null)" : arg.ToString());
+                Global.stdoutWrite(arg == null ? "(.net null)" : arg.ToString());
             }
-            Console.WriteLine();
+            Global.stdoutWriteLine();
         }
     }
 }

@@ -212,7 +212,7 @@ namespace Parser
         {
             if (Global.getSetting("fail on context assertions") && !_frozen && (int) supposed != _status) // not sure about not being blocked ?
             {
-                throw new Exception("Context Assertion Error. Supposed: " + supposed + " but actual: " + _status);
+                throw new Exception("Context Assertion Error. Supposed: " + supposed + " but actual: " + (StatusEnum) _status);
             }
         }
         /// <summary>

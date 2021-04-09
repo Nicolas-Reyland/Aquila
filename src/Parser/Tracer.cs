@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
@@ -150,7 +149,7 @@ namespace Parser
         /// Gives a copy of the event stack
         /// </summary>
         /// <returns> Copy of the <see cref="events"/> stack</returns>
-        private Stack<Event> getEventStackCopy() => new Stack<Event>(events);
+        public Stack<Event> getEventStackCopy() => new Stack<Event>(events);
 
         /// <summary>
         /// Add an <see cref="Event"/> on top of the <see cref="_awaiting_events"/> stack
@@ -202,7 +201,7 @@ namespace Parser
                 while (tracer.last_stack_count != tracer.getStackCount())
                 {
                     printTrace("stack count changed for ", tracer.getVar().getName(), " from ", tracer.last_stack_count, " to ", tracer.getStackCount());
-                    //Console.WriteLine("call graphical function " + StringUtils.varList2String(tracer.getVar().getRawValue()) + " & call event: " + tracer.peekEvent().ToString());
+                    //Global.stdoutWriteLine("call graphical function " + StringUtils.varList2String(tracer.getVar().getRawValue()) + " & call event: " + tracer.peekEvent().ToString());
 
                     // traced functions have already been processed. checking awaiting stacks
                     int diff = tracer.getStackCount() - tracer.last_stack_count;
@@ -312,8 +311,8 @@ namespace Parser
             int size = events_copy.Count;
             for (; i < size; i++)
             {
-                Console.Write("{0}: ", i);
-                Console.WriteLine(events_copy.Pop().ToString());
+                Global.stdoutWrite($"{i}: ");
+                Global.stdoutWriteLine(events_copy.Pop().ToString());
             }
         }
     }

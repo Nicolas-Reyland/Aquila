@@ -75,10 +75,10 @@ namespace Parser
             Context.setStatus(Context.StatusEnum.macro_preprocessing);
             Context.setInfo(null);
             
-            Dictionary<string, string> macros = Parser.getMacroPreprocessorValues(lines.Select(pair => pair.Value).ToList());
+            List<(string, string)> macros = Parser.getMacroPreprocessorValues(lines.Select(pair => pair.Value).ToList());
             foreach (var pair in macros)
             {
-                Parser.handleMacro(pair.Key, pair.Value);
+                Parser.handleMacro(pair.Item1, pair.Item2);
             }
             
             Context.reset();
@@ -96,7 +96,7 @@ namespace Parser
             // Build instructions from the RawInstructions
             List<Instruction> instructions = buildInstructions(raw_instructions);
 
-            string algo_name = macros.ContainsKey("name") ? macros["name"] : default_name;
+            string algo_name = default_name;
             Algorithm algo = new Algorithm(algo_name, instructions);
 
             return algo;
@@ -181,10 +181,10 @@ namespace Parser
 
             if (greeting)
             {
-                Console.WriteLine(" [ - Aquila Interactive Interpreter - ]");
-                Console.WriteLine(" [?] Type \"help\" to get a list of all the interactive-mode-only commands");
-                Console.WriteLine(" [?] See https://github.com/Nicolas-Reyland/Aquila/blob/main/Aquila_Documentation_unfinished.pdf for some unfinished documentation about Aquila itself");
-                if (exec_mode) Console.WriteLine(" [!] Exec mode enabled. There are executables lines saved. Use the \"exec\" command to run them");
+                Global.stdoutWriteLine(" [ - Aquila Interactive Interpreter - ]");
+                Global.stdoutWriteLine(" [?] Type \"help\" to get a list of all the interactive-mode-only commands");
+                Global.stdoutWriteLine(" [?] See https://github.com/Nicolas-Reyland/Aquila/blob/main/Aquila_Documentation_unfinished.pdf for some unfinished documentation about Aquila itself");
+                if (exec_mode) Global.stdoutWriteLine(" [!] Exec mode enabled. There are executables lines saved. Use the \"exec\" command to run them");
             }
 
             Context.setStatus(Context.StatusEnum.instruction_main_loop);
@@ -192,8 +192,8 @@ namespace Parser
 
             while (true)
             {
-                if (new_line) Console.Write(getInteractivePrefix() + " > ");
-                else Console.Write(getInteractivePrefix() + " - ");
+                if (new_line) Global.stdoutWrite(getInteractivePrefix() + " > ");
+                else Global.stdoutWrite(getInteractivePrefix() + " - ");
                 string input = Console.ReadLine();
 
                 input = StringUtils.normalizeWhiteSpaces(input);
@@ -202,7 +202,7 @@ namespace Parser
 
                 if (input == "exit")
                 {
-                    Console.WriteLine("Exiting.");
+                    Global.stdoutWriteLine("Exiting.");
                     return;
                 }
 
@@ -212,14 +212,14 @@ namespace Parser
 		        {
 		            if (!exec_mode)
 		            {
-			            Console.WriteLine(" [X] Exec mode disabled. You have to have pre-defined executable lines to enable this mode");
+			            Global.stdoutWriteLine(" [X] Exec mode disabled. You have to have pre-defined executable lines to enable this mode");
 		            }
 		            else
 		            {
-			            Console.WriteLine(" Executable lines:");
+			            Global.stdoutWriteLine(" Executable lines:");
 			            foreach (string line in exec_lines)
 			            {
-				            Console.WriteLine("  " + line);
+				            Global.stdoutWriteLine("  " + line);
 			            }
                     }
                     continue;
@@ -229,7 +229,7 @@ namespace Parser
                 {
                     if (!exec_mode)
                     {
-                        Console.WriteLine(" [X] Exec mode disabled. You have to have pre-defined executable lines to enable this mode");
+                        Global.stdoutWriteLine(" [X] Exec mode disabled. You have to have pre-defined executable lines to enable this mode");
                         continue;
                     }
                     executeLines(exec_lines, false);
@@ -270,7 +270,7 @@ namespace Parser
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                Global.stdoutWriteLine(e);
             }
                     
             if (clear_lines) lines.Clear();
@@ -289,7 +289,7 @@ namespace Parser
             {
                 case "help":
                 {
-                    Console.WriteLine("All existing interactive-mode-only commands:");
+                    Global.stdoutWriteLine("All existing interactive-mode-only commands:");
                     // ReSharper disable once RedundantExplicitArrayCreation
                     foreach (string command in new string[]
                     {
@@ -305,7 +305,7 @@ namespace Parser
                         "scope_info", // scope
                     })
                     {
-                        Console.WriteLine("  -> " + command);
+                        Global.stdoutWriteLine("  -> " + command);
                     }
 
                     return false;
@@ -320,9 +320,9 @@ namespace Parser
                     {
                         foreach (var pair in dict)
                         {
-                            Console.Write(new string('\t', i));
-                            Console.Write(pair.Key + " : ");
-                            Console.WriteLine(pair.Value.ToString());
+                            Global.stdoutWrite(new string('\t', i));
+                            Global.stdoutWrite(pair.Key + " : ");
+                            Global.stdoutWriteLine(pair.Value.ToString());
                         }
 
                         i++;
@@ -333,20 +333,20 @@ namespace Parser
                 // ReSharper disable once StringLiteralTypo
                 case "funcs":
                 {
-                    Console.WriteLine("User defined functions:");
+                    Global.stdoutWriteLine("User defined functions:");
                     foreach (var pair in Functions.user_functions)
                     {
-                        Console.WriteLine(" * " + pair.Key + (pair.Value.isRec() ? " : [rec] " : " : ") + "(" + pair.Value.func_args.Count + ") -> " + pair.Value.getType());
+                        Global.stdoutWriteLine(" * " + pair.Key + (pair.Value.isRec() ? " : [rec] " : " : ") + "(" + pair.Value.func_args.Count + ") -> " + pair.Value.getType());
                     }
 
                     return false;
                 }
                 case "df_funcs":
-                    Console.WriteLine("Default (predefined) functions:");
+                    Global.stdoutWriteLine("Default (predefined) functions:");
                     foreach (var pair in Functions.functions_dict)
                     {
                         MethodInfo method = pair.Value.GetMethodInfo();
-                        Console.WriteLine(" * " + pair.Key + " [?] : (" + method.GetParameters().Length + ") -> " + method.ReturnType);
+                        Global.stdoutWriteLine(" * " + pair.Key + " [?] : (" + method.GetParameters().Length + ") -> " + method.ReturnType);
                     }
 
                     return false;
@@ -358,18 +358,18 @@ namespace Parser
                     return false;
                 case "trace_info":
                 {
-                    Console.WriteLine("var tracers:");
+                    Global.stdoutWriteLine("var tracers:");
                     foreach (VarTracer tracer in Global.var_tracers)
                     {
-                        Console.WriteLine(" - var     : " + (tracer.getTracedObject() as Variable).getName());
-                        Console.WriteLine(" - stack   : " + tracer.getStackCount());
-                        Console.WriteLine(" - updated : " + tracer.last_stack_count);
+                        Global.stdoutWriteLine(" - var     : " + (tracer.getTracedObject() as Variable).getName());
+                        Global.stdoutWriteLine(" - stack   : " + tracer.getStackCount());
+                        Global.stdoutWriteLine(" - updated : " + tracer.last_stack_count);
                     }
-                    Console.WriteLine("func tracers:");
+                    Global.stdoutWriteLine("func tracers:");
                     foreach (FuncTracer tracer in Global.func_tracers)
                     {
-                        Console.WriteLine(" - func  : " + tracer.getTracedObject());
-                        Console.WriteLine(" - stack : " + tracer.getStackCount());
+                        Global.stdoutWriteLine(" - func  : " + tracer.getTracedObject());
+                        Global.stdoutWriteLine(" - stack : " + tracer.getStackCount());
                     }
 
                     return false;
@@ -379,7 +379,7 @@ namespace Parser
                     return false;
                 case "reset_env":
                     Global.resetEnv();
-                    Console.WriteLine(" [!] Global Environment reset");
+                    Global.stdoutWriteLine(" [!] Global Environment reset");
 
                     return false;
                 case "get_context":
@@ -389,11 +389,11 @@ namespace Parser
                     object info = Context.getInfo();
                     bool blocked = Context.isFrozen();
                     bool enabled = Global.getSetting("fail on context assertions");
-                    Console.WriteLine("status  : " + status);
-                    Console.WriteLine("quote   : " + status_quote);
-                    Console.WriteLine("info    : " + info);
-                    Console.WriteLine("blocked : " + blocked);
-                    Console.WriteLine("asserts : " + enabled);
+                    Global.stdoutWriteLine("status  : " + status);
+                    Global.stdoutWriteLine("quote   : " + status_quote);
+                    Global.stdoutWriteLine("info    : " + info);
+                    Global.stdoutWriteLine("blocked : " + blocked);
+                    Global.stdoutWriteLine("asserts : " + enabled);
 
                     return false;
                 }
@@ -404,21 +404,21 @@ namespace Parser
                     Context.reset();
                     return false;
                 case "type":
-                    Console.WriteLine("type of NullVar: " + typeof(NullVar));
-                    Console.WriteLine("type of Variable: " + typeof(Variable));
-                    Console.WriteLine("type of Integer: " + typeof(Integer));
+                    Global.stdoutWriteLine("type of NullVar: " + typeof(NullVar));
+                    Global.stdoutWriteLine("type of Variable: " + typeof(Variable));
+                    Global.stdoutWriteLine("type of Integer: " + typeof(Integer));
 
                     return false;
                 case "scope_info":
-                    Console.WriteLine("local scope depth: " + Global.getLocalScopeDepth());
-                    Console.WriteLine("main scope depth: " + Global.getMainScopeDepth());
+                    Global.stdoutWriteLine("local scope depth: " + Global.getLocalScopeDepth());
+                    Global.stdoutWriteLine("main scope depth: " + Global.getMainScopeDepth());
 
                     return false;
             }
 
             if (input[0] == '$' && Global.variableExistsInCurrentScope(input.Substring(1)))
             {
-                Console.WriteLine(Global.variableFromName(input.Substring(1)).ToString());
+                Global.stdoutWriteLine(Global.variableFromName(input.Substring(1)).ToString());
                 return false;
             }
 
@@ -433,7 +433,7 @@ namespace Parser
             if (input.StartsWith("eval "))
             {
                 Variable var_ = Expression.parse(input.Substring(5));
-                Console.WriteLine(var_.ToString());
+                Global.stdoutWriteLine(var_.ToString());
                 return false;
             }
 
@@ -444,10 +444,10 @@ namespace Parser
                 if (var_name != "")
                 {
                     Variable var_ = Global.variableFromName(var_name);
-                    Console.WriteLine("name     : " + var_.getName());
-                    Console.WriteLine("type     : " + var_.getTypeString());
-                    Console.WriteLine("value    : " + var_);
-                    Console.WriteLine("assigned : " + var_.assigned);
+                    Global.stdoutWriteLine("name     : " + var_.getName());
+                    Global.stdoutWriteLine("type     : " + var_.getTypeString());
+                    Global.stdoutWriteLine("value    : " + var_);
+                    Global.stdoutWriteLine("assigned : " + var_.assigned);
                 }
                 return false;
             }
@@ -459,7 +459,7 @@ namespace Parser
                 {
                     if (!Int32.TryParse(splitted[1], out int n))
                     {
-                        Console.WriteLine("cannot read n");
+                        Global.stdoutWriteLine("cannot read n");
                         return false;
                     } 
 
@@ -468,7 +468,7 @@ namespace Parser
                     Variable var_ = Expression.parse(var_name);
                     if (!var_.isTraced())
                     {
-                        Console.WriteLine("Variable is not traced! Use the \"trace\" instruction to start tracing variables");
+                        Global.stdoutWriteLine("Variable is not traced! Use the \"trace\" instruction to start tracing variables");
                         return false;
                     }
                     
@@ -476,7 +476,7 @@ namespace Parser
                     return false;
                 }
                 
-                Console.WriteLine("split count does not match 3");
+                Global.stdoutWriteLine("split count does not match 3");
                 return false;
             }
 
@@ -486,24 +486,24 @@ namespace Parser
                 Variable var_ = Expression.parse(input.Substring(11));
                 if (!var_.isTraced())
                 {
-                    Console.WriteLine("Variable is not traced! Use the \"trace\" instruction to start tracing variables");
+                    Global.stdoutWriteLine("Variable is not traced! Use the \"trace\" instruction to start tracing variables");
                     return false;
                 }
                 Alteration alter = var_.tracer.peekEvent().alter;
-                Console.WriteLine("name         : " + alter.name);
-                Console.WriteLine("variable     : " + alter.affected.getName());
-                Console.WriteLine("main value   : " + StringUtils.dynamic2Str(alter.main_value));
-                Console.WriteLine("num minor    : " + alter.minor_values.Length);
-                Console.WriteLine("minor values : " + StringUtils.dynamic2Str(alter.minor_values));
-                Console.WriteLine("stack count  : " + var_.tracer.getStackCount());
-                Console.WriteLine("updated      : " + var_.tracer.last_stack_count);
+                Global.stdoutWriteLine("name         : " + alter.name);
+                Global.stdoutWriteLine("variable     : " + alter.affected.getName());
+                Global.stdoutWriteLine("main value   : " + StringUtils.dynamic2Str(alter.main_value));
+                Global.stdoutWriteLine("num minor    : " + alter.minor_values.Length);
+                Global.stdoutWriteLine("minor values : " + StringUtils.dynamic2Str(alter.minor_values));
+                Global.stdoutWriteLine("stack count  : " + var_.tracer.getStackCount());
+                Global.stdoutWriteLine("updated      : " + var_.tracer.last_stack_count);
 
                 return false;
             }
 
             if (input.StartsWith("#"))
             {
-                Console.WriteLine("Handling macro parameter");
+                Global.stdoutWriteLine("Handling macro parameter");
                 if (!input.Contains(' '))
                 {
                     Parser.handleMacro(input.Substring(1), null);

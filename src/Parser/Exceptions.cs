@@ -28,6 +28,9 @@ namespace Parser
             /// <param name="expr_as_msg"> The expression string which should be returned by the <see cref="Algorithm"/> or <see cref="Function"/></param>
             public ReturnValueException(string expr_as_msg)
             {
+                Debugging.print("Resetting Context in Return Exception constructor. Context: " +
+                                (Context.StatusEnum) Context.getStatus());
+                Context.reset();
                 _return_expr = expr_as_msg;
             }
 

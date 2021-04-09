@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
 // ReSharper disable PossibleNullReferenceException
@@ -81,38 +82,48 @@ namespace Parser
         /// <returns> The evaluated <see cref="_return_value"/> after all the <see cref="_instructions"/> have been executed</returns>
         public Variable run()
         {
-            // Algorithm start
-            setStartContext();
-
-            foreach (Instruction instr in _instructions)
+            try
             {
-                try
-                {
-                    instr.execute();
-                }
-                catch (System.Reflection.TargetInvocationException out_exception)
-                {
-                    // normal TargetInvocationException
-                    if (!(out_exception.InnerException is AquilaExceptions.ReturnValueException)) throw;
-                    // casted ReturnValueException
-                    AquilaExceptions.ReturnValueException exception =
-                        (AquilaExceptions.ReturnValueException) out_exception.InnerException;
+                // Algorithm start
+                setStartContext();
 
-                    if (exception == null)
+                foreach (Instruction instr in _instructions)
+                {
+                    try
                     {
-                        throw Global.aquilaError(); // something went wrong
+                        instr.execute();
                     }
+                    catch (System.Reflection.TargetInvocationException out_exception)
+                    {
+                        // normal TargetInvocationException
+                        if (!(out_exception.InnerException is AquilaExceptions.ReturnValueException)) throw;
+                        // casted ReturnValueException
+                        AquilaExceptions.ReturnValueException exception =
+                            (AquilaExceptions.ReturnValueException) out_exception.InnerException;
 
-                    _return_value = new Expression(exception.getExprStr());
-                    Context.reset();
-                    return _return_value.evaluate();
+                        if (exception == null)
+                        {
+                            throw Global.aquilaError(); // something went wrong
+                        }
+
+                        _return_value = new Expression(exception.getExprStr());
+                        Context.reset();
+                        return _return_value.evaluate();
+                    }
                 }
+
+                // no resetting here. algorithm finished
+                setEndContext();
+
+                return new NullVar(); // NoReturnCallWarning
             }
+            catch (Exception e)
+            {
+                Global.stdoutWriteLine(e.ToString());
+                Global.closeStdout();
 
-            // no resetting here. algorithm finished
-            setEndContext();
-
-            return new NullVar(); // NoReturnCallWarning
+                return new NullVar();
+            }
         }
     }
 }

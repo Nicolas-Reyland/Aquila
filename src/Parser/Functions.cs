@@ -361,12 +361,26 @@ namespace Parser
         /// <summary>
         /// Prints the value of an <see cref="Expression"/> to the stdout. Doesn't add a return '\n' symbol
         /// </summary>
-        /// <param name="value"> Expression you want to printTrace (its evaluated value)</param>
+        /// <param name="value"> Expression you want to print (the evaluated value)</param>
         /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
-        private static NullVar printFunction(Expression value)
+        private static NullVar printValFunction(Expression value)
         {
             Debugging.print("begin printing to console: (" + value.expr + ")");
-            Console.Write(value.evaluate().ToString());
+            Global.stdoutWrite(value.evaluate().ToString());
+            Debugging.print("end printing to console");
+
+            return new NullVar();
+        }
+
+        /// <summary>
+        /// Prints the value of an <see cref="Expression"/> to the stdout. Does add a return '\n' symbol
+        /// </summary>
+        /// <param name="value"> Expression you want to print (the evaluated value)</param>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
+        private static NullVar printValEndlFunction(Expression value)
+        {
+            Debugging.print("begin printing to console: (" + value.expr + ")");
+            Global.stdoutWriteLine(value.evaluate().ToString());
             Debugging.print("end printing to console");
 
             return new NullVar();
@@ -379,8 +393,8 @@ namespace Parser
         private static NullVar printStrEndlFunction(Expression expr)
         {
             Debugging.print("begin printing to console");
-            Console.Write(expr.expr);
-            Console.Write('\n');
+            Global.stdoutWrite(expr.expr);
+            Global.stdoutWrite('\n');
             Debugging.print("end printing to console");
 
             return new NullVar();
@@ -393,7 +407,7 @@ namespace Parser
         private static NullVar printEndlFunction()
         {
             Debugging.print("begin printing to console");
-            Console.Write('\n');
+            Global.stdoutWrite('\n');
             Debugging.print("end printing to console");
 
             return new NullVar();
@@ -407,7 +421,7 @@ namespace Parser
         private static NullVar printStrFunction(Expression expr)
         {
             Debugging.print("begin printing to console");
-            Console.Write(expr.expr);
+            Global.stdoutWrite(expr.expr);
             Debugging.print("end printing to console");
 
             return new NullVar();
@@ -489,7 +503,7 @@ namespace Parser
             DynamicList list = list_var as DynamicList;
             // index
             Integer index = list.length();
-            Expression index_expr = new Expression(index.ToString());
+            Expression index_expr = new Expression(index.getValue().ToString()); // this should definitely be ok
             // insert
             return insertValueAt(list_expr, index_expr, value_expr);
         }
@@ -586,7 +600,8 @@ namespace Parser
             // Void functions
             {"return", new Func<Expression, NullVar>(returnFunction)}, // NullVar is equivalent to void, null or none
             {"interactive_call", new Func<Expression, NullVar>(interactiveCallFunction)},
-            {"print", new Func<Expression, NullVar>(printFunction)},
+            {"print_value", new Func<Expression, NullVar>(printValFunction)},
+            {"print_value_endl", new Func<Expression, NullVar>(printValEndlFunction)},
             {"print_str", new Func<Expression, NullVar>(printStrFunction)},
             {"print_str_endl", new Func<Expression, NullVar>(printStrEndlFunction)},
             {"print_endl", new Func<NullVar>(printEndlFunction)},

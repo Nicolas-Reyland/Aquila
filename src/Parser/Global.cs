@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace Parser
@@ -333,6 +334,7 @@ namespace Parser
             {"permafrost", false},                              // freeze Context permanently
             {"flame mode", false},                              // disables Context freezing completely
             {"implicit declaration in assignment", false},      // enable implicit declaration in assignment
+            {"redirect debug stout & stderr", false},           // redirect stdout and stderr to a log file of all debugging
 	    };
 
         /// <summary>
@@ -353,5 +355,56 @@ namespace Parser
         /// <param name="key"> key</param>
         /// <returns> Return the value of the setting</returns>
         public static bool getSetting(string key) => settings[key];
+
+        private static StreamWriter _stdout;
+
+        public static void setStdout(StreamWriter new_stdout)
+        {
+            _stdout = new_stdout;
+            setSetting("redirect debug stout & stderr", true);
+            // Console.SetError(new_stdout);
+        }
+
+        public static void closeStdout()
+        {
+            _stdout.Close();
+            setSetting("redirect debug stout & stderr", false);
+        }
+
+        public static void stdoutWrite(object obj)
+        {
+            if (getSetting("redirect debug stout & stderr"))
+            {
+                _stdout.Write(obj);
+            }
+            else
+            {
+                Console.Write(obj);
+            }
+        }
+        
+        public static void stdoutWriteLine()
+        {
+            if (getSetting("redirect debug stout & stderr"))
+            {
+                _stdout.WriteLine();
+            }
+            else
+            {
+                Console.WriteLine();
+            }
+        }
+
+        public static void stdoutWriteLine(object obj)
+        {
+            if (getSetting("redirect debug stout & stderr"))
+            {
+                _stdout.WriteLine(obj);
+            }
+            else
+            {
+                Console.WriteLine(obj);
+            }
+        }
     }
 }

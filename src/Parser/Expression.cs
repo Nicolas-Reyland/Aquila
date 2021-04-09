@@ -292,6 +292,7 @@ namespace Parser
         private static Variable variableFromName(string var_name)
         {
             if (var_name.StartsWith("$")) var_name = var_name.Substring(1);
+            Debugging.print("Variable access: ", var_name);
             //Interpreter.processInterpreterInput("vars");
             Debugging.assert(Global.variableExistsInCurrentScope(var_name),
                 new AquilaExceptions.NameError($"Variable name \"{var_name}\" does not exist in the current Context"));

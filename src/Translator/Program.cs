@@ -1,4 +1,4 @@
-﻿using System;
+﻿using Parser;
 
 namespace Translator
 {
@@ -6,7 +6,7 @@ namespace Translator
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Global.stdoutWriteLine("Hello World!");
         }
     }
 }

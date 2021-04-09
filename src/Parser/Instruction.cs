@@ -68,6 +68,7 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
+            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
             while (test())
             {
                 in_loop  = true;
@@ -79,6 +80,7 @@ namespace Parser
                 }
             }
             in_loop = false;
+            Context.assertStatus(context_integrity_enum);
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
             Global.resetLocalContextScope();
@@ -109,6 +111,7 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
+            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
             _start.execute();
             while (test())
             {
@@ -123,6 +126,7 @@ namespace Parser
                 _step.execute();
             }
             in_loop = false;
+            Context.assertStatus(context_integrity_enum);
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
             Global.resetLocalContextScope();
@@ -160,6 +164,7 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
+            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
             
             if ( ((BooleanVar) _condition.evaluate()).getValue() )
             {
@@ -176,6 +181,7 @@ namespace Parser
                 }
             }
 
+            Context.assertStatus(context_integrity_enum);
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
             Global.resetLocalContextScope();
@@ -229,6 +235,7 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
+            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
 
             // get variable value
             Variable variable = _var_expr.evaluate();
@@ -253,6 +260,7 @@ namespace Parser
             Tracer.updateTracers();
 
             // reset Context
+            Context.assertStatus(context_integrity_enum);
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
@@ -285,6 +293,7 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
+            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
 
             // parsing new value
             Variable val = _var_value.evaluate();
@@ -309,6 +318,7 @@ namespace Parser
                 Tracer.updateTracers();
 
                 // reset Context
+                Context.assertStatus(context_integrity_enum);
                 Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
                 Context.reset();
 
@@ -328,6 +338,7 @@ namespace Parser
             Tracer.updateTracers();
 
             // reset Context
+            Context.assertStatus(context_integrity_enum);
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
@@ -365,7 +376,6 @@ namespace Parser
             // update all tracers
             Tracer.updateTracers();
 
-            // recursive: Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
 
@@ -396,7 +406,9 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
+            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
             Functions.addUserFunction(_func);
+            Context.assertStatus(context_integrity_enum);
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }
@@ -425,6 +437,7 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
+            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
 
             // the tracing instruction execution doesn't take any Tracer.updateTracers() calls
             foreach (Expression traced_expr in _traced_vars)
@@ -434,6 +447,7 @@ namespace Parser
                 traced_var.startTracing();
             }
 
+            Context.assertStatus(context_integrity_enum);
             Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
             Context.reset();
         }

@@ -171,7 +171,7 @@ namespace Parser
             if (o is float) return new FloatVar(o);
             if (o is bool) return new BooleanVar(o);
             if (o is List<dynamic>) return new DynamicList(DynamicList.valueFromRawList(o));
-            throw Global.aquilaError("unsupported raw variable type: " + o.GetType());
+            throw Global.aquilaError();//"unsupported raw variable type: " + o.GetType());
         }
     }
 
@@ -368,16 +368,16 @@ namespace Parser
             
             /*if (getName() != "k" && getName() != "j")
             {
-                Console.WriteLine("setValue on " + getName() + "\nbefore");
+                Global.stdoutWriteLine("setValue on " + getName() + "\nbefore");
                 Interpreter.processInterpreterInput("vars");
             }*/
 
             _int_value = other_value.getValue();
             
             /*if (getName() != "k" && getName() != "j"){
-                Console.WriteLine("after");
+                Global.stdoutWriteLine("after");
                 Interpreter.processInterpreterInput("vars");
-                Console.WriteLine();
+                Global.stdoutWriteLine();
             }*/
 
             trace("setValue", new dynamic[] { other_value.getValue() });
@@ -555,7 +555,7 @@ namespace Parser
             }
             else
             {
-                throw Global.aquilaError("unsupported list raw data type: " + value);
+                throw Global.aquilaError();//"unsupported list raw data type: " + value);
             }
         }
 
