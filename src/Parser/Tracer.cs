@@ -146,10 +146,22 @@ namespace Parser
         public int getStackCount() => events.Count;
 
         /// <summary>
+        /// Return a copy of the reversed event stack (first element at the bottom of stack)
+        /// </summary>
+        /// <returns> Reversed copy of the <see cref="events"/> stack</returns>
+        // ReSharper disable once MemberCanBePrivate.Global
+        public Stack<Event> getReversedEventStackCopy() => new Stack<Event>(events);
+
+        /// <summary>
         /// Gives a copy of the event stack
         /// </summary>
         /// <returns> Copy of the <see cref="events"/> stack</returns>
-        public Stack<Event> getEventStackCopy() => new Stack<Event>(events);
+        // ReSharper disable once MemberCanBePrivate.Global
+        public Stack<Event> getEventStackCopy()
+        {
+            var reversed_stack_copy = getReversedEventStackCopy();
+            return new Stack<Event>(reversed_stack_copy);
+        }
 
         /// <summary>
         /// Add an <see cref="Event"/> on top of the <see cref="_awaiting_events"/> stack
@@ -172,7 +184,7 @@ namespace Parser
         /// changing the value of a <see cref="Variable"/>. It works in 3 steps:
         /// <para/>* Checks for any new assigned <see cref="Variable"/>s in the <see cref="Global._variable_stack"/> (if found: adds to the <see cref="Global.usable_variables"/>)
         /// <para/>* Update/Process all the awaiting <see cref="Event"/>s (<seealso cref="update"/>)
-        /// <para/>* Check for any new <see cref="Event"/> which has not been processed by the <see cref="Global.graphical_function"/>
+        /// <para/>* Check for any new <see cref="Event"/> which has not been processed by the <see cref="Global.tracer_update_handler_function"/>
         /// </summary>
         /// <param name="add_call_info"> stands for "additional calling information". If it has any value, it will be printed by the <see cref="Debugging.print"/> function for debugging</param>
         public static void updateTracers(string add_call_info = "")
@@ -215,17 +227,27 @@ namespace Parser
                 {
                     printTrace("awaiting stacks: ", tracer._awaiting_events.Count);
                     Alteration alter = tracer._awaiting_events.Peek().alter;
-                    if (Global.graphical_function != null)
-                    {
-                        Global.graphical_function(alter);
-                    }
-                    else
-                    {
-                        printTrace("Graphical function is none.");
-                        //throw new Exception("Graphical Function is null !!");
-                    }
+                    callUpdateHandler(alter);
                     tracer.update(tracer._awaiting_events.Pop());
                 }
+            }
+        }
+
+        /// <summary>
+        /// Call the <see cref="Global.tracer_update_handler_function"/> with the Alteration.
+        /// If no function was defined, prints it to the debugging stdout and does nothing
+        /// </summary>
+        /// <param name="alter"> Alteration you want to animate</param>
+        protected static void callUpdateHandler(Alteration alter)
+        {
+            if (Global.tracer_update_handler_function != null)
+            {
+                printTrace("Calling graphical function");
+                Global.tracer_update_handler_function(alter);
+            }
+            else
+            {
+                printTrace("Graphical function is none");
             }
         }
 
@@ -338,8 +360,11 @@ namespace Parser
         public VarTracer(Variable traced) : base(traced)
         {
             _traced_var = traced;
-            events.Push(new Event(new Alteration("creation", _traced_var, _traced_var.getRawValue(), new dynamic[] { }))); // tracer creation event
+            var creation_event =
+                new Event(new Alteration("creation", _traced_var, _traced_var.getRawValue(), new dynamic[] { }));
+            events.Push(creation_event); // tracer creation event
             last_stack_count = 1;
+            callUpdateHandler(creation_event.alter);
         }
 
         /// <summary>
@@ -363,6 +388,9 @@ namespace Parser
             // update
             events.Push(event_);
             printTrace("updated (value: " + StringUtils.dynamic2Str(peekValue()) + ")");
+            
+            // handle
+            callUpdateHandler(event_.alter);
         }
 
         /// <summary>

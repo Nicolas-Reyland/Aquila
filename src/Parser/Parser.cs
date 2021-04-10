@@ -342,14 +342,15 @@ namespace Parser
         static void Main(string[] args)
         {
             Global.initVariables();
-            Global.setSetting("interactive", false);
-	        Global.setSetting("debug", true);
-	        Global.setSetting("trace debug", true);
-            Global.setSetting("allow tracing in frozen context", true);
-            Global.setSetting("flame mode", true); // can set to false bc "allow tracing in frozen context" is set to true. but to be sure: true
+            Global.setSetting("interactive", true);
+	        Global.setSetting("debug", false);
+	        Global.setSetting("trace debug", false);
+            Global.setSetting("allow tracing in frozen context", false);
+            Global.setSetting("flame mode", false); // can set to false bc "allow tracing in frozen context" is set to true. but to be sure: true
             Global.setSetting("implicit declaration in assignment", true);
 
-            Global.setStdout(new StreamWriter("log.log"));
+            //Global.setStdout(new StreamWriter("log.log"));
+            // Global.tracer_update_handler_function = test;
 
             //throw new Exception("test");
 

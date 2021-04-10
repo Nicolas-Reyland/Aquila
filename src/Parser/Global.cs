@@ -293,7 +293,7 @@ namespace Parser
         /// </summary>
 #pragma warning disable 649
         // ReSharper disable once UnassignedField.Global
-        public static Func<Alteration, bool> graphical_function; // example: new Func<Alteration, bool>(graphicalFunction)
+        public static Func<Alteration, float> tracer_update_handler_function; // example: new Func<Alteration, bool>(graphicalFunction)
 #pragma warning restore 649
 
         /// <summary>
@@ -333,7 +333,7 @@ namespace Parser
             {"allow tracing in frozen context", false},         // trace even if the Context is frozen
             {"permafrost", false},                              // freeze Context permanently
             {"flame mode", false},                              // disables Context freezing completely
-            {"implicit declaration in assignment", false},      // enable implicit declaration in assignment
+            {"implicit declaration in assignment", true},      // enable implicit declaration in assignment
             {"redirect debug stout & stderr", false},           // redirect stdout and stderr to a log file of all debugging
 	    };
 

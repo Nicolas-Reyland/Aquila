@@ -543,7 +543,7 @@ namespace Parser
             // update manually (void)
             if (list.isTraced())
                 list.tracer.update(new Event(
-                    new Alteration("swap", list, list.getValue(), new dynamic[] {a.getValue(), b.getValue()})));
+                    new Alteration("swap", list, list.getRawValue(), new dynamic[] {a.getRawValue(), b.getRawValue()})));
 
             return new NullVar();
         }
