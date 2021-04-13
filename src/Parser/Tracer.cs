@@ -31,7 +31,7 @@ namespace Parser
         /// Create a new <see cref="Event"/>
         /// </summary>
         /// <param name="alter"></param>
-        public Event(dynamic alter)
+        public Event(Alteration alter)
         {
             _status = Context.getStatus();
             _info = Context.getInfo();

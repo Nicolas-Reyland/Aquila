@@ -99,18 +99,18 @@ namespace Parser
             // try evaluating expression as an integer
             if (Int32.TryParse(expr_string, out int int_value))
             {
-                return new Integer(int_value);
+                return new Integer(int_value, true);
             }
 
             Debugging.print("bool ?");
             // try evaluating expression as a boolean
             if (expr_string == "true")
             {
-                return new BooleanVar(true);
+                return new BooleanVar(true, true);
             }
             if (expr_string == "false")
             {
-                return new BooleanVar(false);
+                return new BooleanVar(false, true);
             }
             
             Debugging.print("float ?");
@@ -118,18 +118,24 @@ namespace Parser
             if (float.TryParse(expr_string, out float float_value))
             {
                 Debugging.print("french/classic float");
-                return new FloatVar(float_value);
+                return new FloatVar(float_value, true);
             }
             if (float.TryParse(expr_string.Replace('.', ','), out float_value))
             {
                 Debugging.print("normalized float");
-                return new FloatVar(float_value);
+                return new FloatVar(float_value, true);
             }
             if (expr_string.EndsWith("f") &&
                 float.TryParse(expr_string.Substring(0, expr_string.Length - 1), out float_value))
             {
                 Debugging.print("f-float");
-                return new FloatVar(float_value);
+                return new FloatVar(float_value, true);
+            }
+            if (expr_string.EndsWith("f") &&
+                float.TryParse(expr_string.Replace('.', ',').Substring(0, expr_string.Length - 1), out float_value))
+            {
+                Debugging.print("f-float");
+                return new FloatVar(float_value, true);
             }
             
             Debugging.print("checking for negative expression");
@@ -178,10 +184,10 @@ namespace Parser
                             switch (op)
                             {
                                 case '|':// when first:
-                                    if (first) return new BooleanVar(true);
+                                    if (first) return new BooleanVar(true, true);
                                     break;
                                 case '&':// when !first:
-                                    if (!first) return new BooleanVar(false);
+                                    if (!first) return new BooleanVar(false, true);
                                     break;
                             }
                         }
@@ -251,6 +257,13 @@ namespace Parser
                 return func_call.callFunction();
             }
 
+            // function call without parenthesis -> no parameters either
+            if (!expr_string.StartsWith("$"))
+            {
+                Debugging.print($"Call the function \"{expr_string}\" with no parameters");
+                var func_call = new FunctionCall(expr_string, new List<Expression>());
+                return func_call.callFunction();
+            }
 
             Debugging.print("variable ?");
             // variable access
@@ -268,13 +281,16 @@ namespace Parser
                 // variable
                 Expression var_name_expr = new Expression(expr_string.Substring(0, bracket_start_index));
                 Debugging.print("list name: " + var_name_expr.expr);
-                // index
-                Expression index_expr = new Expression(expr_string.Substring(bracket_start_index + 1, // + 1 : don't take the bracket
-                    expr_string.Length - bracket_start_index - 2)); // "$l[5]" => "5"
-                Debugging.print("index: " + index_expr.expr);
+                // index list
+                IEnumerable<string> index_list = StringUtils.getBracketsContent(expr_string.Substring(bracket_start_index));
+                string index_list_expr_string = index_list.Aggregate("", (current, s) => current + s + ", ");
+                index_list_expr_string = "[" + index_list_expr_string.Substring(0, index_list_expr_string.Length - 2) + "]";
+                var index_list_expr = new Expression(index_list_expr_string);
+                
+                Debugging.print("index: " + index_list_expr.expr);
 
                 // create a value function call (list_at call)
-                object[] args = { var_name_expr, index_expr };
+                object[] args = { var_name_expr, index_list_expr };
                 return Functions.callFunctionByName("list_at", args);
             }
 
@@ -312,7 +328,23 @@ namespace Parser
         {
             int comparison;
             Debugging.print("applyOperator: ", v1.ToString(), " ", op, " ", v2.ToString(), " (", v1.getTypeString(), " ", op, " ", v2.getTypeString(), ")");
-            Debugging.assert(v1.hasSameParent(v2)); // operations between same classes/subclasses
+            // Debugging.assert(v1.hasSameParent(v2)); // operations between same classes/subclasses
+            if (!v1.hasSameParent(v2))
+            {
+                if (v2.isConst())
+                {
+                    if (v2 is Integer)
+                    {
+                        Debugging.print("Converting int to float because of const status: ", v1.ToString());
+                        Debugging.assert(v1 is FloatVar, new AquilaExceptions.InvalidTypeError($"The type \"{v1.getTypeString()}\" was not expected. \"{v1.getTypeString()}\" expected")); // if this is not a float, operation is not permitted !
+                        v2 = new FloatVar((float) v2.getValue());
+                    }
+                }
+                else
+                {
+                    throw new AquilaExceptions.InvalidTypeError($"The type \"{v1.getTypeString()}\" was not expected");
+                }
+            }
             switch (op)
             {
                 // arithmetic

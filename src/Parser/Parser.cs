@@ -75,90 +75,8 @@ namespace Parser
             StreamReader file = new StreamReader(path);
             string full = file.ReadToEnd();
             file.Close();
-            
-            // get the comment strings
-            string sl_flag = Global.single_line_comment_string; // single line comment string
-            string ml_open_flag = Global.multiple_lines_comment_string; // multiple lines opening comment string
-            char[] char_array = ml_open_flag.ToCharArray();
-            Array.Reverse( char_array );
-            string ml_close_flag = new string( char_array ); // multiple lines closing comment string
 
-            // setup useful variables
-            string filtered = ""; // the filtered code, without comments
-            int in_comment = 0; // 0: in code, 1: in single line comment, 2: in multiple lines comment, 3: in multiple lines comment that is actually multiple lines long
-            bool line_passed = false; // has a line just passed ? ('\n')
-
-            for (int i = 0; i < full.Length; i++)
-            {
-                char c = full[i];
-                // new line incoming
-                if (c == '\n') line_passed = true;
-
-                /* if we are in a comment, we want to check two things:
-                 *  - if single-line comment: has the line just passed ?
-                 *  - if multiple-lines comment: has the line just passed & are we finished with multiple lines ?
-                 * if not in a comment:
-                 *  - check if current char is beginning of multiple/single-line(s) comment
-                 *  - if not, add the current char to the filtered output
-                 */
-                if (in_comment == 0) // -> in actual code
-                {
-                    // single line comment
-                    if (i >= sl_flag.Length && full.Substring(i - sl_flag.Length, sl_flag.Length) == sl_flag)
-                    {
-                        filtered = filtered.Substring(0, filtered.Length - sl_flag.Length);
-                        in_comment = 1;
-                    }
-                    // multiple lines comment
-                    else if (i >= ml_open_flag.Length && full.Substring(i - ml_open_flag.Length, ml_open_flag.Length) == ml_open_flag)
-                    {
-                        filtered = filtered.Substring(0, filtered.Length - ml_open_flag.Length);
-                        in_comment = 2;
-                    }
-                    // in code !
-                    else
-                    {
-                        filtered += c;
-                    }
-                }
-                else if (in_comment == 1) // -> single line comment
-                {
-                    // line just passed
-                    if (line_passed)
-                    {
-                        in_comment = 0;
-                        filtered += "\n"; // add the current char (it will not be added at all if it is not done here)
-                    }
-                    else
-                    {
-                        filtered += " ";
-                    }
-                }
-                else // in_comment >= 2 -> multiple lines comment, with line passed or not (== 2 -> not, 3 is passed !)
-                {
-                    // closing ml comment tag
-                    if (i >= ml_close_flag.Length && full.Substring(i - ml_close_flag.Length, ml_close_flag.Length) == ml_close_flag)
-                    {
-                        filtered += in_comment == 3 ? "\n" : " "; // add correct char to filtered (this char literally replaced the ml comment)
-                        filtered += c; // would not be added if not done here
-                        in_comment = 0; // back to being in the code
-                    }
-                    else if (line_passed)
-                    {
-                        // the ml comment is actually multiple lines long
-                        in_comment = 3;
-                        filtered += "\n";
-                    }
-                    else
-                    {
-                        filtered += " ";
-                    }
-                }
-                
-                line_passed = false;
-            }
-
-            if (in_comment != 0) throw Global.aquilaError(); // InvalidComment(Tag?)Exception
+            string filtered = StringUtils.removeComments(full);
 
             // create new dict
             string[] splitted = filtered.Split('\n');
@@ -199,7 +117,7 @@ namespace Parser
             s = s.Substring(1, s.Length - 2);
 
             List<string> splitted = StringUtils.splitStringKeepingStructureIntegrity(s, ',', Global.base_delimiters);
-            DynamicList list = new DynamicList();
+            DynamicList list = new DynamicList(is_const:true);
 
             foreach (string split in splitted)
             {
@@ -291,9 +209,11 @@ namespace Parser
                 case "name": // set the algorithm name
                     //TODO
                     break;
-                /* --- import code --- */
-                case "use":
-                    //TODO
+                /* --- load libraries --- */
+                case "load":
+                    string lib_path = value;
+                    if (!File.Exists(value)) throw new FileNotFoundException($"Library file not found: \"{lib_path}\"");
+                    Interpreter.loadLibrary(value);
                     break;
                 /* --- debugging --- */
                 case "debug": // manually en/dis-able debugging
@@ -329,6 +249,8 @@ namespace Parser
                 case "list_as_array": // lists as arrays -> disable insert, remove, append, etc. (every length-modifying function) //! should create function to init an array with type for this
                     //TODO
                     break;
+                default:
+                    throw new AquilaExceptions.UnknownMacroError($"Macro keyword \"{key}\" is unknown");
             }
         }
     }
@@ -342,15 +264,22 @@ namespace Parser
         static void Main(string[] args)
         {
             Global.initVariables();
+            //Global.setStdout(new StreamWriter("log.log"));
+            // Global.tracer_update_handler_function = test;
+
+            string std_lib_path = @"..\..\..\aquila standard lib.aq";
+            if (File.Exists(std_lib_path))
+            {
+                //Parser.handleMacro("load", std_lib_path);
+            }
+            
             Global.setSetting("interactive", true);
-	        Global.setSetting("debug", false);
-	        Global.setSetting("trace debug", false);
+            Global.setSetting("debug", false);
+            Global.setSetting("trace debug", false);
             Global.setSetting("allow tracing in frozen context", false);
             Global.setSetting("flame mode", false); // can set to false bc "allow tracing in frozen context" is set to true. but to be sure: true
             Global.setSetting("implicit declaration in assignment", true);
-
-            //Global.setStdout(new StreamWriter("log.log"));
-            // Global.tracer_update_handler_function = test;
+            Global.setSetting("auto trace", true);
 
             //throw new Exception("test");
 
@@ -374,12 +303,12 @@ namespace Parser
 
             List<string> exec_lines = new List<string>()
             {
-                "decl l [1, 5, 2, 9]",
-                "decl k [0, 0, 0, 0]",
-                "top_down_merge($l, 0, 2, 4, $k)",
-                "interactive_call(vars)"
+                "while (true)",
+                "print_str_endl(test)",
+                "break",
+                "end-while",
             };
-            
+
             if (Global.getSetting("interactive") || args.Length > 0 && args[0] == "interactive")
             {
                 Interpreter.interactiveMode(exec_lines);
@@ -397,11 +326,10 @@ namespace Parser
                 Variable return_value = Interpreter.runAlgorithm(algo);
                 Global.stdoutWriteLine("returned value: " + return_value);
 
-                if (interactive_after_execution)
-                {
-                    Global.stdoutWriteLine("Interactive interpreter after execution:");
-                    Interpreter.interactiveMode(exec_lines, false);
-                }
+                if (!interactive_after_execution) return;
+
+                Global.stdoutWriteLine("Interactive interpreter after execution:");
+                Interpreter.interactiveMode(exec_lines, false);
             }
             catch (Exception e)
             {

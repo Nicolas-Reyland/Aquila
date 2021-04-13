@@ -1,0 +1,10 @@
+// Bubble Sort
+#load functions.aq
+
+$l = [4, 1, 6, -2, 3]
+
+$l = bubblesort($l)
+
+return($l)
+
+//

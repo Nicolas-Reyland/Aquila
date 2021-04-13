@@ -25,6 +25,10 @@ namespace Parser
         /// </summary>
         private string _name;
         /// <summary>
+        /// Is the variable a constant ?
+        /// </summary>
+        protected bool is_const;
+        /// <summary>
         /// Has the variable be assigned a value or has it only be declared ?
         /// </summary>
         public bool assigned;
@@ -44,13 +48,18 @@ namespace Parser
         /// <summary>
         /// explicit naming
         /// </summary>
-        /// <returns> is the <see cref="Variable"/> traced ?</returns>
-        public bool isTraced() => _traced;
+        /// <returns> the name</returns>
+        public string getName() => _name;
         /// <summary>
         /// explicit naming
         /// </summary>
-        /// <returns> the name</returns>
-        public string getName() => _name;
+        /// <returns> is the variable a constant</returns>
+        public bool isConst() => is_const;
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> is the <see cref="Variable"/> traced ?</returns>
+        public bool isTraced() => _traced;
         /// <summary>
         /// If the <see cref="Variable"/> is an <see cref="Integer"/>, returns "int".
         /// If it is a <see cref="DynamicList"/>, returns "list", etc.
@@ -98,6 +107,10 @@ namespace Parser
         /// </summary>
         /// <param name="value"> new internal value for the variable</param>
         public abstract void forceSetValue(dynamic value);
+        /// <summary>
+        /// Set the variable to a constant variable. Cannot be undone
+        /// </summary>
+        public void setConst() => is_const = true;
 
         // methods
         /// <summary>
@@ -238,29 +251,30 @@ namespace Parser
     {
         private bool _bool_value;
 
-        public BooleanVar(bool bool_value)
+        public BooleanVar(bool bool_value, bool is_const = false)
         {
             assigned = true;
             _bool_value = bool_value;
+            this.is_const = is_const;
         }
 
         public BooleanVar not()
         {
             assertAssignment();
-            return new BooleanVar(!_bool_value);
+            return new BooleanVar(!_bool_value, is_const);
         }
 
         public BooleanVar or(BooleanVar other)
         {
             assertAssignment();
             // lazy or
-            return _bool_value ? new BooleanVar(true) : new BooleanVar(_bool_value || other.getValue());
+            return _bool_value ? new BooleanVar(true) : new BooleanVar(_bool_value || other.getValue(), is_const && other.is_const);
         }
 
         public BooleanVar xor(BooleanVar other)
         {
             assertAssignment();
-            return new BooleanVar(_bool_value ^ other.getValue());
+            return new BooleanVar(_bool_value ^ other.getValue(), is_const && other.is_const);
         }
 
         public BooleanVar and(BooleanVar other)
@@ -268,8 +282,8 @@ namespace Parser
             assertAssignment();
             // lazy and
             return _bool_value
-                ? new BooleanVar(_bool_value && other.getValue())
-                : new BooleanVar(false);
+                ? new BooleanVar(_bool_value && other.getValue(), is_const && other.is_const)
+                : new BooleanVar(false, is_const && other.is_const);
         }
 
         public override Variable cloneTypeToVal(dynamic value) => new BooleanVar(value);
@@ -302,10 +316,11 @@ namespace Parser
     {
         private int _int_value;
 
-        public Integer(int val)
+        public Integer(int val, bool is_const = false)
         {
             assigned = true;
             _int_value = val;
+            this.is_const = is_const;
         }
 
         public override Variable cloneTypeToVal(dynamic value)=>  new Integer(value);
@@ -316,19 +331,19 @@ namespace Parser
         {
             assertAssignment();
             int int_result = _int_value % other.getValue();
-            return new Integer(int_result);
+            return new Integer(int_result, is_const && other.is_const);
         }
 
         public Integer addition(Integer other)
         {
             assertAssignment();
-            return new Integer(_int_value + other.getValue());
+            return new Integer(_int_value + other.getValue(), is_const && other.is_const);
         }
 
         public Integer subtraction(Integer other)
         {
             assertAssignment();
-            return new Integer(_int_value - other.getValue());
+            return new Integer(_int_value - other.getValue(), is_const && other.is_const);
         }
 
         public Integer division(Integer other)
@@ -336,13 +351,13 @@ namespace Parser
             assertAssignment();
             int other_value = other.getValue();
             Debugging.assert(other_value != 0, new AquilaExceptions.ZeroDivisionException());
-            return new Integer(_int_value / other.getValue());
+            return new Integer(_int_value / other.getValue(), is_const && other.is_const);
         }
 
         public Integer mult(Integer other)
         {
             assertAssignment();
-            return new Integer(_int_value * other.getValue());
+            return new Integer(_int_value * other.getValue(), is_const && other.is_const);
         }
 
         public override int compare(Variable n1)
@@ -365,21 +380,7 @@ namespace Parser
         public override void setValue(Variable other_value)
         {
             if (!assigned) assign();
-            
-            /*if (getName() != "k" && getName() != "j")
-            {
-                Global.stdoutWriteLine("setValue on " + getName() + "\nbefore");
-                Interpreter.processInterpreterInput("vars");
-            }*/
-
             _int_value = other_value.getValue();
-            
-            /*if (getName() != "k" && getName() != "j"){
-                Global.stdoutWriteLine("after");
-                Interpreter.processInterpreterInput("vars");
-                Global.stdoutWriteLine();
-            }*/
-
             trace("setValue", new dynamic[] { other_value.getValue() });
         }
 
@@ -399,10 +400,11 @@ namespace Parser
     public sealed class FloatVar : Variable
     {
         private float _float_value;
-        public FloatVar(float val)
+        public FloatVar(float val, bool is_const = false)
         {
             _float_value = val;
             assigned = true;
+            this.is_const = is_const;
         }
 
         public override Variable cloneTypeToVal(dynamic value) => new FloatVar(value);
@@ -434,19 +436,19 @@ namespace Parser
         public Variable addition(FloatVar other)
         {
             assertAssignment();
-            return new FloatVar(_float_value + other.getValue());
+            return new FloatVar(_float_value + other.getValue(), is_const && other.is_const);
         }
 
         public Variable subtraction(FloatVar other)
         {
             assertAssignment();
-            return new FloatVar(_float_value  - other.getValue());
+            return new FloatVar(_float_value  - other.getValue(), is_const && other.is_const);
         }
 
         public Variable mult(FloatVar other)
         {
             assertAssignment();
-            return new FloatVar(_float_value * other.getValue());
+            return new FloatVar(_float_value * other.getValue(), is_const && other.is_const);
         }
 
         public Variable division(FloatVar other)
@@ -454,7 +456,7 @@ namespace Parser
             assertAssignment();
             float other_value = other.getValue();
             Debugging.assert(other_value != 0, new AquilaExceptions.ZeroDivisionException());
-            return new FloatVar(_float_value / other_value);
+            return new FloatVar(_float_value / other_value, is_const && other.is_const);
         }
 
         public override string ToString()
@@ -468,10 +470,11 @@ namespace Parser
     {
         private List<Variable> _list;
 
-        public DynamicList(List<Variable> values = null)
+        public DynamicList(List<Variable> values = null, bool is_const = false)
         {
             _list = values ?? new List<Variable>();
             assigned = true;
+            this.is_const = is_const;
         }
 
         public override Variable cloneTypeToVal(dynamic value) => new DynamicList(new List<Variable>(_list));
@@ -506,6 +509,20 @@ namespace Parser
             return _list.ElementAt(i);
         }
 
+        public Variable atIndexList(DynamicList index_list)
+        {
+            // copy itself
+            Variable sub_element = new DynamicList(getValue());
+            foreach (Integer index in index_list.getValue())
+            {
+                // get next element
+                sub_element = (sub_element as DynamicList).atIndex(index);
+            }
+
+            // return final result
+            return sub_element;
+        }
+
         public void addValue(Variable x)
         {
             if (!assigned) assign();
@@ -517,7 +534,7 @@ namespace Parser
         {
             assertAssignment();
             _list.Insert(index.getValue(), x);
-            trace("insertValue", new dynamic[] { x.getRawValue(), index.getRawValue() });
+            trace("insertValue", new dynamic[] { index.getRawValue(), x.getRawValue() });
         }
 
         public void removeValue(Integer index)
@@ -614,6 +631,7 @@ namespace Parser
             _function_name = function_name;
             _arg_expr_list = arg_expr_list;
             assigned = true;
+            is_const = false;
         }
 
         public Variable callFunction()
@@ -664,21 +682,5 @@ namespace Parser
         public override int compare(Variable other) => throw Global.aquilaError();
 
         public override string getTypeString() => "val_func";
-    }
-
-    // Utils for Graphics & Animations
-    public static class VariableUtils {
-        public static DynamicList createDynamicList(List<int> list)
-        {
-            List<Variable> var_list = list.Select(i => new Integer(i)).Cast<Variable>().ToList();
-            return new DynamicList(var_list);
-        }
-
-        public static DynamicList createDynamicList(int[] array)
-        {
-            List<int> list = array.ToList();
-            List<Variable> var_list = list.Select(i => new Integer(i)).Cast<Variable>().ToList();
-            return new DynamicList(var_list);
-        }
     }
 }

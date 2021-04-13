@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
@@ -48,7 +47,7 @@ namespace Parser
         /// </summary>
         /// <param name="instr"> instruction</param>
         /// <param name="line_index"> index of the corresponding line in the src code</param>
-        private RawInstruction(string instr, int line_index)
+        internal RawInstruction(string instr, int line_index)
         {
             _instr = instr;
             _line_index = line_index;
@@ -148,15 +147,13 @@ namespace Parser
         /// </summary>
         /// <param name="line_index"> index of the line in the purged source code</param>
         /// <param name="raw_instr"> a <see cref="RawInstruction"/> to convert</param>
-        /// <param name="declaration_overwrite"> var/func overwriting is done recursively</param>
         /// <returns> the corresponding <see cref="Instruction"/></returns>
         /// <exception cref="Global.aquilaError"></exception>
-        private static Instruction rawInstr2Instr(int line_index, RawInstruction raw_instr, int declaration_overwrite = 0)
+        private static Instruction rawInstr2Instr(int line_index, RawInstruction raw_instr)
         {
             /* Order of operations:
              * tracing
              * declaration
-             * overwriting var
              * variable assignment
              * function definition
              * for loop
@@ -174,6 +171,9 @@ namespace Parser
             // variable tracing
             if (instr[0] == "trace")
             {
+                if (Global.getSetting("auto trace"))
+                    Debugging.print("\"trace\" instruction, but \"trace all\" is set to true ?");
+                
                 List<Expression> traced_vars = new List<Expression>();
                 for (int i = 1; i < instr.Count; i++)
                 {
@@ -185,63 +185,73 @@ namespace Parser
 
             Debugging.print("decl ?");
             // variable declaration
-            if (instr[0] == "decl")
+            if (instr.Contains("decl"))
             {
-                // "decl type name" or "decl name value"
-                if (instr.Count < 3 || instr.Count > 4)
+                // "decl type name" or "global safe const decl type name value"
+                if (instr.Count < 3 || instr.Count > 7)
                 {
                     throw Global.aquilaError();
+                }
+                
+                // declaration modes
+                bool safe_mode = false,
+                    overwite = false,
+                    constant = false,
+                    global = false;
+                while (instr[0] != "decl")
+                {
+                    switch (instr[0])
+                    {
+                        case "safe":
+                            safe_mode = true;
+                            Debugging.print("safe mode !");
+                            break;
+                        case "overwrite":
+                            overwite = true;
+                            Debugging.print("overwrite !");
+                            break;
+                        case "const":
+                            constant = true;
+                            Debugging.print("const !");
+                            break;
+                        case "global":
+                            global = true;
+                            Debugging.print("global !");
+                            break;
+                        default:
+                            throw new AquilaExceptions.UnknownKeywordError($"Unknown keyword in declaration: \"{instr[0]}\"");
+                    }
+
+                    instr.RemoveAt(0);
                 }
                 
                 // all types
                 string[] type_list = {"int", "float", "bool", "list"};
 
-                bool type_declared = false;
-                
-                if (instr.Count == 4) // decl type name value
-                {
-                    if (instr[1] == "auto")
-                    {
-                        instr.RemoveAt(1);
-                    }
-                    else
-                    {
-                        type_declared = true;
-                        Debugging.assert(type_list.Contains(instr[1]),
-                            new AquilaExceptions.UnknownTypeError($"The type \"{instr[1]}\" is not recognized"));
-                    }
-                }
-                else if (instr[1] == "auto")
-                {
-                    throw Global.aquilaError(); // cannot "decl auto var_name"
-                }
+                // decl type name value
+                if (instr.Count == 4) Debugging.assert(type_list.Contains(instr[1]), new AquilaExceptions.UnknownTypeError($"The type \"{instr[1]}\" is not recognized"));
+                else if (instr[1] == "auto") throw new AquilaExceptions.InvalidTypeError("You cannot declare an empty variable using type \"auto\""); // cannot "decl auto var_name"
 
-                // if instr[1] is type name
+                // if instr[1] is type
                 if (type_list.Contains(instr[1]))
                 {
                     Expression default_value = Global.default_values_by_var_type[instr[1]];
-                    return type_declared
-                        ? new Declaration(line_index, instr[2], new Expression(instr[3]), instr[1], true, declaration_overwrite)
-                        : new Declaration(line_index, instr[2], default_value, "auto", false, declaration_overwrite);
+                    return new Declaration(line_index,
+                            instr[2],
+                            new Expression(instr[3]),
+                            instr[1],
+                            true,
+                            safe_mode,
+                            overwite,
+                            constant,
+                            global);
                 }
 
                 // case is: "decl var_name value"
                 string var_name = instr[1];
                 string var_value = instr[2];
 
-                return new Declaration(line_index, var_name, new Expression(var_value), "auto", true, declaration_overwrite);
-            }
-
-            Debugging.print("overwriting ?");
-            if (instr[0] == "overwrite") // overwrite itn var_name 5
-            {
-                raw_instr._instr = "decl" + raw_instr._instr.Substring(9);
-                return rawInstr2Instr(line_index, raw_instr, 1);
-            }
-            if (instr[0] == "safe") // safe decl var_name 6
-            {
-                raw_instr._instr = raw_instr._instr.Substring(5);
-                return rawInstr2Instr(line_index, raw_instr, 2);
+                return new Declaration(line_index, var_name, new Expression(var_value), "auto", true, safe_mode, overwite, constant, global);
             }
 
             Debugging.print("assignment ?");
@@ -289,7 +299,7 @@ namespace Parser
                 Debugging.assert(raw_instr._is_nested); // syntax???
                 Debugging.assert(instr[1].StartsWith("(") && instr[1].EndsWith(")")); // syntax
                 List<string> sub_instr =
-                    StringUtils.splitStringKeepingStructureIntegrity(instr[1].Substring(1, instr[1].Length - 2), ',', Global.base_delimiters);
+                    StringUtils.splitStringKeepingStructureIntegrity(instr[1].Substring(1, instr[1].Length - 2), ';', Global.base_delimiters);
                 sub_instr = StringUtils.purgeLines(sub_instr);
                 Debugging.print(sub_instr);
                 Debugging.assert(sub_instr.Count == 3); // syntax
@@ -407,8 +417,15 @@ namespace Parser
 
                 return new VoidFunctionCall(line_index, function_name, args);
             }
+            
+            // try using this as a function ?
+            if (instr.Count == 1 && Functions.functionExists(instr[0]))
+            {
+                Debugging.print($"Call the function \"{instr[0]}\" with no parameters");
+                return new VoidFunctionCall(line_index, instr[0]);
+            }
 
-            Debugging.print("!unrecognized line: \"", raw_instr._instr, "\"");
+            Debugging.print("unrecognized line: \"", raw_instr._instr, "\"");
             throw Global.aquilaError();
         }
     }

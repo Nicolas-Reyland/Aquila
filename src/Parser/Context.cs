@@ -157,7 +157,7 @@ namespace Parser
         public static void freeze()
         {
             if (Global.getSetting("flame mode")) return;
-            Debugging.assert(!_frozen);
+            Debugging.assert(!_frozen); 
             _frozen = true;
         }
         /// <summary>
@@ -201,6 +201,19 @@ namespace Parser
             resetInfo();
         }
         /// <summary>
+        /// Reset the Context until a certain context-stack count is met
+        /// </summary>
+        /// <param name="count"> Wanted count</param>
+        public static void resetUntilCountReached(int count)
+        {
+            // number of resets
+            int diff = getStatusStackCount() - count;
+            // cannot undo resets
+            if (diff < 0) throw new ContextException($"Negative Context reset count: {getStatusStackCount() - count} < 0");
+            // reset until count met
+            for (int i = 0; i++ < diff;) reset();
+        }
+        /// <summary>
         /// Assert that the status is the one given as input.
         /// Does not assert if:
         /// <para/>* the Context is not <see cref="Global.settings"/>["fail on context assertions"]
@@ -225,6 +238,21 @@ namespace Parser
             _frozen = false;
             previous_status.Clear();
             previous_info.Clear();
+        }
+        
+        // Exception
+        /// <summary>
+        /// This <see cref="Exception"/> is raised when the current Context status is invalid
+        /// </summary>
+        public class ContextException : Exception
+        {
+            /// <summary>
+            /// Usage: throw new Context.ContextException();
+            /// </summary>
+            /// <param name="message"> Error message</param>
+            public ContextException(string message) : base(message)
+            {
+            }
         }
     }
 }

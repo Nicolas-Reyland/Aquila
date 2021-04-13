@@ -57,9 +57,14 @@ namespace Parser
             {{"null", new NullVar()}};
 
         /// <summary>
-        /// The current variable stack.
+        /// The current variable stack
         /// </summary>
         private static Stack<List<Dictionary<string, Variable>>> _variable_stack;
+
+        /// <summary>
+        /// The global variables dict
+        /// </summary>
+        private static Dictionary<string, Variable> _global_variables;
 
         /// <summary>
         /// Initialize the variable stack
@@ -67,8 +72,28 @@ namespace Parser
         public static void initVariables()
         {
             _variable_stack = new Stack<List<Dictionary<string, Variable>>>();
+            _global_variables = new Dictionary<string, Variable>();
             addVariableStackLayer();
         }
+
+        /// <summary>
+        /// Add a <see cref="Variable"/> to the <see cref="_global_variables"/> dict
+        /// </summary>
+        /// <param name="name"> Variable name</param>
+        /// <param name="variable"> <see cref="Variable"/> object</param>
+        /// <exception cref="AquilaExceptions.NameError"> There is already a variable with that name in the dict</exception>
+        public static void addGlobalVariable(string name, Variable variable)
+        {
+            if (_global_variables.ContainsKey(name)) throw new AquilaExceptions.NameError($"There is already a global variable named \"{name}\"");
+            _global_variables.Add(name, variable);
+        }
+
+        /// <summary>
+        /// Getter for a copy of the <see cref="_global_variables"/> dict
+        /// </summary>
+        /// <returns> Copy of the global variables dict</returns>
+        public static Dictionary<string, Variable> getGlobalVariables() =>
+            new Dictionary<string, Variable>(_global_variables);
 
         /// <summary>
         /// explicit naming
@@ -166,6 +191,19 @@ namespace Parser
         }
 
         /// <summary>
+        /// Reset the Local Scope Variable Stack until a certain Scope depth is met
+        /// </summary>
+        /// <param name="wanted_depth"> Wanted Scope depth</param>
+        /// <exception cref="AquilaControlFlowExceptions.InvalidScopeResetError"> The Scope depth is smaller than the wanted Scope depth</exception>
+        public static void resetLocalScopeUntilDepthReached(int wanted_depth)
+        {
+            int current_scope = getLocalScopeDepth();
+            if (current_scope < wanted_depth) throw new AquilaControlFlowExceptions.InvalidScopeResetError();
+
+            for (int i = wanted_depth; i++ < current_scope;) resetLocalContextScope();
+        }
+
+        /// <summary>
         /// Get a <see cref="Variable"/> from its name
         /// </summary>
         /// <param name="name"> Name of the <see cref="Variable"/></param>
@@ -183,6 +221,11 @@ namespace Parser
                     return local_var_dict[name];
                 }
             }
+            // search in the global variables
+            foreach (var global_variable in _global_variables.Where(global_variable => global_variable.Key == name))
+            {
+                return global_variable.Value;
+            }
 
             throw new AquilaExceptions.NameError($"Variable name \"{name}\" does not exist in the current Context"); // variable does not exist
         }
@@ -193,7 +236,8 @@ namespace Parser
         /// <param name="name"> variable name</param>
         /// <returns> var name in any of the dictionaries ?</returns>
         public static bool variableExistsInCurrentScope(string name) =>
-            _variable_stack.Peek().Any(variables => variables.ContainsKey(name));
+            _variable_stack.Peek().Any(variables => variables.ContainsKey(name)) ||
+            _global_variables.ContainsKey(name);
 
         /// <summary>
         /// All the variables that are not NullVar (thus have a graphical representable value)
@@ -317,6 +361,7 @@ namespace Parser
             usable_variables.Clear();
             Context.resetContext();
         }
+        
         /// <summary>
         /// List of parameters that exist & that could be tweaked. Some combinations will break everything.
         /// Please read their description in the source code
@@ -333,8 +378,9 @@ namespace Parser
             {"allow tracing in frozen context", false},         // trace even if the Context is frozen
             {"permafrost", false},                              // freeze Context permanently
             {"flame mode", false},                              // disables Context freezing completely
-            {"implicit declaration in assignment", true},      // enable implicit declaration in assignment
+            {"implicit declaration in assignment", true},       // enable implicit declaration in assignment
             {"redirect debug stout & stderr", false},           // redirect stdout and stderr to a log file of all debugging
+            {"auto trace", false},                               // automatically trace all variables
 	    };
 
         /// <summary>
@@ -356,8 +402,21 @@ namespace Parser
         /// <returns> Return the value of the setting</returns>
         public static bool getSetting(string key) => settings[key];
 
+        /// <summary>
+        /// Getter for a copy of the <see cref="settings"/> dict
+        /// </summary>
+        /// <returns> Copy of the settings</returns>
+        public static Dictionary<string, bool> getSettings() => new Dictionary<string, bool>(settings);
+        
+        /// <summary>
+        /// Custom stdout stream to write to if enabled (see <see cref="settings"/>)
+        /// </summary>
         private static StreamWriter _stdout;
 
+        /// <summary>
+        /// Setup the new custom stdout stream
+        /// </summary>
+        /// <param name="new_stdout"> Stdout stream</param>
         public static void setStdout(StreamWriter new_stdout)
         {
             _stdout = new_stdout;
@@ -365,12 +424,19 @@ namespace Parser
             // Console.SetError(new_stdout);
         }
 
+        /// <summary>
+        /// Properly close the custom stdout stream
+        /// </summary>
         public static void closeStdout()
         {
             _stdout.Close();
             setSetting("redirect debug stout & stderr", false);
         }
 
+        /// <summary>
+        /// Default function to write anything to the default stdout (even to the default Console)
+        /// </summary>
+        /// <param name="obj"> Object to print out</param>
         public static void stdoutWrite(object obj)
         {
             if (getSetting("redirect debug stout & stderr"))
@@ -383,6 +449,9 @@ namespace Parser
             }
         }
         
+        /// <summary>
+        /// Writes the '\n' newline char to the default stdout
+        /// </summary>
         public static void stdoutWriteLine()
         {
             if (getSetting("redirect debug stout & stderr"))
@@ -395,6 +464,10 @@ namespace Parser
             }
         }
 
+        /// <summary>
+        /// Same as <see cref="stdoutWrite"/>, but adds a pending '\n' newline char at the end of your input
+        /// </summary>
+        /// <param name="obj"></param>
         public static void stdoutWriteLine(object obj)
         {
             if (getSetting("redirect debug stout & stderr"))

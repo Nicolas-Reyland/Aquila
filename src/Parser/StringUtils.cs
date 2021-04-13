@@ -22,7 +22,7 @@ namespace Parser
         /// </summary>
         /// <param name="list"> list of strings</param>
         /// <param name="print_index"> false by default. if true, index of line (starting 0) will be printed as prefix</param>
-        public static void printStringList(List<string> list, bool print_index = false)
+        public static void printStringList(IEnumerable<string> list, bool print_index = false)
         {
             short index = 1;
             foreach (string line in list)
@@ -106,6 +106,110 @@ namespace Parser
             }
 
             return new_lines;
+        }
+
+        /// <summary>
+        /// Remove the comments from a string
+        /// </summary>
+        /// <param name="source_code"> String from which the comments will be filtered out</param>
+        /// <returns> Filtered string</returns>
+        /// <exception cref="Exception"> A comment tag doesn't end</exception>
+        public static string removeComments(string source_code)
+        {
+            //! instead of using SubString everywhere, work with a (one or more) string(s) and modify the chars at each iteration (or an array of chars)
+            
+            // get the comment strings
+            string sl_flag = Global.single_line_comment_string; // single line comment string
+            string ml_open_flag = Global.multiple_lines_comment_string; // multiple lines opening comment string
+            char[] char_array = ml_open_flag.ToCharArray();
+            Array.Reverse( char_array );
+            string ml_close_flag = new string( char_array ); // multiple lines closing comment string
+
+            // setup useful variables
+            string filtered = ""; // the filtered code, without comments
+            int in_comment = 0; // 0: in code, 1: in single line comment, 2: in multiple lines comment, 3: in multiple lines comment that is actually multiple lines long
+            bool line_passed = false; // has a line just passed ? ('\n')
+
+            for (int i = 0; i < source_code.Length; i++)
+            {
+                char c = source_code[i];
+                // new line incoming
+                if (c == '\n') line_passed = true;
+
+                /* if we are in a comment, we want to check two things:
+                 *  - if single-line comment: has the line just passed ?
+                 *  - if multiple-lines comment: has the line just passed & are we finished with multiple lines ?
+                 * if not in a comment:
+                 *  - check if current char is beginning of multiple/single-line(s) comment
+                 *  - if not, add the current char to the filtered output
+                 */
+                if (in_comment == 0) // -> in actual code
+                {
+                    // single line comment
+                    if (i >= sl_flag.Length && source_code.Substring(i - sl_flag.Length, sl_flag.Length) == sl_flag)
+                    {
+                        filtered = filtered.Substring(0, filtered.Length - sl_flag.Length);
+                        in_comment = 1;
+                    }
+                    // multiple lines comment
+                    else if (i >= ml_open_flag.Length && source_code.Substring(i - ml_open_flag.Length, ml_open_flag.Length) == ml_open_flag)
+                    {
+                        filtered = filtered.Substring(0, filtered.Length - ml_open_flag.Length);
+                        in_comment = 2;
+                    }
+                    // in code !
+                    else
+                    {
+                        filtered += c;
+                    }
+                }
+                else if (in_comment == 1) // -> single line comment
+                {
+                    // line just passed
+                    if (line_passed)
+                    {
+                        in_comment = 0;
+                        filtered += "\n"; // add the current char (it will not be added at all if it is not done here)
+                    }
+                    else
+                    {
+                        filtered += " ";
+                    }
+                }
+                else // in_comment >= 2 -> multiple lines comment, with line passed or not (== 2 -> not, 3 is passed !)
+                {
+                    // closing ml comment tag
+                    if (i >= ml_close_flag.Length && source_code.Substring(i - ml_close_flag.Length, ml_close_flag.Length) == ml_close_flag)
+                    {
+                        filtered += in_comment == 3 ? "\n" : " "; // add correct char to filtered (this char literally replaced the ml comment)
+                        filtered += c; // would not be added if not done here
+                        in_comment = 0; // back to being in the code
+                    }
+                    else if (line_passed)
+                    {
+                        // the ml comment is actually multiple lines long
+                        in_comment = 3;
+                        filtered += "\n";
+                    }
+                    else
+                    {
+                        filtered += " ";
+                    }
+                }
+                
+                line_passed = false;
+            }
+
+            // "**/" is the last substring of the whole source code
+            if (source_code.Length >= ml_close_flag.Length &&
+                source_code.Substring(source_code.Length - ml_close_flag.Length, ml_close_flag.Length) == ml_close_flag)
+            {
+                in_comment = 0;
+            }
+            // the single line comment is allowed, because everything on the same line after the original tag should get filtered out
+            if (in_comment > 1) throw new AquilaExceptions.UnclosedTagError("Unclosed multiple lines comment tag");
+
+            return filtered;
         }
 
         /// <summary>
@@ -380,6 +484,49 @@ namespace Parser
         }
 
         /// <summary>
+        /// Get the content of a bracket-expression in a list
+        /// <para/>Examples:
+        /// <para/>* "[5][1][4]"
+        /// <para/> -> List{"5", "1", "4"}
+        /// <para/>* " [ t - 6 ] [ 1 ] "
+        /// <para/> -> List{"t - 6", "1"}
+        /// </summary>
+        /// <param name="bracket_access_string"> The bracket expression string</param>
+        /// <returns> List of the separated bracket expressions</returns>
+        public static IEnumerable<string> getBracketsContent(string bracket_access_string)
+        {
+            // assume the string starts with a '[' and ends with a ']'
+            
+            List<string> bracket_access_list = new List<string>();
+
+            int current_index = 0;
+            
+            // go fetch the indexes !
+            while (current_index < bracket_access_string.Length)
+            {
+                if (bracket_access_string[current_index] != '[')
+                {
+                    current_index++;
+                    continue;
+                }
+                
+                int next_index = findCorrespondingElementIndex(bracket_access_string, current_index, '[', ']');
+                bracket_access_list.Add(normalizeWhiteSpaces(bracket_access_string.Substring(current_index + 1, next_index - current_index - 2)));
+                current_index = next_index; // go to the next char
+            }
+
+            return bracket_access_list;
+        }
+
+        /// <summary>
+        /// Generate a string from a list of bools
+        /// </summary>
+        /// <param name="args"> Boolean values</param>
+        /// <returns> String</returns>
+        public static string boolString(params bool[] args) =>
+            args.Aggregate("", (current, t) => current + (t ? "1" : "0"));
+
+        /// <summary>
         /// Checks if the variable name is valid
         /// </summary>
         /// <param name="var_name"> variable name </param>
@@ -398,16 +545,13 @@ namespace Parser
         /// <returns> string describing the entry list</returns>
         private static string varList2String(List<Variable> var_list)
         {
-            string s = "{ ";
-            foreach (Variable variable in var_list)
-            {
-                s += variable + ", ";
-            }
+            // Concatenate every element to this
+            string s = var_list.Aggregate("{ ", (current, variable) => current + (variable + ", "));
 
+            // Remove the last ", " if there are any elements in the list
             if (s.Length > 2) s = s.Substring(0, s.Length - 2);
-            s += " }";
 
-            return s;
+            return s + " }";
         }
 
         /// <summary>

@@ -68,20 +68,51 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
-            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
+            bool do_break = false;
             while (test())
             {
                 in_loop  = true;
+                int local_context_stack_count = Global.getLocalScopeDepth();
                 foreach (Instruction instr in instructions)
                 {
                     Global.newLocalContextScope();
-                    instr.execute();
+                    try
+                    {
+                        instr.execute();
+                    }
+                    catch (System.Reflection.TargetInvocationException e)
+                    {
+                        if (e.InnerException == null) throw;
+
+                        if (e.InnerException is AquilaControlFlowExceptions.BreakException)
+                        {
+                            do_break = true;
+                            break;
+                        }
+
+                        if (e.InnerException is AquilaControlFlowExceptions.ContinueException)
+                        {
+                            break;
+                        }
+                    }
+                    catch (AquilaControlFlowExceptions.BreakException)
+                    {
+                        do_break = true;
+                        break;
+                    }
+                    catch (AquilaControlFlowExceptions.ContinueException)
+                    {
+                        // just pass to the next while-loop iteration
+                        break;
+                    }
                     Global.resetLocalContextScope();
                 }
+                
+                Global.resetLocalScopeUntilDepthReached(local_context_stack_count);
+                if (do_break) break;
             }
             in_loop = false;
-            Context.assertStatus(context_integrity_enum);
-            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
+            Context.resetUntilCountReached(context_integrity_check);
             Context.reset();
             Global.resetLocalContextScope();
         }
@@ -111,23 +142,57 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
-            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
             _start.execute();
+            bool do_break = false;
             while (test())
             {
                 in_loop  = true;
+                int local_context_stack_count = Global.getLocalScopeDepth();
+                
                 foreach (Instruction instr in instructions)
                 {
                     Global.newLocalContextScope();
-                    instr.execute();
+                    try
+                    {
+                        instr.execute();
+                    }
+                    catch (System.Reflection.TargetInvocationException e)
+                    {
+                        if (e.InnerException == null) throw;
+
+                        if (e.InnerException is AquilaControlFlowExceptions.BreakException)
+                        {
+                            do_break = true;
+                            break;
+                        }
+
+                        if (e.InnerException is AquilaControlFlowExceptions.ContinueException)
+                        {
+                            break;
+                        }
+                    }
+                    catch (AquilaControlFlowExceptions.BreakException)
+                    {
+                        do_break = true;
+                        break;
+                    }
+                    catch (AquilaControlFlowExceptions.ContinueException)
+                    {
+                        // just pass to the next for-loop iteration
+                        break;
+                    }
+
                     Global.resetLocalContextScope();
                 }
+
+                Global.resetLocalScopeUntilDepthReached(local_context_stack_count);
+                if (do_break) break;
                 // executing step independently bc of continue & break
                 _step.execute();
             }
             in_loop = false;
-            Context.assertStatus(context_integrity_enum);
-            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
+            // Smooth Context
+            Context.resetUntilCountReached(context_integrity_check);
             Context.reset();
             Global.resetLocalContextScope();
         }
@@ -164,7 +229,6 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
-            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
             
             if ( ((BooleanVar) _condition.evaluate()).getValue() )
             {
@@ -181,8 +245,8 @@ namespace Parser
                 }
             }
 
-            Context.assertStatus(context_integrity_enum);
-            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
+            // Smooth Context
+            Context.resetUntilCountReached(context_integrity_check);
             Context.reset();
             Global.resetLocalContextScope();
         }
@@ -196,32 +260,47 @@ namespace Parser
         private readonly Expression _var_expr;
         private readonly string _var_type;
         private readonly bool _assignment;
+        private readonly bool _safe_mode;
+        private readonly bool _overwrite;
+        private readonly bool _constant;
+        private readonly bool _global;
 
-        public Declaration(int line_index, string var_name, Expression var_expr, string var_type = "auto", bool assignment = true, int overwrite = 0)
+        public Declaration(int line_index, string var_name, Expression var_expr, string var_type = "auto", bool assignment = true,
+            bool safe_mode = false,
+            bool overwrite = false,
+            bool constant = false,
+            bool global = false)
         {
             Debugging.assert(StringUtils.validObjectName(var_name)); // InvalidNamingException
-            // overwrite: 0 -> new var (must not exist); 1 -> force overwrite (must exist); 2 -> safe overwrite (can exist)
+            // mode: 0 -> new var (must not exist); 1 -> force overwrite (must exist); 2 -> safe overwrite (can exist)
             this.line_index = line_index;
             this._var_name = var_name;
             this._var_expr = var_expr;
             this._var_type = var_type;
             this._assignment = assignment;
+            this._safe_mode = safe_mode;
+            this._overwrite = overwrite;
+            this._constant = constant;
+            this._global = global;
             // check variable naming
             Debugging.assert(StringUtils.validObjectName(var_name)); // InvalidNamingException
             // the declaration is not initiated in the right scope... cannot do this here
             bool var_exists = Global.variableExistsInCurrentScope(var_name);
-            Debugging.print("new declaration: var_name = " + var_name + ", var_expr = " + var_expr.expr + ", var_type = " + var_type + ", assignment = ", assignment, ", overwrite = ", overwrite, ", exists = ", var_exists);
-            // should not check anything if this is true
+            Debugging.print("new declaration: var_name = " + var_name +
+                            ", var_expr = ", var_expr.expr,
+                            ", var_type = ", var_type,
+                            ", assignment = ", assignment,
+                            ", mode = ", StringUtils.boolString(_safe_mode, _overwrite, _constant, _global),
+                            ", exists = ", var_exists);
+            // should not check overwriting modes if this is true
             if (Global.getSetting("implicit declaration in assignment"))
             {
                 Debugging.print("implicit declaration in assignments, so skipping var existence checks (var exists: ", var_exists, ")");
                 return;
             }
-            // check variable existence
-            if (overwrite == 0) Debugging.assert(!var_exists); // DeclaredExistingVarException
-            if (overwrite == 1) Debugging.assert(var_exists); // OverwriteNonExistingVariable
-            // check for overwrite + tracer
-            if (overwrite != 0 && var_exists) Debugging.assert(!Global.variableFromName(var_name).isTraced());
+
+            if (_safe_mode && var_exists) Debugging.assert(!Global.variableFromName(var_name).isTraced());
+            if (_overwrite) Debugging.assert(var_exists);
         }
 
         protected override void setContext()
@@ -235,33 +314,62 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
-            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
 
             // get variable value
-            Variable variable = _var_expr.evaluate();
+            Variable variable_value = _var_expr.evaluate();
             // is the value assigned ? (only relevant if other variable)
-            variable.assertAssignment();
+            variable_value.assertAssignment();
+            Variable variable = Variable.fromRawValue(variable_value.getRawValue());
+            variable.setName(_var_name);
             // explicit typing
             if (_var_type != "auto")
             {
                 Debugging.print("checking variable explicit type");
                 Expression default_value = Global.default_values_by_var_type[_var_type];
-                Debugging.assert( variable.hasSameParent(default_value.evaluate()) ); // TypeException
+                Debugging.assert( variable_value.hasSameParent(default_value.evaluate()) ); // TypeException
+            }
+            // constant
+            if (_constant)
+            {
+                if (variable_value.isConst())
+                {
+                    variable.setConst();
+                }
+                else
+                {
+                    throw new AquilaExceptions.InvalidVariableClassifier(
+                        "The \"const\" cannot be used when assigning to a non-const value");
+                }
             }
             // actually declare it to its value
-            Global.getCurrentDict()[_var_name] = Variable.fromRawValue(variable.getRawValue()); // overwriting is mandatory
-            Global.getCurrentDict()[_var_name].setName(_var_name);
-            if (_assignment) variable.assign(); // should not need this, but doing anyway
-            else variable.assigned = false;
-            variable.setName(_var_name);
+            if (_global)
+            {
+                Global.addGlobalVariable(_var_name, variable);
+            }
+            else
+            {
+                Global.getCurrentDict()[_var_name] = variable; // overwriting is mandatory
+                if (_assignment) variable.assign(); // should not need this, but doing anyway
+                else variable.assigned = false;
+            }
             Debugging.print("finished declaration with value assignment: ", variable.assigned);
+
+            // automatic tracing ?
+            if (_assignment && Global.getSetting("auto trace"))
+            {
+                Debugging.print("Tracing variable: \"trace all\" setting set to true");
+                // Does NOT work by simply doing "variable.startTracing()", and idk why
+                Tracing tracing_instr = new RawInstruction($"trace ${_var_name}", line_index).toInstr() as Tracing;
+                //Tracing tracing_instr = new Tracing(line_index, new List<Expression>{_var_expr}); // <- does not work either :(
+                tracing_instr.execute();
+            }
 
             // update all tracers
             Tracer.updateTracers();
 
             // reset Context
-            Context.assertStatus(context_integrity_enum);
-            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
+            // Smooth Context
+            Context.resetUntilCountReached(context_integrity_check);
             Context.reset();
         }
 
@@ -293,13 +401,9 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
-            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
 
-            // parsing new value
-            Variable val = _var_value.evaluate();
-            Debugging.print("assigning " + _var_name + " with expr " + _var_value.expr + " with value " + val + " (2nd value assigned: " + val.assigned + ") and type: " + val.getTypeString());
-            // assert the new is not an unassigned (only declared) variable
-            val.assertAssignment();
+            Debugging.print("Assignment: ", _var_name, " = ", _var_value.expr);
+            
             // set the new value
             Variable variable;
             try
@@ -318,12 +422,18 @@ namespace Parser
                 Tracer.updateTracers();
 
                 // reset Context
-                Context.assertStatus(context_integrity_enum);
-                Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
+                // Smooth Context
+                Context.resetUntilCountReached(context_integrity_check);
                 Context.reset();
 
                 return;
             }
+
+            // parsing new value
+            Variable val = _var_value.evaluate();
+            Debugging.print("assigning " + _var_name + " with expr " + _var_value.expr + " with value " + val + " (2nd value assigned: " + val.assigned + ") and type: " + val.getTypeString());
+            // assert the new is not an unassigned (only declared) variable
+            val.assertAssignment();
 
             if (variable.hasSameParent(val))
             {
@@ -338,8 +448,8 @@ namespace Parser
             Tracer.updateTracers();
 
             // reset Context
-            Context.assertStatus(context_integrity_enum);
-            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
+            // Smooth Context
+            Context.resetUntilCountReached(context_integrity_check);
             Context.reset();
         }
 
@@ -406,10 +516,9 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
-            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
             Functions.addUserFunction(_func);
-            Context.assertStatus(context_integrity_enum);
-            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
+            // Smooth Context
+            Context.resetUntilCountReached(context_integrity_check);
             Context.reset();
         }
 
@@ -437,18 +546,21 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
-            Context.StatusEnum context_integrity_enum = (Context.StatusEnum) Context.getStatus();
 
             // the tracing instruction execution doesn't take any Tracer.updateTracers() calls
             foreach (Expression traced_expr in _traced_vars)
             {
                 Variable traced_var = traced_expr.evaluate();
-                Debugging.assert(!traced_var.isTraced());
+                if (traced_var.isTraced())
+                {
+                    Debugging.print("trying to trace a variable that is already traced: " + traced_expr.expr);
+                    continue;
+                }
                 traced_var.startTracing();
             }
 
-            Context.assertStatus(context_integrity_enum);
-            Debugging.assert(context_integrity_check == Context.getStatusStackCount()); // should be the same
+            // Smooth Context
+            Context.resetUntilCountReached(context_integrity_check);
             Context.reset();
         }
 

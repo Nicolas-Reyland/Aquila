@@ -88,7 +88,7 @@ namespace Parser
         {
             _call_depth++;
             Debugging.print("calling function with depth: ", _call_depth);
-            Debugging.assert(Global.getSetting("flame mode") || Context.isFrozen());
+            // Debugging.assert(Global.getSetting("flame mode") || Context.isFrozen());
             if (!_rec_function && _in_function_scope) throw Global.aquilaError("Already in function scope. Missing \"recursive\" keyword ?");// recursive ?
             
             // new local context scope using custom function args
@@ -115,8 +115,8 @@ namespace Parser
                 }
                 catch (System.Reflection.TargetInvocationException out_exception)
                 {
-                    if (!(out_exception.InnerException is AquilaExceptions.ReturnValueException)) throw;
-                    AquilaExceptions.ReturnValueException return_value_exception = out_exception.InnerException as AquilaExceptions.ReturnValueException;
+                    if (!(out_exception.InnerException is AquilaControlFlowExceptions.ReturnValueException)) throw;
+                    AquilaControlFlowExceptions.ReturnValueException return_value_exception = out_exception.InnerException as AquilaControlFlowExceptions.ReturnValueException;
                     Debugging.print("ReturnValueException was thrown");
                     string return_value_string = return_value_exception.getExprStr();
                     Expression return_value_expression = new Expression(return_value_string);
@@ -142,7 +142,7 @@ namespace Parser
         {
             _call_depth--;
             if (!_rec_function && !_in_function_scope) throw new Exception("Not in function scope.");//" Missing \"recursive\" keyword ?");
-            Debugging.assert(Global.getSetting("flame mode") || Context.isFrozen());
+            // Debugging.assert(Global.getSetting("flame mode") || Context.isFrozen());
 
             Global.resetLocalContextScope();
 
@@ -261,28 +261,28 @@ namespace Parser
         /// Get the value at the index in a list
         /// </summary>
         /// <param name="list_expr"> The list</param>
-        /// <param name="index_expr"> The index</param>
+        /// <param name="index_list_expr"> The index</param>
         /// <returns></returns>
-        private static Variable listAtFunction(Expression list_expr, Expression index_expr)
+        private static Variable listAtFunction(Expression list_expr, Expression index_list_expr)
         {
             // extract list
             Variable list_var = list_expr.evaluate();
             Debugging.assert(list_var is DynamicList); // TypeError
             DynamicList list = list_var as DynamicList;
             // extract index
-            Variable index_var = index_expr.evaluate();
-            Debugging.assert(index_var is Integer); // TypeError
-            Integer index = index_var as Integer;
+            Variable index_var = index_list_expr.evaluate();
+            Debugging.assert(index_var is DynamicList); // TypeError
+            DynamicList index_list = index_var as DynamicList;
             // access at index
             if (list_var.isTraced())
             {
                 Tracer.printTrace("list_at last event: " + list_var.tracer.peekEvent());
                 handleValueFunctionTracing("list_at", list,
-                    new dynamic[] {index.getValue()});
+                    new dynamic[] {index_list.getValue()});
                 Tracer.printTrace("list_at last event: " + list_var.tracer.peekEvent());
             }
 
-            return list.atIndex(index);
+            return list.atIndexList(index_list);
         }
 
         /// <summary>
@@ -340,11 +340,33 @@ namespace Parser
         /// Cannot be overwritten. Used to return a value in a function or the main algorithm.
         /// </summary>
         /// <param name="expr"> string value of the returned expression</param>
-        /// <exception cref="AquilaExceptions.ReturnValueException"> Exception raised to stop the <see cref="Algorithm"/> from executing any further instructions</exception>
+        /// <exception cref="AquilaControlFlowExceptions.ReturnValueException"> Exception raised to stop the <see cref="Algorithm"/> from executing any further instructions</exception>
         private static NullVar returnFunction(Expression expr) // Variable return type only for the callFunctionByName compatibility
         {
-            // this Exception will stop the function/algorithm from executing
-            throw new AquilaExceptions.ReturnValueException(expr.expr);
+            // this Exception will stop the algorithm/function from executing
+            throw new AquilaControlFlowExceptions.ReturnValueException(expr.expr);
+        }
+
+        /// <summary>
+        /// Break the program flow
+        /// </summary>
+        /// <returns> An Error is thrown in this method</returns>
+        /// <exception cref="AquilaControlFlowExceptions.BreakException"> Break the program flow</exception>
+        private static NullVar breakFunction()
+        {
+            // this function will stop the loop from executing
+            throw new AquilaControlFlowExceptions.BreakException();
+        }
+
+        /// <summary>
+        /// Continue in the program flow
+        /// </summary>
+        /// <returns> An Error is thrown in this method</returns>
+        /// <exception cref="AquilaControlFlowExceptions.ContinueException"> Continue in the program flow</exception>
+        private static NullVar continueFunction()
+        {
+            // this function will stop the current loop iteration and pass to the next, if there is any
+            throw new AquilaControlFlowExceptions.ContinueException();
         }
 
         /// <summary>
@@ -428,18 +450,32 @@ namespace Parser
         }
 
         /// <summary>
-        /// Remove a <see cref="Variable"/> from the current variable dictionary
+        /// Remove a <see cref="Variable"/> and its references
         /// </summary>
-        /// <param name="expr"> <see cref="Expression"/> resulting in a <see cref="Variable"/> from the current variable dict</param>
+        /// <param name="expr"> <see cref="Expression"/> resulting in a <see cref="Variable"/></param>
         /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
         private static NullVar deleteVarFunction(Expression expr)
         {
             // evaluate every expression
             Variable variable = expr.evaluate();
+            string var_name = variable.getName();
             // delete var
-            Debugging.assert(Global.getCurrentDict().ContainsKey(variable.getName())); // UnknownVariableNameException
-            // remove the variable by key
-            Global.getCurrentDict().Remove(variable.getName());
+            Debugging.assert(Global.variableExistsInCurrentScope(var_name),
+                new AquilaExceptions.NameError($"Variable name \"{var_name}\" does not exist in the current Context")); // NameError
+            // remove the Tracer if is traced
+            if (variable.isTraced())
+            {
+                // remove from the usable variables
+                Global.usable_variables.Remove(var_name);
+                // Deletion Alteration
+                var alter = new Alteration("delete_var", variable, null, new dynamic[] {});
+                // Update the tracer with the death event
+                variable.tracer.update(new Event(alter));
+                // Remove the tracer
+                Global.var_tracers.Remove(variable.tracer);
+            }
+            // remove from the dict
+            Global.getCurrentDict().Remove(var_name);
 
             return new NullVar();
         }
@@ -580,7 +616,8 @@ namespace Parser
         private static Variable int2floatFunction(Expression expr)
         {
             dynamic value = expr.evaluate().getValue();
-            if (!(value is float)) throw Global.aquilaError($"Type should be int but is {value.GetType()}");
+            if (!(value is int)) throw Global.aquilaError($"Type should be int but is {value.GetType()}");
+            // ReSharper disable once PossibleInvalidCastException
             return new FloatVar((float) value);
         }
 
@@ -599,6 +636,8 @@ namespace Parser
             {"sqrt", new Func<Expression, Variable>(sqrtFunction)},
             // Void functions
             {"return", new Func<Expression, NullVar>(returnFunction)}, // NullVar is equivalent to void, null or none
+            {"break", new Func<NullVar>(breakFunction)},
+            {"continue", new Func<NullVar>(continueFunction)},
             {"interactive_call", new Func<Expression, NullVar>(interactiveCallFunction)},
             {"print_value", new Func<Expression, NullVar>(printValFunction)},
             {"print_value_endl", new Func<Expression, NullVar>(printValEndlFunction)},
@@ -639,11 +678,12 @@ namespace Parser
                 Debugging.print("calling user function: " + name);
                 Dictionary<string, Variable> arg_dict = args2Dict(name, args);
                 
-                bool unfreeze = Context.tryFreeze();
+                // user-functions: should not be frozen
+                // bool unfreeze = Context.tryFreeze();
                 Global.newMainContextScope();
                 Variable result = user_functions[name].callFunction(arg_dict);
                 Global.resetMainContextScope();
-                if (unfreeze) Context.unfreeze();
+                // if (unfreeze) Context.unfreeze();
                 
                 return result;
             }
@@ -652,12 +692,20 @@ namespace Parser
         }
 
         /// <summary>
+        /// Does the function exist ? (pre-defined or user-defined)
+        /// </summary>
+        /// <param name="function_name"> Function name</param>
+        /// <returns> Does the function exist ?</returns>
+        public static bool functionExists(string function_name) => functions_dict.ContainsKey(function_name) ||
+                user_functions.ContainsKey(function_name);
+
+        /// <summary>
         /// Does the function exists in the <see cref="functions_dict"/> or in the <see cref="user_functions"/> dict ?
         /// </summary>
         /// <param name="function_name"> Boolean value describing the function's existence</param>
         public static void assertFunctionExists(string function_name) =>
-            Debugging.assert(functions_dict.ContainsKey(function_name) ^
-                             user_functions.ContainsKey(function_name)); // UnknownFunctionNameException
+            Debugging.assert(functionExists(function_name),
+                new AquilaExceptions.FunctionNameError($"The function \"{function_name}\" does not exist"));
 
         /// <summary>
         /// If a function is traced, we first want to wait for its execution to finish (so it can change the

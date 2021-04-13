@@ -25,7 +25,7 @@ namespace Parser
         /// This function is used to read a raw Aquila source code text-based file and
         /// purge the code (remove comments and all unnecessary spaces and tabs)
         /// </summary>
-        /// <param name="path"> path to your source code file</param>
+        /// <param name="path"> lib_path to your source code file</param>
         /// <returns> list of lines containing your purged code</returns>
         private static Dictionary<int, string> readSourceCode(string path)
         {
@@ -56,7 +56,7 @@ namespace Parser
         /// <summary>
         /// Take source code and generates the corresponding <see cref="Algorithm"/>
         /// </summary>
-        /// <param name="path"> path to your source code</param>
+        /// <param name="path"> lib_path to your source code</param>
         /// <param name="print_src"> printTrace the generated purged code</param>
         /// <param name="pretty_print"> pretty_print the <see cref="RawInstruction"/>s (useful to check nested-instruction priorities)</param>
         /// <param name="default_name"> give a name to your <see cref="Algorithm"/></param>
@@ -100,6 +100,29 @@ namespace Parser
             Algorithm algo = new Algorithm(algo_name, instructions);
 
             return algo;
+        }
+
+        /// <summary>
+        /// Load an Aquila library
+        /// </summary>
+        /// <param name="lib_path"> lib_path to the library source file</param>
+        /// <exception cref="AquilaExceptions.LibraryLoadingFailedError"> Library load failed</exception>
+        public static void loadLibrary(string lib_path)
+        {
+            Debugging.print("loading lib: " + lib_path);
+            // generate the Algorithm
+            Algorithm algo = algorithmFromSrcCode(lib_path, default_name : $"use-header-file \"{lib_path}\"");
+            // try loading the library
+            try
+            {
+                algo.run();
+            }
+            catch (Exception e)
+            {
+                throw new AquilaExceptions.LibraryLoadingFailedError($"Unable to load library at \"{lib_path}\" because of: " + e.Message);
+            }
+
+            Debugging.print("finished loading lib: " + lib_path);
         }
 
         /// <summary>
@@ -166,9 +189,7 @@ namespace Parser
 
         /// <summary>
         /// The interactive mode gives you a shell-like environment in which
-        /// you can code in Aquila. It is important to note that comments are not supported
-        /// if written on the same line as code. You comment lines have to start with the "//"
-        /// symbol. Multiple-line comments are not supported
+        /// you can code in Aquila.
         /// </summary>
         public static void interactiveMode(List<string> exec_lines = null, bool greeting = true)
         {
@@ -195,10 +216,10 @@ namespace Parser
                 if (new_line) Global.stdoutWrite(getInteractivePrefix() + " > ");
                 else Global.stdoutWrite(getInteractivePrefix() + " - ");
                 string input = Console.ReadLine();
-
+                if (StringUtils.normalizeWhiteSpaces(input) == "") continue;
+                if (StringUtils.normalizeWhiteSpaces(input) == "") continue;
+                input = StringUtils.removeComments(input);
                 input = StringUtils.normalizeWhiteSpaces(input);
-
-                if (input == "" || input.StartsWith("//")) continue;
 
                 if (input == "exit")
                 {
@@ -303,6 +324,7 @@ namespace Parser
                         "trace_info", "trace_uniq_stacks", "rewind %n %var_name", "peek_event $%traced_value", // trace
                         "get_context", "set_status", "set_info_null", "reset_context", // context
                         "scope_info", // scope
+                        "show-settings", // settings
                     })
                     {
                         Global.stdoutWriteLine("  -> " + command);
@@ -315,17 +337,22 @@ namespace Parser
                     return false;
                 case "vars":
                 {
+                    Global.stdoutWriteLine("Global Variables:");
+                    foreach (var pair in Global.getGlobalVariables())
+                    {
+                        Global.stdoutWriteLine("\t" + pair.Key + " : " + pair.Value.ToString());
+                    }
                     int i = 0;
+                    Global.stdoutWriteLine("Local Scope Variables:");
                     foreach (var dict in Global.getCurrentDictList())
                     {
+                        i++;
                         foreach (var pair in dict)
                         {
                             Global.stdoutWrite(new string('\t', i));
                             Global.stdoutWrite(pair.Key + " : ");
                             Global.stdoutWriteLine(pair.Value.ToString());
                         }
-
-                        i++;
                     }
                     
                     return false;
@@ -414,6 +441,13 @@ namespace Parser
                     Global.stdoutWriteLine("main scope depth: " + Global.getMainScopeDepth());
 
                     return false;
+                case "show-settings":
+                    foreach (var pair in Global.getSettings())
+                    {
+                        Global.stdoutWriteLine($" - {pair.Key} : {pair.Value}");
+                    }
+
+                    return false;
             }
 
             if (input[0] == '$' && Global.variableExistsInCurrentScope(input.Substring(1)))
@@ -446,8 +480,10 @@ namespace Parser
                     Variable var_ = Global.variableFromName(var_name);
                     Global.stdoutWriteLine("name     : " + var_.getName());
                     Global.stdoutWriteLine("type     : " + var_.getTypeString());
-                    Global.stdoutWriteLine("value    : " + var_);
+                    Global.stdoutWriteLine("const    : " + var_.isConst());
                     Global.stdoutWriteLine("assigned : " + var_.assigned);
+                    Global.stdoutWriteLine("value    : " + var_);
+                    Global.stdoutWriteLine("traced   : " + var_.isTraced());
                 }
                 return false;
             }
@@ -475,7 +511,7 @@ namespace Parser
                     var_.tracer.rewind(n);
                     return false;
                 }
-                
+
                 Global.stdoutWriteLine("split count does not match 3");
                 return false;
             }
@@ -489,12 +525,13 @@ namespace Parser
                     Global.stdoutWriteLine("Variable is not traced! Use the \"trace\" instruction to start tracing variables");
                     return false;
                 }
+
                 Alteration alter = var_.tracer.peekEvent().alter;
                 Global.stdoutWriteLine("name         : " + alter.name);
                 Global.stdoutWriteLine("variable     : " + alter.affected.getName());
                 Global.stdoutWriteLine("main value   : " + StringUtils.dynamic2Str(alter.main_value));
                 Global.stdoutWriteLine("num minor    : " + alter.minor_values.Length);
-                Global.stdoutWriteLine("minor values : " + StringUtils.dynamic2Str(alter.minor_values));
+                Global.stdoutWriteLine("minor values : " + StringUtils.dynamic2Str(alter.main_value));
                 Global.stdoutWriteLine("stack count  : " + var_.tracer.getStackCount());
                 Global.stdoutWriteLine("updated      : " + var_.tracer.last_stack_count);
 
