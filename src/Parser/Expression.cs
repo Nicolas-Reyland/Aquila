@@ -88,10 +88,7 @@ namespace Parser
             // now that lists are over, check for redundant brackets
             expr_string = StringUtils.removeRedundantMatchingDelimiters(expr_string, '[', ']');
 
-            if (expr_string == null)
-            {
-                throw Global.aquilaError();
-            }
+            if (expr_string == null) throw new AquilaExceptions.SyntaxExceptions.SyntaxError("Null Expression");
 
             Debugging.assert(expr_string != ""); //! NullValue here, instead of Exception
 
@@ -146,18 +143,21 @@ namespace Parser
                 string opposite_sign_expr = expr_string.Substring(1); // take away the "-"
                 Variable opposite_sign_var = parse(opposite_sign_expr);
                 Debugging.print("evaluated expression without the \"-\" symbol is of type ", opposite_sign_var.getTypeString(), " and value ", opposite_sign_var.getValue());
-                if (opposite_sign_var is Integer)
+                switch (opposite_sign_var)
                 {
-                    int signed_value = -1 * opposite_sign_var.getValue();
-                    return new Integer(signed_value);
+                    case Integer _:
+                    {
+                        int signed_value = -1 * opposite_sign_var.getValue();
+                        return new Integer(signed_value);
+                    }
+                    case FloatVar _:
+                    {
+                        float signed_value = -1 * opposite_sign_var.getValue();
+                        return new FloatVar(signed_value);
+                    }
+                    default:
+                        throw new AquilaExceptions.InvalidTypeError($"Cannot cast \"-\" on a {opposite_sign_var.getTypeString()} variable");
                 }
-                if (opposite_sign_var is FloatVar)
-                {
-                    float signed_value = -1 * opposite_sign_var.getValue();
-                    return new FloatVar(signed_value);
-                }
-
-                throw Global.aquilaError();
             }
 
             Debugging.print("AL operations ?");
@@ -319,11 +319,12 @@ namespace Parser
         /// Applies an arithmetical or logical operation on two <see cref="Variable"/>s
         /// <para/>result = (variable1) op (variable2)
         /// </summary>
-        /// <param name="v1"> <see cref="Variable"/> 1</param>
-        /// <param name="v2"> <see cref="Variable"/> 2</param>
-        /// <param name="op"> operator char</param>
+        /// <param name="v1"> var 1</param>
+        /// <param name="v2"> var 2</param>
+        /// <param name="op"> operator (e.g. '+', '-', '&')</param>
         /// <returns> result <see cref="Variable"/></returns>
-        /// <exception cref="Global.aquilaError"></exception>
+        /// <exception cref="AquilaExceptions.InvalidTypeError"> Invalid type with this operator</exception>
+        /// <exception cref="AquilaExceptions.SyntaxExceptions.SyntaxError"> Unknown operator char</exception>
         private static Variable applyOperator(Variable v1, Variable v2, char op)
         {
             int comparison;
@@ -359,7 +360,7 @@ namespace Parser
                     }
                     else
                     {
-                        throw Global.aquilaError(); // TypeError
+                        throw new AquilaExceptions.InvalidTypeError($"Invalid type \"{v1.getTypeString()}\" with operator \"{op}\"");
                     }   
                 case '-':
                     if (v1 is Integer)
@@ -372,7 +373,7 @@ namespace Parser
                     }
                     else
                     {
-                        throw Global.aquilaError(); // TypeError
+                        throw new AquilaExceptions.InvalidTypeError($"Invalid type \"{v1.getTypeString()}\" with operator \"{op}\"");
                     }
                 case '/':
                     if (v1 is Integer)
@@ -385,7 +386,7 @@ namespace Parser
                     }
                     else
                     {
-                        throw Global.aquilaError(); // TypeError
+                        throw new AquilaExceptions.InvalidTypeError($"Invalid type \"{v1.getTypeString()}\" with operator \"{op}\"");
                     }
                 case '*':
                     if (v1 is Integer)
@@ -398,7 +399,7 @@ namespace Parser
                     }
                     else
                     {
-                        throw Global.aquilaError(); // TypeError
+                        throw new AquilaExceptions.InvalidTypeError($"Invalid type \"{v1.getTypeString()}\" with operator \"{op}\"");
                     }
                 case '%':
                     if (v1 is Integer)
@@ -407,7 +408,7 @@ namespace Parser
                     }
                     else
                     {
-                        throw Global.aquilaError(); // TypeError
+                        throw new AquilaExceptions.InvalidTypeError($"Invalid type \"{v1.getTypeString()}\" with operator \"{op}\"");
                     }
                 // logic
                 case '<':
@@ -456,7 +457,7 @@ namespace Parser
                     Debugging.assert(v1 is BooleanVar);
                     return ((BooleanVar) v1).and((BooleanVar) v2);
                 default:
-                    throw Global.aquilaError(); // Operation is not implemented ?
+                    throw new AquilaExceptions.SyntaxExceptions.SyntaxError("Unknown operand " + op);
             }
         }
     }

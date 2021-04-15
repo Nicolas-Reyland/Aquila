@@ -83,13 +83,13 @@ namespace Parser
         /// Initializes a new Main Context Stack, as well as a new Local Context Stack with the given variables
         /// </summary>
         /// <param name="args"> Given variables. Accessible in the Context Stack</param>
-        /// <exception cref="Exception"> If not a recursive function, already executing this very function</exception>
+        /// <exception cref="Context.ContextException"> If not a recursive function, already executing this very function</exception>
         private void initialize(Dictionary<string, Variable> args)
         {
             _call_depth++;
             Debugging.print("calling function with depth: ", _call_depth);
             // Debugging.assert(Global.getSetting("flame mode") || Context.isFrozen());
-            if (!_rec_function && _in_function_scope) throw Global.aquilaError("Already in function scope. Missing \"recursive\" keyword ?");// recursive ?
+            if (!_rec_function && _in_function_scope) throw new Context.ContextException("Already in function scope. Missing \"recursive\" keyword ?");// recursive ?
             
             // new local context scope using custom function args
             Global.newLocalContextScope(args);
@@ -590,11 +590,11 @@ namespace Parser
         /// </summary>
         /// <param name="expr"> <see cref="Expression"/> resulting in a <see cref="float"/> value</param>
         /// <returns> The new <see cref="Integer"/></returns>
-        /// <exception cref="Exception"> The value is not a <see cref="float"/></exception>
+        /// <exception cref="AquilaExceptions.InvalidTypeError"> The value is not a <see cref="float"/> or the cast failed internally</exception>
         private static Variable float2intFunction(Expression expr)
         {
             dynamic value = expr.evaluate().getValue();
-            if (!(value is float)) throw Global.aquilaError($"Type should be float but is {value.GetType()}");
+            if (!(value is float)) throw new AquilaExceptions.InvalidTypeError($"Type should be float but is {value.GetType()}");
             try
             {
                 // ReSharper disable once PossibleInvalidCastException
@@ -602,7 +602,7 @@ namespace Parser
             }
             catch (InvalidCastException)
             {
-                throw Global.aquilaError("The cast did not succeed (float to int)");
+                throw new AquilaExceptions.InvalidTypeError("The cast did not succeed (float to int)"); //! RuntimeError instead ?
             }
         }
 
@@ -612,11 +612,11 @@ namespace Parser
         /// </summary>
         /// <param name="expr"> <see cref="Expression"/> resulting in an <see cref="int"/></param>
         /// <returns> The new <see cref="FloatVar"/></returns>
-        /// <exception cref="Exception"> The value is not an <see cref="int"/></exception>
+        /// <exception cref="AquilaExceptions.InvalidTypeError"> The value is not an <see cref="int"/></exception>
         private static Variable int2floatFunction(Expression expr)
         {
             dynamic value = expr.evaluate().getValue();
-            if (!(value is int)) throw Global.aquilaError($"Type should be int but is {value.GetType()}");
+            if (!(value is int)) throw new AquilaExceptions.InvalidTypeError($"Type should be int but is {value.GetType()}");
             // ReSharper disable once PossibleInvalidCastException
             return new FloatVar((float) value);
         }
@@ -662,7 +662,8 @@ namespace Parser
         /// </summary>
         /// <param name="name"> The function name (key)</param>
         /// <param name="args"> The arguments for you function</param>
-        /// <returns></returns>
+        /// <returns> Returned value from the function</returns>
+        /// <exception cref="AquilaExceptions.FunctionNameError"> Function does not exist</exception>
         public static Variable callFunctionByName(string name, params object[] args)
         {
             if (functions_dict.ContainsKey(name))
@@ -688,7 +689,7 @@ namespace Parser
                 return result;
             }
 
-            throw Global.aquilaError(); // UnknownFunctionNameException
+            throw new AquilaExceptions.FunctionNameError($"Function \"{name}\" does not exist");
         }
 
         /// <summary>

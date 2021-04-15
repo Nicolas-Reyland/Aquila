@@ -42,12 +42,6 @@ namespace Parser
         /// </summary>
         public class BreakException : Exception
         {
-            /// <summary>
-            /// Raised by the "break()" function in Aquila
-            /// </summary>
-            public BreakException() : base()
-            {
-            }
         }
 
         /// <summary>
@@ -55,12 +49,6 @@ namespace Parser
         /// </summary>
         public class ContinueException : Exception
         {
-            /// <summary>
-            /// Raised by the "continue()" function in Aquila
-            /// </summary>
-            public ContinueException() : base()
-            {
-            }
         }
 
         /// <summary>
@@ -74,24 +62,123 @@ namespace Parser
             public InvalidScopeResetError()
             {
             }
+            
+            /// <summary>
+            /// Raised when the Local or Main scope is getting reset when it shouldn't
+            /// </summary>
+            public InvalidScopeResetError(string message) : base(message)
+            {
+            }
         }
     }
+    
     /// <summary>
     /// This holds all the defined custom <see cref="Exception"/>s in Aquila.
     /// All the other <see cref="Exception"/>s will be raised as raw <see cref="Exception"/>s
     /// </summary>
     internal static class AquilaExceptions // Aquila -> name of the programming language
     {
-        public class UnknownKeywordError : Exception
+        /// <summary>
+        /// Syntactic exceptions are all the Exceptions that occur when reading pure code.
+        /// They are basically unclosed brackets, parentheses or incomprehensible instructions
+        /// </summary>
+        internal static class SyntaxExceptions
         {
-            public UnknownKeywordError()
+            /// <summary>
+            /// This <see cref="Exception"/> is raised when a sentence (instruction, expression, etc) is not understood
+            /// </summary>
+            public class SyntaxError : Exception
             {
+                /// <summary>
+                /// Usage: throw new AquilaExceptions.SyntaxExceptions.SyntaxError($"The sentence \"{sentence}\" is not understood");
+                /// </summary>
+                /// <param name="message"></param>
+                public SyntaxError(string message) : base(message)
+                {
+                }
+            }
+            
+            /// <summary>
+            /// This <see cref="Exception"/> is raised when a tag (comment tag, parenthesis, bracket, etc.) does not have a corresponding closing tag
+            /// </summary>
+            public class UnclosedTagError : Exception
+            {
+                /// <summary>
+                /// Usage: throw new AquilaExceptions.SyntaxExceptions.UnclosedTagError("Unclosed parenthesis");
+                /// </summary>
+                /// <param name="message"> Error message</param>
+                public UnclosedTagError(string message) : base(message)
+                {
+                }
             }
 
+            /// <summary>
+            /// This <see cref="Exception"/> is raised when list expression is invalid
+            /// </summary>
+            public class InvalidListExpressionError : Exception
+            {
+                /// <summary>
+                /// Usage: throw new AquilaExceptions.SyntaxExceptions.InvalidListExpressionError($"List expression: \"{list_expr}\" is invalid");
+                /// </summary>
+                /// <param name="message"> Error message</param>
+                public InvalidListExpressionError(string message) : base(message)
+                {
+                }
+                
+                /// <summary>
+                /// Used indirectly by other, external, <see cref="Exception"/>s
+                /// </summary>
+                /// <param name="message"> Error message</param>
+                /// <param name="inner"> Inner <see cref="Exception"/> instance</param>
+                public InvalidListExpressionError(string message, Exception inner) : base(message, inner)
+                {
+                }
+            }
+        }
+
+        /// <summary>
+        /// This <see cref="Exception"/> is raised when the Runtime Environment finds itself in a state where
+        /// it cannot continue code execution. This Error is not caused by the code directly, but by a bug
+        /// in the Interpreter itself
+        /// </summary>
+        public class RuntimeError : Exception
+        {
+            /// <summary>
+            /// Usage: throw new AquilaExceptions.UnknownKeywordError("The inner ReturnValueException in the TargetInvocationException is null");
+            /// </summary>
+            /// <param name="message">Error message</param>
+            public RuntimeError(string message) : base(message)
+            {
+            }
+            
+            /// <summary>
+            /// Used indirectly by other, external, <see cref="Exception"/>s
+            /// </summary>
+            /// <param name="message"> Error message</param>
+            /// <param name="inner"> Inner <see cref="Exception"/> instance</param>
+            public RuntimeError(string message, Exception inner) : base(message, inner)
+            {
+            }
+        }
+        
+        /// <summary>
+        /// This <see cref="Exception"/> is raised when an unknown instruction keyword is used in the code
+        /// </summary>
+        public class UnknownKeywordError : Exception
+        {
+            /// <summary>
+            /// Usage: throw new AquilaExceptions.UnknownKeywordError($"The keyword\"{keyword}\" is unknown");
+            /// </summary>
+            /// <param name="message"> Error message</param>
             public UnknownKeywordError(string message) : base(message)
             {
             }
-
+    
+            /// <summary>
+            /// Used indirectly by other, external, <see cref="Exception"/>s
+            /// </summary>
+            /// <param name="message"> Error message</param>
+            /// <param name="inner"> Inner <see cref="Exception"/> instance</param>
             public UnknownKeywordError(string message, Exception inner) : base(message, inner)
             {
             }
@@ -105,13 +192,6 @@ namespace Parser
         /// </summary>
         public class InvalidTypeError : Exception
         {
-            /// <summary>
-            /// Usage: throw new AquilaExceptions.InvalidTypeError();
-            /// </summary>
-            public InvalidTypeError()
-            {
-            }
-
             /// <summary>
             /// Usage: throw new AquilaExceptions.InvalidTypeError($"The type \"{var_type}\" was not expected");
             /// </summary>
@@ -129,39 +209,6 @@ namespace Parser
             {
             }
         }
-
-        /// <summary>
-        /// This <see cref="Exception"/> is raised when an invalid variable classifier is used
-        /// <para/>Example trigger cases:
-        /// <para/>* decl int x random // a random number cannot be a constant
-        /// <para/>* a variable declaration using the value of an argument in a function
-        /// </summary>
-        public class InvalidVariableClassifier : Exception
-        {
-            /// <summary>
-            /// Usage: throw new AquilaExceptions.InvalidVariableClassifier();
-            /// </summary>
-            public InvalidVariableClassifier()
-            {
-            }
-
-            /// <summary>
-            /// Usage: throw new AquilaExceptions.InvalidVariableClassifier($"The \"{var_classifier}\" was unexpected in this context");
-            /// </summary>
-            /// <param name="message"> Error message</param>
-            public InvalidVariableClassifier(string message) : base(message)
-            {
-            }
-
-            /// <summary>
-            /// Used indirectly by other, external, <see cref="Exception"/>s
-            /// </summary>
-            /// <param name="message"> Error message</param>
-            /// <param name="inner"> Inner <see cref="Exception"/> instance</param>
-            public InvalidVariableClassifier(string message, Exception inner) : base(message, inner)
-            {
-            }
-        }
         
         /// <summary>
         /// This <see cref="Exception"/> is raised when a variable type name is not recognized
@@ -171,13 +218,6 @@ namespace Parser
         /// </summary>
         public class UnknownTypeError : Exception
         {
-            /// <summary>
-            /// Usage: throw new AquilaExceptions.UnknownTypeError();
-            /// </summary>
-            public UnknownTypeError()
-            {
-            }
-
             /// <summary>
             /// Usage: throw new AquilaExceptions.UnknownTypeError($"The type \"{var_type}\" is not recognized");
             /// </summary>
@@ -197,6 +237,32 @@ namespace Parser
         }
 
         /// <summary>
+        /// This <see cref="Exception"/> is raised when an invalid variable classifier is used
+        /// <para/>Example trigger cases:
+        /// <para/>* decl int x random // a random number cannot be a constant
+        /// <para/>* a variable declaration using the value of an argument in a function
+        /// </summary>
+        public class InvalidVariableClassifierException : Exception
+        {
+            /// <summary>
+            /// Usage: throw new AquilaExceptions.InvalidVariableClassifierException($"The \"{var_classifier}\" was unexpected in this context");
+            /// </summary>
+            /// <param name="message"> Error message</param>
+            public InvalidVariableClassifierException(string message) : base(message)
+            {
+            }
+
+            /// <summary>
+            /// Used indirectly by other, external, <see cref="Exception"/>s
+            /// </summary>
+            /// <param name="message"> Error message</param>
+            /// <param name="inner"> Inner <see cref="Exception"/> instance</param>
+            public InvalidVariableClassifierException(string message, Exception inner) : base(message, inner)
+            {
+            }
+        }
+
+        /// <summary>
         /// This <see cref="Exception"/> is raised when a variable name does not exist in the current context
         /// <para/>Example trigger cases:
         /// <para/>* decl auto var $var2 // when "var2" does was never declared
@@ -204,13 +270,6 @@ namespace Parser
         /// </summary>
         public class NameError : Exception
         {
-            /// <summary>
-            /// Usage: throw new AquilaExceptions.NameError();
-            /// </summary>
-            public NameError()
-            {
-            }
-            
             /// <summary>
             /// Usage: throw new AquilaExceptions.NameError($"The variable \"{var_name}\"" does not exist in the current Context");
             /// </summary>
@@ -234,13 +293,6 @@ namespace Parser
         /// </summary>
         public class FunctionNameError : Exception
         {
-            /// <summary>
-            /// Usage: throw new AquilaExceptions.FunctionNameError();
-            /// </summary>
-            public FunctionNameError()
-            {
-            }
-            
             /// <summary>
             /// Usage: throw new AquilaExceptions.FunctionNameError($"The function \"{function_name}\" does not exist");
             /// </summary>
@@ -266,13 +318,6 @@ namespace Parser
         public class ZeroDivisionException : Exception
         {
             /// <summary>
-            /// Usage: throw new AquilaExceptions.ZeroDivisionException();
-            /// </summary>
-            public ZeroDivisionException()
-            {
-            }
-
-            /// <summary>
             /// Usage: throw new AquilaExceptions.ZeroDivisionException("Cannot divide by Zero");
             /// </summary>
             /// <param name="message"> Error message</param>
@@ -295,13 +340,6 @@ namespace Parser
         /// </summary>
         public class LibraryLoadingFailedError : Exception
         {
-            /// <summary>
-            /// Usage: throw new AquilaExceptions.LibraryLoadingFailedError();
-            /// </summary>
-            public LibraryLoadingFailedError()
-            {
-            }
-
             /// <summary>
             /// Usage: throw new AquilaExceptions.LibraryLoadingFailedError($"Unable to load library at \"{lib_path}\");
             /// </summary>
@@ -326,13 +364,6 @@ namespace Parser
         public class UnknownMacroError : Exception
         {
             /// <summary>
-            /// Usage: throw new AquilaExceptions.UnknownMacroError();
-            /// </summary>
-            public UnknownMacroError()
-            {
-            }
-
-            /// <summary>
             /// Usage: throw new AquilaExceptions.UnknownMacroError($"Macro keyword \"{macro_keyword}\" is unknown");
             /// </summary>
             /// <param name="message"> Error message</param>
@@ -351,31 +382,47 @@ namespace Parser
         }
 
         /// <summary>
-        /// This <see cref="Exception"/> is raised when a tag (comment tag, parenthesis, bracket, etc.) does not have a corresponding closing tag
+        /// This <see cref="Exception"/> is raised when a variable or function is not used in the right way
         /// </summary>
-        public class UnclosedTagError : Exception
+        public class InvalidUsageException : Exception
         {
             /// <summary>
-            /// Usage: throw new AquilaExceptions.UnclosedTagError();
+            /// Usage: throw new AquilaExceptions.InvalidUsageException($"The variable \"{var_name}\" is not assigned but its value is accessed");
             /// </summary>
-            public UnclosedTagError()
+            /// <param name="message"></param>
+            public InvalidUsageException(string message) : base(message)
             {
             }
-
-            /// <summary>
-            /// Usage: throw new AquilaExceptions.UnclosedTagError("Unclosed parenthesis");
-            /// </summary>
-            /// <param name="message"> Error message</param>
-            public UnclosedTagError(string message) : base(message)
-            {
-            }
-
+            
             /// <summary>
             /// Used indirectly by other, external, <see cref="Exception"/>s
             /// </summary>
             /// <param name="message"> Error message</param>
             /// <param name="inner"> Inner <see cref="Exception"/> instance</param>
-            public UnclosedTagError(string message, Exception inner) : base(message, inner)
+            public InvalidUsageException(string message, Exception inner) : base(message, inner)
+            {
+            }
+        }
+
+        /// <summary>
+        /// This <see cref="Exception"/> is raised when the index to access a list is out of the list's bounds
+        /// </summary>
+        public class InvalidIndexException : Exception
+        {
+            /// <summary>
+            /// Usage: throw new AquilaExceptions.InvalidIndexException($"Index {index} out of bounds");
+            /// </summary>
+            /// <param name="message"></param>
+            public InvalidIndexException(string message) : base(message)
+            {
+            }
+            
+            /// <summary>
+            /// Used indirectly by other, external, <see cref="Exception"/>s
+            /// </summary>
+            /// <param name="message"> Error message</param>
+            /// <param name="inner"> Inner <see cref="Exception"/> instance</param>
+            public InvalidIndexException(string message, Exception inner) : base(message, inner)
             {
             }
         }

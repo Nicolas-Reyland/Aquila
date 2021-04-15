@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 
@@ -157,10 +156,10 @@ namespace Parser
         /// Before using the variable and its value, check if the variable has
         /// been assigned to a value (and not only declared)
         /// </summary>
-        /// <exception cref="Exception"></exception>
+        /// <exception cref="AquilaExceptions.InvalidUsageException"> Variable is not assigned</exception>
         internal void assertAssignment()
         {
-            if (!assigned) throw Global.aquilaError(); // AssignmentError
+            if (!assigned) throw new AquilaExceptions.InvalidUsageException($"The variable \"{_name}\" is not assigned but its value is accessed"); // AssignmentError
         }
         /// <summary>
         /// Compare two variables of the same type. If they
@@ -177,14 +176,14 @@ namespace Parser
         /// </summary>
         /// <param name="o"> value to interpret as a <see cref="Variable"/></param>
         /// <returns> corresponding <see cref="Variable"/></returns>
-        /// <exception cref="NotImplementedException"></exception>
+        /// <exception cref="AquilaExceptions.RuntimeError"> Raw type not supported</exception>
         public static Variable fromRawValue(dynamic o)
         {
             if (o is int) return new Integer(o);
             if (o is float) return new FloatVar(o);
             if (o is bool) return new BooleanVar(o);
             if (o is List<dynamic>) return new DynamicList(DynamicList.valueFromRawList(o));
-            throw Global.aquilaError();//"unsupported raw variable type: " + o.GetType());
+            throw new AquilaExceptions.RuntimeError($"Raw type \"{o.GetType()}\" not supported");
         }
     }
 
@@ -199,25 +198,26 @@ namespace Parser
         /// </summary>
         /// <param name="value"> Value</param>
         /// <returns> Error thrown</returns>
-        public override Variable cloneTypeToVal(dynamic value) => throw Global.aquilaError(); // wtf
+        public override Variable cloneTypeToVal(dynamic value) =>
+            throw new AquilaExceptions.InvalidUsageException("Cannot use the null var this way");
 
         /// <summary>
         /// Should never be called on a <see cref="NullVar"/>
         /// </summary>
         /// <returns> Error thrown</returns>
-        public override dynamic getValue() => throw Global.aquilaError(); // RuntimeError (never supposed to happen whatsoever)
+        public override dynamic getValue() => throw new AquilaExceptions.InvalidUsageException("Cannot use the null var this way"); // RuntimeError (never supposed to happen whatsoever)
 
         /// <summary>
         /// Should never be called on a <see cref="NullVar"/>
         /// </summary>
         /// <param name="other_value"> Other value</param>
-        public override void setValue(Variable other_value) => throw Global.aquilaError(); // RuntimeError (never supposed to happen whatsoever)
+        public override void setValue(Variable other_value) => throw new AquilaExceptions.InvalidUsageException("Cannot use the null var this way"); // RuntimeError (never supposed to happen whatsoever)
 
         /// <summary>
         /// Should never be called on a <see cref="NullVar"/>
         /// </summary>
         /// <param name="value"> Value</param>
-        public override void forceSetValue(dynamic value) => throw Global.aquilaError();
+        public override void forceSetValue(dynamic value) => throw new AquilaExceptions.InvalidUsageException("Cannot use the null var this way");
 
         /// <summary>
         /// We are considering that every <see cref="Variable"/> is also a <see cref="NullVar"/>.
@@ -244,7 +244,7 @@ namespace Parser
         /// </summary>
         /// <param name="other"></param>
         /// <returns></returns>
-        public override int compare(Variable other) => throw Global.aquilaError();
+        public override int compare(Variable other) => throw new AquilaExceptions.InvalidUsageException("Cannot use the null var this way");
     }
 
     public sealed class BooleanVar : Variable
@@ -288,7 +288,7 @@ namespace Parser
 
         public override Variable cloneTypeToVal(dynamic value) => new BooleanVar(value);
 
-        public override dynamic getValue() => assigned ? _bool_value : throw Global.aquilaError(); // AssignmentError
+        public override dynamic getValue() => assigned ? _bool_value : throw new AquilaExceptions.InvalidUsageException("Unassigned variable");
 
         public override void setValue(Variable other_value)
         {
@@ -325,7 +325,7 @@ namespace Parser
 
         public override Variable cloneTypeToVal(dynamic value)=>  new Integer(value);
 
-        public override dynamic getValue() => assigned ? _int_value : throw Global.aquilaError(); // AssignmentError
+        public override dynamic getValue() => assigned ? _int_value : throw new AquilaExceptions.InvalidUsageException("Unassigned variable"); // AssignmentError
 
         public Integer modulo(Integer other)
         {
@@ -350,7 +350,7 @@ namespace Parser
         {
             assertAssignment();
             int other_value = other.getValue();
-            Debugging.assert(other_value != 0, new AquilaExceptions.ZeroDivisionException());
+            Debugging.assert(other_value != 0, new AquilaExceptions.ZeroDivisionException($"{_int_value} / {other_value}"));
             return new Integer(_int_value / other.getValue(), is_const && other.is_const);
         }
 
@@ -409,7 +409,7 @@ namespace Parser
 
         public override Variable cloneTypeToVal(dynamic value) => new FloatVar(value);
 
-        public override dynamic getValue() => assigned ? _float_value : throw Global.aquilaError();
+        public override dynamic getValue() => assigned ? _float_value : throw new AquilaExceptions.InvalidUsageException("Unassigned variable");
 
         public override void setValue(Variable other_value)
         {
@@ -455,7 +455,7 @@ namespace Parser
         {
             assertAssignment();
             float other_value = other.getValue();
-            Debugging.assert(other_value != 0, new AquilaExceptions.ZeroDivisionException());
+            Debugging.assert(other_value != 0, new AquilaExceptions.ZeroDivisionException($"{_float_value} / {other_value}"));
             return new FloatVar(_float_value / other_value, is_const && other.is_const);
         }
 
@@ -492,7 +492,7 @@ namespace Parser
             return raw_value;
         }
 
-        public Integer length() => assigned ? new Integer(_list.Count) : throw Global.aquilaError(); // AssignmentError
+        public Integer length() => assigned ? new Integer(_list.Count) : throw new AquilaExceptions.InvalidUsageException("Unassigned variable"); // AssignmentError
 
         public void validateIndex(Integer index)
         {
@@ -505,7 +505,7 @@ namespace Parser
             assertAssignment();
             int i = index.getValue();
             if (i < 0) i += _list.Count;
-            if (i < 0) throw Global.aquilaError();
+            if (i < 0) throw new AquilaExceptions.InvalidIndexException($"Index {index} out of bounds");
             return _list.ElementAt(i);
         }
 
@@ -548,7 +548,7 @@ namespace Parser
             }
             else
             {
-                throw Global.aquilaError(); // InvalidIndexException
+                throw new AquilaExceptions.InvalidIndexException($"Index {index} out of bounds");
             }
             trace("removeValue", new dynamic[] { index.getRawValue() });
         }
@@ -572,7 +572,7 @@ namespace Parser
             }
             else
             {
-                throw Global.aquilaError();//"unsupported list raw data type: " + value);
+                throw new AquilaExceptions.RuntimeError($"Cannot convert type \"{value.GetType()}\" into DynamicList");
             }
         }
 
@@ -664,22 +664,20 @@ namespace Parser
             return result;
         }
 
-        public override Variable cloneTypeToVal(dynamic value) => throw Global.aquilaError();
+        public override Variable cloneTypeToVal(dynamic value) => throw new AquilaExceptions.InvalidUsageException("Cannot use a function this way");
 
         public override dynamic getValue() => callFunction().getValue();
 
-        public override void setValue(Variable other_value)
-        {
-            throw Global.aquilaError(); // should never set a value to a function call
-        }
+        public override void setValue(Variable other_value) =>
+            throw new AquilaExceptions.InvalidUsageException("Cannot use a function this way");
 
-        public override void forceSetValue(dynamic value) => throw Global.aquilaError();
+        public override void forceSetValue(dynamic value) => throw new AquilaExceptions.InvalidUsageException("Cannot use a function this way");
 
         public bool hasBeenCalled() => _called;
 
         public override bool hasSameParent(Variable other_value) => other_value is FunctionCall || other_value is NullVar;
 
-        public override int compare(Variable other) => throw Global.aquilaError();
+        public override int compare(Variable other) => throw new AquilaExceptions.InvalidUsageException("Cannot use a function this way");
 
         public override string getTypeString() => "val_func";
     }

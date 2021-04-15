@@ -25,7 +25,7 @@ namespace Parser
         /// <summary>
         /// The line of pseudo-code represented by the <see cref="RawInstruction"/>
         /// </summary>
-        private string _instr;
+        private readonly string _instr;
 
         /// <summary>
         /// Line index of this RawInstruction in the Source Code
@@ -148,7 +148,7 @@ namespace Parser
         /// <param name="line_index"> index of the line in the purged source code</param>
         /// <param name="raw_instr"> a <see cref="RawInstruction"/> to convert</param>
         /// <returns> the corresponding <see cref="Instruction"/></returns>
-        /// <exception cref="Global.aquilaError"></exception>
+        /// <exception cref="AquilaExceptions.SyntaxExceptions.SyntaxError"> Invalid syntax</exception>
         private static Instruction rawInstr2Instr(int line_index, RawInstruction raw_instr)
         {
             /* Order of operations:
@@ -190,12 +190,12 @@ namespace Parser
                 // "decl type name" or "global safe const decl type name value"
                 if (instr.Count < 3 || instr.Count > 7)
                 {
-                    throw Global.aquilaError();
+                    throw new AquilaExceptions.SyntaxExceptions.SyntaxError($"Word count mismatch in \"{raw_instr._instr}\" for declaration");
                 }
                 
                 // declaration modes
                 bool safe_mode = false,
-                    overwite = false,
+                    overwrite = false,
                     constant = false,
                     global = false;
                 while (instr[0] != "decl")
@@ -207,7 +207,7 @@ namespace Parser
                             Debugging.print("safe mode !");
                             break;
                         case "overwrite":
-                            overwite = true;
+                            overwrite = true;
                             Debugging.print("overwrite !");
                             break;
                         case "const":
@@ -238,11 +238,11 @@ namespace Parser
                     Expression default_value = Global.default_values_by_var_type[instr[1]];
                     return new Declaration(line_index,
                             instr[2],
-                            new Expression(instr[3]),
+                            instr.Count < 4 ? default_value : new Expression(instr[3]),
                             instr[1],
-                            true,
+                            instr.Count > 3,
                             safe_mode,
-                            overwite,
+                            overwrite,
                             constant,
                             global);
                 }
@@ -251,7 +251,7 @@ namespace Parser
                 string var_name = instr[1];
                 string var_value = instr[2];
 
-                return new Declaration(line_index, var_name, new Expression(var_value), "auto", true, safe_mode, overwite, constant, global);
+                return new Declaration(line_index, var_name, new Expression(var_value), "auto", true, safe_mode, overwrite, constant, global);
             }
 
             Debugging.print("assignment ?");
@@ -426,7 +426,7 @@ namespace Parser
             }
 
             Debugging.print("unrecognized line: \"", raw_instr._instr, "\"");
-            throw Global.aquilaError();
+            throw new AquilaExceptions.SyntaxExceptions.SyntaxError($"Unknown syntax \"{raw_instr._instr}\"");
         }
     }
 }

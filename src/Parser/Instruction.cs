@@ -337,7 +337,7 @@ namespace Parser
                 }
                 else
                 {
-                    throw new AquilaExceptions.InvalidVariableClassifier(
+                    throw new AquilaExceptions.InvalidVariableClassifierException(
                         "The \"const\" cannot be used when assigning to a non-const value");
                 }
             }
@@ -441,7 +441,7 @@ namespace Parser
             }
             else
             {
-                throw Global.aquilaError("You cannot change the type of your variables (" + variable.getTypeString() + " -> " + val.getTypeString() + "). This will never be supported because it would be considered bad style.");
+                throw new AquilaExceptions.InvalidTypeError("You cannot change the type of your variables (" + variable.getTypeString() + " -> " + val.getTypeString() + "). This will never be supported because it would be considered bad style.");
             }
 
             // update all tracers

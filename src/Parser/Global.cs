@@ -45,7 +45,7 @@ namespace Parser
             "for","end-for",
             "while", "end-while",
             "function", "end-function", "recursive",
-            "decl", "safe", "overwrite",
+            "decl", "safe", "overwrite", "global", "const",
             "trace",
             "null", "auto", "int", "float", "bool", "list",
         };
@@ -339,15 +339,6 @@ namespace Parser
         // ReSharper disable once UnassignedField.Global
         public static Func<Alteration, float> tracer_update_handler_function; // example: new Func<Alteration, bool>(graphicalFunction)
 #pragma warning restore 649
-
-        /// <summary>
-        /// Temporary function that should be used as follows:<para>throw Global.NIE();</para>
-        /// <para/> This should be used while there is no pseudo-code related Exception.
-        /// All the <see cref="aquilaError"/> calls should be later replaced by custom <see cref="Exception"/>s.
-        /// </summary>
-        /// <returns> new <see cref="NotImplementedException"/>("Error occurred. Custom Exceptions not implemented")</returns>
-        public static Exception aquilaError(string message = "") =>
-            new Exception("Error occurred. " + (message == "" ? "Custom Exception not implemented for this use case" : message));
 
         /// <summary>
         /// Reset the current Environment to zero

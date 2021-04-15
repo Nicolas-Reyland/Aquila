@@ -80,6 +80,7 @@ namespace Parser
         /// using <see cref="Expression.parse"/> on it (it is an <see cref="Expression"/>)
         /// </summary>
         /// <returns> The evaluated <see cref="_return_value"/> after all the <see cref="_instructions"/> have been executed</returns>
+        /// <exception cref="AquilaExceptions.RuntimeError"> ReturnValueException is null</exception>
         public Variable run()
         {
             try
@@ -101,10 +102,7 @@ namespace Parser
                         AquilaControlFlowExceptions.ReturnValueException exception =
                             (AquilaControlFlowExceptions.ReturnValueException) out_exception.InnerException;
 
-                        if (exception == null)
-                        {
-                            throw Global.aquilaError(); // something went wrong
-                        }
+                        if (exception == null) throw new AquilaExceptions.RuntimeError("The inner ReturnValueException in the TargetInvocationException is null"); // something went wrong
 
                         _return_value = new Expression(exception.getExprStr());
                         Context.reset();

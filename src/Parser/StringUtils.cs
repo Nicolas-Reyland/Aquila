@@ -207,7 +207,7 @@ namespace Parser
                 in_comment = 0;
             }
             // the single line comment is allowed, because everything on the same line after the original tag should get filtered out
-            if (in_comment > 1) throw new AquilaExceptions.UnclosedTagError("Unclosed multiple lines comment tag");
+            if (in_comment > 1) throw new AquilaExceptions.SyntaxExceptions.UnclosedTagError("Unclosed multiple lines comment tag");
 
             return filtered;
         }
@@ -226,7 +226,7 @@ namespace Parser
         /// <param name="opening"> opening char</param>
         /// <param name="closing"> closing char</param>
         /// <returns> index of corresponding (closing) char</returns>
-        /// <exception cref="Global.aquilaError"></exception>
+        /// <exception cref="AquilaExceptions.SyntaxExceptions.UnclosedTagError"> Unclosed tag in expression</exception>
         private static int findCorrespondingElementIndex(string s, int start_index, char opening, char closing)
         {
             int counter = 0;
@@ -250,7 +250,7 @@ namespace Parser
 
             Debugging.print("entry: \"" + s + "\" & counter: {0} & start_index: {1} & s.Length: {2}", counter, start_index, s.Length);
 
-            throw Global.aquilaError(); // no corresponding closing char: syntax
+            throw new AquilaExceptions.SyntaxExceptions.UnclosedTagError($"Unclosed tag in \"{s.Substring(start_index)}\""); // no corresponding closing char: syntax
         }
 
         /// <summary>
@@ -269,7 +269,7 @@ namespace Parser
         /// <param name="opening"> opening string</param>
         /// <param name="closing"> closing string</param>
         /// <returns> index of the corresponding (closing) string</returns>
-        /// <exception cref="Global.aquilaError"></exception>
+        /// <exception cref="AquilaExceptions.SyntaxExceptions.UnclosedTagError"> Tag was not closed</exception>
         public static int findCorrespondingElementIndex(List<string> lines, int start_index, string opening, string closing)
         {
             int counter = 0;
@@ -291,7 +291,7 @@ namespace Parser
                 }
             }
 
-            throw Global.aquilaError(); // no corresponding closing line: syntax
+            throw new AquilaExceptions.SyntaxExceptions.UnclosedTagError("Unclosed tag in lines");
         }
 
         /// <summary>

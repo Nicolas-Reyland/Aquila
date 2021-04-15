@@ -99,14 +99,14 @@ namespace Parser
         /// </summary>
         /// <param name="s"> string that describes a dynamic list</param>
         /// <returns> The <see cref="DynamicList"/> described by the given string</returns>
-        /// <exception cref="Global.aquilaError"></exception>
+        /// <exception cref="AquilaExceptions.SyntaxExceptions.InvalidListExpressionError"> Invalid list expression</exception>
         public static DynamicList string2DynamicList(string s)
         {
             s = s.Replace(" ", "");
             // ReSharper disable once UseIndexFromEndExpression
             if (s[0] != 91 || s[s.Length - 1] != 93)
             {
-                throw Global.aquilaError(); // NoMatchingTagError
+                throw new AquilaExceptions.SyntaxExceptions.UnclosedTagError($"Unclosed tag in \"{s}\"");
             }
 
             if (s == "[]")
@@ -126,7 +126,7 @@ namespace Parser
                     // ReSharper disable once UseIndexFromEndExpression
                     if (split[split.Length - 1] != 93)
                     {
-                        throw Global.aquilaError(); // syntax
+                        throw new AquilaExceptions.SyntaxExceptions.InvalidListExpressionError($"List expression: \"{s}\" is invalid");
                     }
                 }
                 list.addValue(Expression.parse(split));
