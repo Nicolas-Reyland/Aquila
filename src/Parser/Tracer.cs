@@ -249,6 +249,16 @@ namespace Parser
                     tracer.update(tracer._awaiting_events.Pop());
                 }
             }
+            
+            // update data_tree
+            printTrace("Updating Global.data_tree");
+            // ReSharper disable once InvertIf
+            if (Global.getSetting("update data tree"))
+            {
+                Debugging.assert(Global.data_tree != null,
+                    new AquilaExceptions.RuntimeError("Tried to update data_tree, but it is null"));
+                Global.data_tree = Global.data_tree.update();
+            }
         }
 
         /// <summary>

@@ -32,7 +32,6 @@ namespace Parser
     /// 
     /// <para/>* <see cref="var_tracers"/> : List(VarTracer)
     /// <para/>* <see cref="func_tracers"/> : List(FuncTracer)
-    /// <para/>* <see cref="aquilaError"/> : () -> Exception
     /// <para/>* <see cref="resetEnv"/> : () -> void
     /// </summary>
     public static class Global
@@ -71,9 +70,12 @@ namespace Parser
         /// </summary>
         public static void initVariables()
         {
+            // reset variable stacks
             _variable_stack = new Stack<List<Dictionary<string, Variable>>>();
             _global_variables = new Dictionary<string, Variable>();
             addVariableStackLayer();
+            // init a new DataTree
+            data_tree = new DataTree();
         }
 
         /// <summary>
@@ -371,7 +373,8 @@ namespace Parser
             {"flame mode", false},                              // disables Context freezing completely
             {"implicit declaration in assignment", true},       // enable implicit declaration in assignment
             {"redirect debug stout & stderr", false},           // redirect stdout and stderr to a log file of all debugging
-            {"auto trace", false},                               // automatically trace all variables
+            {"auto trace", false},                              // automatically trace all variables
+            {"update data tree", false},                        // update the data tree at each tracer update
 	    };
 
         /// <summary>
@@ -399,6 +402,11 @@ namespace Parser
         /// <returns> Copy of the settings</returns>
         public static Dictionary<string, bool> getSettings() => new Dictionary<string, bool>(settings);
         
+        /// <summary>
+        /// DataTree of the current Program state
+        /// </summary>
+        public static DataTree data_tree;
+
         /// <summary>
         /// Custom stdout stream to write to if enabled (see <see cref="settings"/>)
         /// </summary>
