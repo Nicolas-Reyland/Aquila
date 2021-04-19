@@ -1,5 +1,4 @@
 #name bubble sort
-#use functions.txt
 
 decl l [4, 1, 6, 0, 2]
 

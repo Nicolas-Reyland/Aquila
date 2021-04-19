@@ -19,8 +19,8 @@ $len = length($l)
 $new_list = copy_list($l)
 
 //
-for (decl gen 0, $gen < $total_gen, $gen = $gen + 1)
-	for ($i = 0, $i < $len, $i = $i + 1)
+for (decl gen 0; $gen < $total_gen; $gen ++)
+	for ($i = 0; $i < $len; $i ++)
 		// start
 		if ($i ~ 0)
 			$start = list_at($l, $len - 1)

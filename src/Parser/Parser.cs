@@ -268,31 +268,18 @@ namespace Parser
             // Global.tracer_update_handler_function = test;
 
             string std_lib_path = @"..\..\..\aquila standard lib.aq";
-            if (File.Exists(std_lib_path))
+            if (false && File.Exists(std_lib_path))
             {
                 //Parser.handleMacro("load", std_lib_path);
             }
             
-            Global.setSetting("interactive", true);
+            Global.setSetting("interactive", false);
             Global.setSetting("debug", false);
             Global.setSetting("trace debug", false);
             Global.setSetting("allow tracing in frozen context", false);
             Global.setSetting("flame mode", false); // can set to false bc "allow tracing in frozen context" is set to true. but to be sure: true
             Global.setSetting("implicit declaration in assignment", true);
             Global.setSetting("auto trace", true);
-
-            //throw new Exception("test");
-
-            // translation
-            /*string path = args.Length > 0 ? args[0] : "merge sort.aq";
-            IEnumerable<Instruction> instructions = Translator.instructionsFromFile(path);
-            CSharpTranslator translator = new CSharpTranslator(instructions);
-            string[] output = translator.translate();
-
-            for (int i = 0; i < output.Length; i++)
-            {
-                Global.stdoutWriteLine(i + ": " + output[i]);
-            }*/
             
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
 
@@ -317,7 +304,7 @@ namespace Parser
 
             Global.stdoutWriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : @"C:\Users\Nicolas\Code Vultus\Assets\Code Parsing\Aquila scripts\bubble sort.aq";//"merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            string src_code = args.Length == 1 ? args[0] : @"bubble sort.aq";//"merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
             bool interactive_after_execution = false;//args.Length == 0;
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
@@ -326,10 +313,11 @@ namespace Parser
                 Variable return_value = Interpreter.runAlgorithm(algo);
                 Global.stdoutWriteLine("returned value: " + return_value);
 
-                if (!interactive_after_execution) return;
-
-                Global.stdoutWriteLine("Interactive interpreter after execution:");
-                Interpreter.interactiveMode(exec_lines, false);
+                if (interactive_after_execution)
+                {
+                    Global.stdoutWriteLine("Interactive interpreter after execution:");
+                    Interpreter.interactiveMode(exec_lines, false);
+                }
             }
             catch (Exception e)
             {
@@ -339,6 +327,9 @@ namespace Parser
                 Global.setSetting("trace debug", true);
                 Interpreter.interactiveMode(exec_lines, false);
             }
+
+            var tree = new DataTree();
+            tree.Repr();
 
             // ReSharper restore HeuristicUnreachableCode
             // ReSharper restore ConditionIsAlwaysTrueOrFalse

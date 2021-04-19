@@ -164,6 +164,12 @@ namespace Parser
         }
 
         /// <summary>
+        /// Number of awaiting Events in the stack
+        /// </summary>
+        /// <returns> Number of awaiting Events in the stack</returns>
+        public int numAwaitingEvents() => _awaiting_events.Count;
+
+        /// <summary>
         /// Add an <see cref="Event"/> on top of the <see cref="_awaiting_events"/> stack
         /// </summary>
         /// <param name="event_"> The pending <see cref="Event"/></param>

@@ -9,7 +9,7 @@ decl bool print_steps true
 
 trace $PI
 
-for (decl i 0, $i < $num_iter, $i = $i + 1)
+for (decl i 0; $i < $num_iter; $i ++)
 	$PI = $PI + $n * (4f / $d)
 	$d = $d + 2f
 	$n = $n * (-1f)

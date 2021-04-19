@@ -1,5 +1,4 @@
 #name bubble sort
-#use functions.txt
 
 decl l [4, 1, 6, -3, 2]
 decl i 0
@@ -8,8 +7,8 @@ decl len length($l)
 
 trace $l
 
-for ($i = 0, $i < $len, $i = $i + 1)
-	for ($j = 0, $j < $len - $i - 1, $j = $j + 1)
+for ($i = 0; $i < $len; $i ++)
+	for ($j = 0; $j < $len - $i - 1; $j ++)
 		if (list_at($l, $j) > list_at($l, $j + 1))
 			swap($l, $j, $j + 1)
 		end-if
