@@ -6,8 +6,8 @@ namespace Parser
     public class DataTree
     {
         private readonly string _request;
-        private readonly List<string> _endpoints;
-        private readonly Dictionary<string, DataTree> _data;
+        public readonly List<string> endpoints;
+        public readonly Dictionary<string, DataTree> data;
         private readonly byte _call;
 
         private DataTree(string request)
@@ -17,16 +17,16 @@ namespace Parser
             switch (request)
             {
                 case "Usable Variables":
-                    _data = new Dictionary<string, DataTree>();
+                    data = new Dictionary<string, DataTree>();
                     foreach (string variable in Global.usable_variables)
                     {
-                        _data.Add(variable, variableDataTree(variable));
+                        data.Add(variable, variableDataTree(variable));
                     }
 
                     break;
                 
                 case "Tracers":
-                    _data = new Dictionary<string, DataTree>
+                    data = new Dictionary<string, DataTree>
                     {
                         {"Variable Tracers", new DataTree("Variable Tracers")},
                         {"Function Tracers", new DataTree("Function Tracers")}
@@ -35,19 +35,19 @@ namespace Parser
                     break;
                 
                 case "Variable Tracers":
-                    _data = new Dictionary<string, DataTree>();
+                    data = new Dictionary<string, DataTree>();
                     foreach (VarTracer tracer in Global.var_tracers)
                     {
-                        _data.Add(tracer.getVar().getName(), varTracerDataTree(tracer));
+                        data.Add(tracer.getVar().getName(), varTracerDataTree(tracer));
                     }
 
                     break;
                 
                 case "Function Tracers":
-                    _data = new Dictionary<string, DataTree>();
+                    data = new Dictionary<string, DataTree>();
                     foreach (FuncTracer tracer in Global.func_tracers)
                     {
-                        _data.Add(tracer.traced_func, funcTracerDataTree(tracer));
+                        data.Add(tracer.traced_func, funcTracerDataTree(tracer));
                     }
 
                     break;
@@ -104,14 +104,14 @@ namespace Parser
             List<string> endpoints = new List<string>
             {
                 "Stack Count: " + tracer.getStackCount(),
-                "Last Event: " + tracer.peekEvent(),
                 "Last Value: " + tracer.peekValue()
             };
             
             DataTree var_data_tree = variableDataTree(tracer.getVar());
             var dict = new Dictionary<string, DataTree>
             {
-                {traced_var_name, var_data_tree}
+                {traced_var_name, var_data_tree},
+                {"Last Event", eventDataTree(tracer.peekEvent())}
             };
 
             return new DataTree("var-tracer:" + traced_var_name, dict, endpoints);
@@ -127,20 +127,50 @@ namespace Parser
 
             return new DataTree(tracer.traced_func, null, endpoints);
         }
+        
+        private static DataTree eventDataTree(Event event_)
+        {
+            var endpoints = new List<string>
+            {
+                "Status: " + event_.getStatus(),
+                "Info: " + event_.getInfo()
+            };
+
+            var dict = new Dictionary<string, DataTree>
+            {
+                {"Alteration", alterationDataTree(event_.alter)}
+            };
+
+            return new DataTree("event", dict, endpoints);
+        }
+
+        private static DataTree alterationDataTree(Alteration alter)
+        {
+            var endpoints = new List<string>
+            {
+                "Name: " + alter.name,
+                "Affected: " + alter.affected.getName(), // don't put a DataTree there, because of infinite recursion
+                "Main Value: " + StringUtils.dynamic2Str(alter.main_value),
+                "Num Minor Values: " + alter.minor_values.Length,
+                "Minor Values: " + StringUtils.dynamic2Str(alter.minor_values)
+            };
+
+            return new DataTree("alteration", null, endpoints);
+        }
 
         private DataTree(string request, Dictionary<string, DataTree> data, List<string> endpoints)
         {
             _call = 1;
             _request = request;
-            _data = data;
-            _endpoints = endpoints;
+            this.data = data;
+            this.endpoints = endpoints;
         }
 
         public DataTree()
         {
             _call = 2;
             _request = "root";
-            _data = new Dictionary<string, DataTree>
+            data = new Dictionary<string, DataTree>
             {
                 {"Usable Variables", new DataTree("Usable Variables")},
                 {"Tracers", new DataTree("Tracers")},
@@ -163,26 +193,28 @@ namespace Parser
             }
         }
 
-        public void Repr(int i = 0)
+        public void repr(int i = 0)
         {
             string prefix = new string('\t', i);
             // data
-            if (_data != null)
+            if (data != null)
             {
-                foreach (var pair in _data)
+                foreach (var pair in data)
                 {
                     Global.stdoutWriteLine(prefix + "\t - " + pair.Key);
-                    pair.Value.Repr(i + 1);
+                    pair.Value.repr(i + 1);
                 }
             }
             // endpoint
-            if (_endpoints != null)
+            if (endpoints != null)
             {
-                foreach (string endpoint in _endpoints)
+                foreach (string endpoint in endpoints)
                 {
                     Global.stdoutWriteLine(prefix + "\t * " + endpoint);
                 }
             }
+            // separation
+            Global.stdoutWriteLine();
         }
     }
 }

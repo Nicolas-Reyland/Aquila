@@ -329,7 +329,7 @@ namespace Parser
             }
 
             var tree = new DataTree();
-            tree.Repr();
+            tree.repr();
 
             // ReSharper restore HeuristicUnreachableCode
             // ReSharper restore ConditionIsAlwaysTrueOrFalse

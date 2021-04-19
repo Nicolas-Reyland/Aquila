@@ -562,13 +562,23 @@ namespace Parser
         /// <returns> corresponding string</returns>
         public static string dynamic2Str(dynamic value)
         {
+            if (value is dynamic[])
+            {
+                string s = "// {";
+                value = value as Array;
+                for (int i = 0; i < value.Length; i++)
+                {
+                    s += dynamic2Str(value[i]) + (i == value.Length - 1 ? "" : ", ");
+                }
+                return s + "} //";
+            }
             if (value == null) return "null";
             if (!value.ToString().Contains("System.")) return value.ToString();
             if (value is List<Variable>) return varList2String(value);
             if (value is Variable) return value.ToString();
             try
             {
-                return "// " + new DynamicList(DynamicList.valueFromRawList(value as List<dynamic>)) + " //";
+                return "// " + Variable.fromRawValue(value as List<dynamic>) + " //";
             }
             catch
             {

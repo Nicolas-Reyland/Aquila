@@ -37,6 +37,18 @@ namespace Parser
             _info = Context.getInfo();
             this.alter = alter;
         }
+        
+        // Getters
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> Event Status</returns>
+        public int getStatus() => _status;
+        /// <summary>
+        /// explicit naming
+        /// </summary>
+        /// <returns> Event Info</returns>
+        public object getInfo() => _info;
 
         /// <summary>
         /// <see cref="string"/> representation of the <see cref="Event"/>
