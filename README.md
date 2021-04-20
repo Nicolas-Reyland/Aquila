@@ -14,10 +14,15 @@ On Windows (never tested):
 cd src
 dotnet build
 ```
+or run the *windows-build.bat* script
+
+
 On Linux:
 ```
 mcs -target:exe -out:interpreter.exe src/Parser/*.cs
 ```
+or run the *linux-build.sh* script
+
 
 You can run an Aquila code file by giving its path as argument:
 
