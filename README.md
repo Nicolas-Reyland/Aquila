@@ -1,4 +1,6 @@
 # Aquila
+Aquila is a programming language designed to make algorithms easier to understand, whether by humans or by computers. The [Code Vultus project](https://github.com/Nicolas-Reyland/Code-Vultus) is a good example use-case of the Aquila programming language.
+
 You can find an Aquila interpreter here. It is still in development. Come back in June 2021 to have a final product!
 The documentation is unfinished, but you can stil peak into it :^) !
 
@@ -39,7 +41,3 @@ On Linux:
 ```
 mono program.exe interactive
 ```
-
-Credits:
- - Nicolas Reyland
- - Daryl Djelou
