@@ -3,6 +3,7 @@ Aquila is a programming language designed to make algorithms easier to understan
 
 You can find an interpreter here. It is still in development. Come back in June 2021 to have a final product!
 The documentation is unfinished, but you can stil peak into it :^) !
+If you want to develop in Aquila, there are two syntax-highlighting extensions out there: [aquila-for-atom](https://github.com/Nicolas-Reyland/aquila-for-atom) for the Atom editor and [aquila-for-vscode](https://github.com/Nicolas-Reyland/aquila-for-vscode) for the VS Code Editor. You can install them both from their editor's package manager.
 
 To compile the Interpreter:
 
