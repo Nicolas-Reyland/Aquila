@@ -484,6 +484,7 @@ namespace Parser
                     Global.stdoutWriteLine("assigned : " + var_.assigned);
                     Global.stdoutWriteLine("value    : " + var_);
                     Global.stdoutWriteLine("traced   : " + var_.isTraced());
+                    Global.stdoutWriteLine("^ mode   : " + var_.trace_mode);
                 }
                 return false;
             }

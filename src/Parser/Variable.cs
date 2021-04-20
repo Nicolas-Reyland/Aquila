@@ -42,6 +42,10 @@ namespace Parser
         /// is the variable traced
         /// </summary>
         private bool _traced;
+        /// <summary>
+        /// The tracing mode (c.f. Alteration.mode)
+        /// </summary>
+        public string trace_mode = "variable";
 
         // getters
         /// <summary>
@@ -141,7 +145,7 @@ namespace Parser
                     return;
                 }
             }
-            tracer.update(new Event(new Alteration(info_name, this, getRawValue(), sub_values)));
+            tracer.update(new Event(new Alteration(info_name, this, getRawValue(), sub_values, trace_mode)));
         }
         /// <summary>
         /// Has the input variable the same type as the current variable.

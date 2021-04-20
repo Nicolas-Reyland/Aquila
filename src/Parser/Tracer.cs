@@ -90,20 +90,26 @@ namespace Parser
         /// (as raw values: e.g. <see cref="Integer"/> -> <see cref="int"/>).
         /// </summary>
         public readonly dynamic[] minor_values;
+        /// <summary>
+        /// The mode explains how to represent the variable
+        /// </summary>
+        public readonly string mode;
 
         /// <summary>
         /// Create a new <see cref="Alteration"/>
         /// </summary>
-        /// <param name="name"> name of the Alteration (e.g. "creation", "setValue", "Append")</param>
-        /// <param name="affected"> the modified/changed <see cref="Variable"/></param>
-        /// <param name="main_value"> the raw value of the changed <see cref="Variable"/> (raw values: e.g. <see cref="Integer"/> -> <see cref="int"/>)</param>
-        /// <param name="minor_values"> teh raw values of the other variables which have been implicated in the change  (raw values: e.g. <see cref="Integer"/> -> <see cref="int"/>)</param>
-        public Alteration(string name, Variable affected, dynamic main_value, dynamic[] minor_values)
+        /// <param name="name"> Name of the Alteration (e.g. "creation", "setValue", "Append")</param>
+        /// <param name="affected"> The modified/changed <see cref="Variable"/></param>
+        /// <param name="main_value"> The raw value of the changed <see cref="Variable"/> (raw values: e.g. <see cref="Integer"/> -> <see cref="int"/>)</param>
+        /// <param name="minor_values"> The raw values of the other variables which have been implicated in the change  (raw values: e.g. <see cref="Integer"/> -> <see cref="int"/>)</param>
+        /// <param name="mode"> The mode explains the purpose of the variable</param>
+        public Alteration(string name, Variable affected, dynamic main_value, dynamic[] minor_values, string mode = "normal")
         {
             this.name = name;
             this.affected = affected;
             this.main_value = main_value;
             this.minor_values = minor_values;
+            this.mode = mode;
         }
 
         /// <summary>

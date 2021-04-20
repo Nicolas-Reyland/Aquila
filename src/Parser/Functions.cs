@@ -115,8 +115,7 @@ namespace Parser
                 }
                 catch (System.Reflection.TargetInvocationException out_exception)
                 {
-                    if (!(out_exception.InnerException is AquilaControlFlowExceptions.ReturnValueException)) throw;
-                    AquilaControlFlowExceptions.ReturnValueException return_value_exception = out_exception.InnerException as AquilaControlFlowExceptions.ReturnValueException;
+                    if (!(out_exception.InnerException is AquilaControlFlowExceptions.ReturnValueException return_value_exception)) throw;
                     Debugging.print("ReturnValueException was thrown");
                     string return_value_string = return_value_exception.getExprStr();
                     Expression return_value_expression = new Expression(return_value_string);
@@ -347,6 +346,43 @@ namespace Parser
             float real_sqrt = (float) Math.Sqrt(real);
 
             return new FloatVar(real_sqrt);
+        }
+
+        // ReSharper disable once InconsistentNaming
+        /// <summary>
+        /// Convert a <see cref="FloatVar"/> into and <see cref="Integer"/>
+        /// </summary>
+        /// <param name="expr"> <see cref="Expression"/> resulting in a <see cref="float"/> value</param>
+        /// <returns> The new <see cref="Integer"/></returns>
+        /// <exception cref="AquilaExceptions.InvalidTypeError"> The value is not a <see cref="float"/> or the cast failed internally</exception>
+        private static Variable float2intFunction(Expression expr)
+        {
+            dynamic value = expr.evaluate().getValue();
+            if (!(value is float)) throw new AquilaExceptions.InvalidTypeError($"Type should be float but is {value.GetType()}");
+            try
+            {
+                // ReSharper disable once PossibleInvalidCastException
+                return new Integer((int) value);
+            }
+            catch (InvalidCastException)
+            {
+                throw new AquilaExceptions.InvalidTypeError("The cast did not succeed (float to int)"); //! RuntimeError instead ?
+            }
+        }
+
+        // ReSharper disable once InconsistentNaming
+        /// <summary>
+        /// Convert an <see cref="Integer"/> into and <see cref="FloatVar"/>
+        /// </summary>
+        /// <param name="expr"> <see cref="Expression"/> resulting in an <see cref="int"/></param>
+        /// <returns> The new <see cref="FloatVar"/></returns>
+        /// <exception cref="AquilaExceptions.InvalidTypeError"> The value is not an <see cref="int"/></exception>
+        private static Variable int2floatFunction(Expression expr)
+        {
+            dynamic value = expr.evaluate().getValue();
+            if (!(value is int)) throw new AquilaExceptions.InvalidTypeError($"Type should be int but is {value.GetType()}");
+            // ReSharper disable once PossibleInvalidCastException
+            return new FloatVar((float) value);
         }
 
         /// <summary>
@@ -601,41 +637,24 @@ namespace Parser
             return new NullVar();
         }
 
-        // ReSharper disable once InconsistentNaming
         /// <summary>
-        /// Convert a <see cref="FloatVar"/> into and <see cref="Integer"/>
+        /// Changes the tracing mode of a variable. If it is not traced, trace it beforehand
         /// </summary>
-        /// <param name="expr"> <see cref="Expression"/> resulting in a <see cref="float"/> value</param>
-        /// <returns> The new <see cref="Integer"/></returns>
-        /// <exception cref="AquilaExceptions.InvalidTypeError"> The value is not a <see cref="float"/> or the cast failed internally</exception>
-        private static Variable float2intFunction(Expression expr)
+        /// <param name="var_expr"> Traced variable</param>
+        /// <param name="mode_expr"> Mode (expresion content as string)</param>
+        /// <returns> <see cref="NullVar"/> (equivalent of null/void)</returns>
+        private static NullVar traceModeFunction(Expression var_expr, Expression mode_expr)
         {
-            dynamic value = expr.evaluate().getValue();
-            if (!(value is float)) throw new AquilaExceptions.InvalidTypeError($"Type should be float but is {value.GetType()}");
-            try
-            {
-                // ReSharper disable once PossibleInvalidCastException
-                return new Integer((int) value);
-            }
-            catch (InvalidCastException)
-            {
-                throw new AquilaExceptions.InvalidTypeError("The cast did not succeed (float to int)"); //! RuntimeError instead ?
-            }
-        }
+            Tracer.printTrace($"Tracing \"{var_expr.expr}\" with mode \"{mode_expr.expr}\"");
+            // get the variable
+            Variable var = var_expr.evaluate();
+            // trace it if not already traced
+            if (!var.isTraced()) var.startTracing();
 
-        // ReSharper disable once InconsistentNaming
-        /// <summary>
-        /// Convert an <see cref="Integer"/> into and <see cref="FloatVar"/>
-        /// </summary>
-        /// <param name="expr"> <see cref="Expression"/> resulting in an <see cref="int"/></param>
-        /// <returns> The new <see cref="FloatVar"/></returns>
-        /// <exception cref="AquilaExceptions.InvalidTypeError"> The value is not an <see cref="int"/></exception>
-        private static Variable int2floatFunction(Expression expr)
-        {
-            dynamic value = expr.evaluate().getValue();
-            if (!(value is int)) throw new AquilaExceptions.InvalidTypeError($"Type should be int but is {value.GetType()}");
-            // ReSharper disable once PossibleInvalidCastException
-            return new FloatVar((float) value);
+            // change the tracing mode (using in Alteration.mode)
+            var.trace_mode = mode_expr.expr;
+
+            return new NullVar();
         }
 
         /// <summary>
@@ -666,6 +685,7 @@ namespace Parser
             {"insert_value_at", new Func<Expression, Expression, Expression, NullVar>(insertValueAt)},
             {"append_value", new Func<Expression, Expression, NullVar>(appendValue)},
             {"swap", new Func<Expression, Expression, Expression, NullVar>(swapFunction)},
+            {"trace_mode", new Func<Expression, Expression, NullVar>(traceModeFunction)},
         };
 
         /// <summary>

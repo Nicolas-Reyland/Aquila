@@ -643,7 +643,7 @@ namespace Parser
         {
             // correct parameters
             num_function_depth_chars = enable_function_depth ? num_function_depth_chars : 0;
-            prefix = prefix + (enable_function_depth ? "" : " ");
+            prefix += enable_function_depth ? "" : " ";
             
             // extract current method
             StackTrace stack_trace = new StackTrace();
