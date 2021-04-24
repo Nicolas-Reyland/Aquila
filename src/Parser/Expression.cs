@@ -70,8 +70,8 @@ namespace Parser
             Debugging.print("input expression: " + expr_string);
 
             // matching parentheses & brackets
-            Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '(', ')'));
-            Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '[', ']'));
+            Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '(', ')'), new AquilaExceptions.SyntaxExceptions.UnclosedTagError("Unclosed parenthesis"));
+            Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '[', ']'), new AquilaExceptions.SyntaxExceptions.UnclosedTagError("Unclosed backet"));
             expr_string = StringUtils.removeRedundantMatchingDelimiters(expr_string, '(', ')');
 
             Debugging.print("dynamic list ?");
@@ -143,7 +143,7 @@ namespace Parser
                 string opposite_sign_expr = expr_string.Substring(1); // take away the "-"
                 Variable opposite_sign_var = parse(opposite_sign_expr);
                 Debugging.print("evaluated expression without the \"-\" symbol is of type ", opposite_sign_var.getTypeString(), " and value ", opposite_sign_var.getValue());
-                switch (opposite_sign_var)
+                /*switch (opposite_sign_var)
                 {
                     case Integer _:
                     {
@@ -157,7 +157,10 @@ namespace Parser
                     }
                     default:
                         throw new AquilaExceptions.InvalidTypeError($"Cannot cast \"-\" on a {opposite_sign_var.getTypeString()} variable");
-                }
+                }*/
+		if (opposite_sign_var is Integer) return new Integer(-opposite_sign_var.getValue());
+		else if (opposite_sign_var is FloatVar) return new FloatVar(-opposite_sign_var.getValue());
+		else throw new AquilaExceptions.InvalidTypeError($"Cannot cast \"-\" on a {opposite_sign_var.getTypeString()} variable");
             }
 
             Debugging.print("AL operations ?");

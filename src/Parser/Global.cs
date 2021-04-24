@@ -139,6 +139,12 @@ namespace Parser
         {
             Debugging.print("exiting main scope depth (current): " + getMainScopeDepth());
             Debugging.assert(getMainScopeDepth() > 0); // cannot exit a function call or something in the main instruction loop
+            foreach (var pair in _variable_stack.Peek().SelectMany(dictionary => dictionary.Where(pair => pair.Value.isTraced())))
+            {
+                pair.Value.tracer.update(new Event(new Alteration("delete_var", pair.Value,
+                    pair.Value.getRawValue(), Array.Empty<dynamic>())));
+            }
+            
             removeVariableStackLayer();
             Debugging.print("new main scope depth: " + getMainScopeDepth());
         }
@@ -188,6 +194,11 @@ namespace Parser
         {
             Debugging.print("exiting local scope (current): ", getLocalScopeDepth());
             Debugging.assert(getLocalScopeDepth() > 0);
+            foreach (var pair in getCurrentDict().Where(pair => pair.Value.isTraced()))
+            {
+                pair.Value.tracer.update(new Event(new Alteration("delete_var", pair.Value,
+                    pair.Value.getRawValue(), new dynamic[] {})));
+            }
             removeVariableStackElement();
             Debugging.print("new local scope: " + getLocalScopeDepth());
         }

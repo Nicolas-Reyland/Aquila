@@ -90,10 +90,10 @@ namespace Parser
             Debugging.print("calling function with depth: ", _call_depth);
             // Debugging.assert(Global.getSetting("flame mode") || Context.isFrozen());
             if (!_rec_function && _in_function_scope) throw new Context.ContextException("Already in function scope. Missing \"recursive\" keyword ?");// recursive ?
-            
+
             // new local context scope using custom function args
             Global.newLocalContextScope(args);
-            
+
             _in_function_scope = true;
         }
 
@@ -105,7 +105,7 @@ namespace Parser
         public Variable callFunction(Dictionary<string, Variable> args)
         {
             initialize(args);
-            
+
             Debugging.assert(_in_function_scope);
             foreach (Instruction instruction in _instructions)
             {
@@ -151,7 +151,7 @@ namespace Parser
 
         public dynamic[] translatorInfo() => new dynamic[] { _name, _type, func_args, _instructions, _rec_function };
     }
-    
+
     /// <summary>
     /// The <see cref="Functions"/> lets you define new value_functions and use
     /// them in your code. You can only add value_functions that return a value here.
@@ -170,7 +170,7 @@ namespace Parser
         {
             Debugging.assert(function_declaration.Count > 0); // >= 1
             bool resp = false;
-            
+
             // function decl
             List<string> decl =
                 StringUtils.splitStringKeepingStructureIntegrity(declaration_line, ' ', Global.base_delimiters);
@@ -211,7 +211,7 @@ namespace Parser
 
             return new Function(function_name, type_str, function_args, instr_list, resp);
         }
-        
+
         /// <summary>
         /// Add a <see cref="Function"/> to the <see cref="user_functions"/> dict
         /// </summary>
@@ -222,7 +222,7 @@ namespace Parser
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="name"></param>
         /// <param name="args"></param>
@@ -237,7 +237,7 @@ namespace Parser
                 string func_name = user_functions[name].func_args[i];
                 d.Add(func_name, v);
             }
-            
+
             return d;
         }
 
@@ -332,10 +332,10 @@ namespace Parser
             Debugging.assert(v is FloatVar);
             double real = (double) v.getValue();
             float real_sqrt = (float) Math.Sqrt(real);
-            
+
             return new FloatVar(real_sqrt);
         }
-        
+
         /// <summary>
         /// Cannot be overwritten. Used to return a value in a function or the main algorithm.
         /// </summary>
@@ -343,6 +343,7 @@ namespace Parser
         /// <exception cref="AquilaControlFlowExceptions.ReturnValueException"> Exception raised to stop the <see cref="Algorithm"/> from executing any further instructions</exception>
         private static NullVar returnFunction(Expression expr) // Variable return type only for the callFunctionByName compatibility
         {
+            //TODO check the Context, if we are in a loop or not !!
             // this Exception will stop the algorithm/function from executing
             throw new AquilaControlFlowExceptions.ReturnValueException(expr.expr);
         }
@@ -354,6 +355,7 @@ namespace Parser
         /// <exception cref="AquilaControlFlowExceptions.BreakException"> Break the program flow</exception>
         private static NullVar breakFunction()
         {
+            //TODO check the Context, if we are in a loop or not !!
             // this function will stop the loop from executing
             throw new AquilaControlFlowExceptions.BreakException();
         }
@@ -461,7 +463,7 @@ namespace Parser
             string var_name = variable.getName();
             // delete var
             Debugging.assert(Global.variableExistsInCurrentScope(var_name),
-                new AquilaExceptions.NameError($"Variable name \"{var_name}\" does not exist in the current Context")); // NameError
+                new AquilaExceptions.NameError($"Variable name \"{var_name}\" does not exist in the current Context"));
             // remove the Tracer if is traced
             if (variable.isTraced())
             {
@@ -583,7 +585,7 @@ namespace Parser
 
             return new NullVar();
         }
-        
+
         // ReSharper disable once InconsistentNaming
         /// <summary>
         /// Convert a <see cref="FloatVar"/> into and <see cref="Integer"/>
@@ -669,7 +671,7 @@ namespace Parser
             if (functions_dict.ContainsKey(name))
             {
                 // no new context scope needed, because no function defined here would benefit from it. plus, wouldn't it break some functionalities ? idk
-                
+
                 Context.assertStatus(Context.StatusEnum.predefined_function_call);
                 Debugging.print("invoking value function ", name, " dynamically with ", args.Length, " argument(s)");
                 return functions_dict[name].DynamicInvoke(args) as Variable;
@@ -678,14 +680,14 @@ namespace Parser
             {
                 Debugging.print("calling user function: " + name);
                 Dictionary<string, Variable> arg_dict = args2Dict(name, args);
-                
+
                 // user-functions: should not be frozen
                 // bool unfreeze = Context.tryFreeze();
                 Global.newMainContextScope();
                 Variable result = user_functions[name].callFunction(arg_dict);
                 Global.resetMainContextScope();
                 // if (unfreeze) Context.unfreeze();
-                
+
                 return result;
             }
 

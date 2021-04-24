@@ -2,5 +2,6 @@ update.sh
 *.exe
 *.dll
 
+tmp.sh
 bin
 obj

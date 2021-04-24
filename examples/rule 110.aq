@@ -68,11 +68,10 @@ for (decl gen 0; $gen < $total_gen; $gen ++)
 	end-for
 
 	// print it out
-	print($new_list)
-	print_endl()
+	print_value_endl($new_list)
 
 	// new list, let's go !
-	$l = $new_list
+	$l = copy_list($new_list)
 
 end-for
 
