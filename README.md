@@ -1,6 +1,11 @@
 # Aquila
-You can find an Aquila interpreter here. It is still in development. Come back in June 2021 to have a final product!
+Aquila is a programming language designed to make algorithms easier to understand, whether by humans or by computers. The [Code Vultus project](https://github.com/Nicolas-Reyland/Code-Vultus) is a good example use-case of the Aquila programming language.
+
+You can find an interpreter here. It is still in development. Come back in June 2021 to have a final product!
 The documentation is unfinished, but you can stil peak into it :^) !
+If you want to develop in Aquila, there are two syntax-highlighting extensions out there: [aquila-for-atom](https://github.com/Nicolas-Reyland/aquila-for-atom) for the Atom editor and [aquila-for-vscode](https://github.com/Nicolas-Reyland/aquila-for-vscode) for the VS Code Editor. You can install them both from their editor's package manager or using those links:
+ * https://atom.io/packages/aquila-for-atom
+ * https://marketplace.visualstudio.com/items?itemName=NicolasReyland.aquila-for-vscode
 
 To compile the Interpreter:
 
@@ -18,12 +23,12 @@ You can run an Aquila code file by giving its path as argument:
 
 On Windows:
 ```
-program.exe "C:\Path\To\File.aq"
+interactive.exe "C:\Path\To\File.aq"
 ```
 
 On Linux:
 ```
-mono program.exe "/path/to/file.aq"
+mono interactive.exe "/path/to/file.aq"
 ```
 
 It will print the return value to the stdout (if there is none, prints "none").
@@ -32,14 +37,10 @@ To get the interactive mode, start the compiled program with "interactive" as ar
 
 On Windows:
 ```
-program.exe interactive
+interactive.exe interactive
 ```
 
 On Linux:
 ```
-mono program.exe interactive
+mono interactive.exe interactive
 ```
-
-Credits:
- - Nicolas Reyland
- - Daryl Djelou
