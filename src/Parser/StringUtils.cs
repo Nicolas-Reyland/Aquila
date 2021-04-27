@@ -533,9 +533,9 @@ namespace Parser
         /// <returns> valid variable ?</returns>
         public static bool validObjectName(string var_name)
         {
-            const string PATTERN = @"^[a-zA-Z_]+[a-zA-Z0-9_]*$";
+            const string PATTERN = @"^[a-zA-Z_][a-zA-Z0-9_]*$";
             Regex rg = new Regex(PATTERN);
-            return rg.Match(var_name).Success;
+            return rg.Match(var_name).Success && !Global.reserved_keywords.Contains(var_name);
         }
 
         /// <summary>

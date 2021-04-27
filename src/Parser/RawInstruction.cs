@@ -224,14 +224,18 @@ namespace Parser
 
                     instr.RemoveAt(0);
                 }
+
+                Debugging.assert(instr.Count < 5,
+                    new AquilaExceptions.SyntaxExceptions.SyntaxError($"The possible values after the \"decl\" are the type, name and value"));
                 
-                // all types
+                // all types1
                 string[] type_list = {"int", "float", "bool", "list"};
+                if (instr[1] == "auto") instr.RemoveAt(1);
 
                 // decl type name value
                 if (instr.Count == 4) Debugging.assert(type_list.Contains(instr[1]), new AquilaExceptions.UnknownTypeError($"The type \"{instr[1]}\" is not recognized"));
                 else if (instr[1] == "auto") throw new AquilaExceptions.InvalidTypeError("You cannot declare an empty variable using type \"auto\""); // cannot "decl auto var_name"
-
+                
                 // if instr[1] is type
                 if (type_list.Contains(instr[1]))
                 {

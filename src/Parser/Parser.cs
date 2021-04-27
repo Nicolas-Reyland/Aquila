@@ -164,7 +164,7 @@ namespace Parser
         /// <param name="value"> the macro value (after the key)</param>
         public static void handleMacro(string key, string value)
         {
-            Debugging.print("setting macro key: \"" + key + "\"" +
+            Debugging.print("macro key: \"" + key + "\"" +
                             (value == null
                                 ? " with no value"
                                 : " with value \"" + value + "\""));
@@ -273,7 +273,7 @@ namespace Parser
                 //Parser.handleMacro("load", std_lib_path);
             }
             
-            Global.setSetting("interactive", false);
+            Global.setSetting("interactive", true);
             Global.setSetting("debug", false);
             Global.setSetting("trace debug", false);
             Global.setSetting("allow tracing in frozen context", false);

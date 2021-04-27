@@ -386,6 +386,7 @@ namespace Parser
             {"redirect debug stout & stderr", false},           // redirect stdout and stderr to a log file of all debugging
             {"auto trace", false},                              // automatically trace all variables
             {"update data tree", false},                        // update the data tree at each tracer update
+            {"user function overwriting", false},               // enable user function overwriting
 	    };
 
         /// <summary>

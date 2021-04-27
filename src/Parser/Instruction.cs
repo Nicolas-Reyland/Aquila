@@ -68,7 +68,6 @@ namespace Parser
         {
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
-            bool do_break = false;
             while (test())
             {
                 in_loop  = true;
@@ -86,8 +85,7 @@ namespace Parser
 
                         if (e.InnerException is AquilaControlFlowExceptions.BreakException)
                         {
-                            do_break = true;
-                            break;
+                            goto EndOfWhileLoopLabel;
                         }
 
                         if (e.InnerException is AquilaControlFlowExceptions.ContinueException)
@@ -97,8 +95,7 @@ namespace Parser
                     }
                     catch (AquilaControlFlowExceptions.BreakException)
                     {
-                        do_break = true;
-                        break;
+                        goto EndOfWhileLoopLabel;
                     }
                     catch (AquilaControlFlowExceptions.ContinueException)
                     {
@@ -109,8 +106,8 @@ namespace Parser
                 }
                 
                 Global.resetLocalScopeUntilDepthReached(local_context_stack_count);
-                if (do_break) break;
             }
+            EndOfWhileLoopLabel:
             in_loop = false;
             Context.resetUntilCountReached(context_integrity_check);
             Context.reset();
@@ -143,7 +140,6 @@ namespace Parser
             setContext();
             int context_integrity_check = Context.getStatusStackCount();
             _start.execute();
-            bool do_break = false;
             while (test())
             {
                 in_loop  = true;
@@ -162,8 +158,7 @@ namespace Parser
 
                         if (e.InnerException is AquilaControlFlowExceptions.BreakException)
                         {
-                            do_break = true;
-                            break;
+                            goto EndOfForLoopLabel;
                         }
 
                         if (e.InnerException is AquilaControlFlowExceptions.ContinueException)
@@ -173,8 +168,7 @@ namespace Parser
                     }
                     catch (AquilaControlFlowExceptions.BreakException)
                     {
-                        do_break = true;
-                        break;
+                        goto EndOfForLoopLabel;
                     }
                     catch (AquilaControlFlowExceptions.ContinueException)
                     {
@@ -186,10 +180,10 @@ namespace Parser
                 }
 
                 Global.resetLocalScopeUntilDepthReached(local_context_stack_count);
-                if (do_break) break;
                 // executing step independently bc of continue & break
                 _step.execute();
             }
+            EndOfForLoopLabel:
             in_loop = false;
             // Smooth Context
             Context.resetUntilCountReached(context_integrity_check);
@@ -260,8 +254,6 @@ namespace Parser
         private readonly Expression _var_expr;
         private readonly string _var_type;
         private readonly bool _assignment;
-        private readonly bool _safe_mode;
-        private readonly bool _overwrite;
         private readonly bool _constant;
         private readonly bool _global;
 
@@ -271,26 +263,24 @@ namespace Parser
             bool constant = false,
             bool global = false)
         {
-            Debugging.assert(StringUtils.validObjectName(var_name)); // InvalidNamingException
             // mode: 0 -> new var (must not exist); 1 -> force overwrite (must exist); 2 -> safe overwrite (can exist)
             this.line_index = line_index;
             this._var_name = var_name;
             this._var_expr = var_expr;
             this._var_type = var_type;
             this._assignment = assignment;
-            this._safe_mode = safe_mode;
-            this._overwrite = overwrite;
             this._constant = constant;
             this._global = global;
             // check variable naming
-            Debugging.assert(StringUtils.validObjectName(var_name)); // InvalidNamingException
+            Debugging.assert(StringUtils.validObjectName(var_name),
+                new AquilaExceptions.SyntaxExceptions.SyntaxError($"Invalid object name \"{var_name}\""));
             // the declaration is not initiated in the right scope... cannot do this here
             bool var_exists = Global.variableExistsInCurrentScope(var_name);
             Debugging.print("new declaration: var_name = " + var_name +
                             ", var_expr = ", var_expr.expr,
                             ", var_type = ", var_type,
                             ", assignment = ", assignment,
-                            ", mode = ", StringUtils.boolString(_safe_mode, _overwrite, _constant, _global),
+                            ", mode = ", StringUtils.boolString(safe_mode, overwrite, _constant, _global),
                             ", exists = ", var_exists);
             // should not check overwriting modes if this is true
             if (Global.getSetting("implicit declaration in assignment"))
@@ -299,8 +289,8 @@ namespace Parser
                 return;
             }
 
-            if (_safe_mode && var_exists) Debugging.assert(!Global.variableFromName(var_name).isTraced());
-            if (_overwrite) Debugging.assert(var_exists);
+            if (safe_mode && var_exists) Debugging.assert(!Global.variableFromName(var_name).isTraced());
+            if (overwrite) Debugging.assert(var_exists);
         }
 
         protected override void setContext()
@@ -466,7 +456,7 @@ namespace Parser
         {
             this.line_index = line_index;
             _function_name = function_name;
-            _args = args;
+            _args = function_name == "return" && args.Length == 0 ? new object[]{ new Expression("$null") } : args;
         }
 
         protected override void setContext()

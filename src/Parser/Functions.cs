@@ -190,7 +190,10 @@ namespace Parser
             Debugging.assert(decl[2].Contains("(") && decl[2].Contains(")"));
             int name_sep_index = decl[2].IndexOf('(');
             string function_name = decl[2].Substring(0, name_sep_index);
-            Debugging.assert(StringUtils.validObjectName(function_name)); // InvalidNamingException
+            Debugging.assert(StringUtils.validObjectName(function_name),
+                new AquilaExceptions.SyntaxExceptions.SyntaxError($"Invalid object name \"{function_name}\"")); // InvalidNamingException
+            Debugging.assert(!functions_dict.ContainsKey(function_name),
+                new AquilaExceptions.FunctionNameError($"The function \"{function_name}\" is a predefined function. You cannot overwrite it"));
             // args
             string function_args_str = decl[2].Substring(name_sep_index + 1);
             function_args_str = function_args_str.Substring(0, function_args_str.Length - 1);
@@ -213,12 +216,22 @@ namespace Parser
         }
 
         /// <summary>
-        /// Add a <see cref="Function"/> to the <see cref="user_functions"/> dict
+        /// Add a <see cref="Function"/> to the <see cref="user_functions"/> dict.
+        /// If the function already exists and the settings are set accordingly ("user function overwriting"),
+        /// the function will be overwritten
         /// </summary>
         /// <param name="func"> <see cref="Function"/> object</param>
         public static void addUserFunction(Function func)
         {
-            user_functions.Add(func.getName(), func);
+            if (user_functions.ContainsKey(func.getName()) && Global.getSetting("user function overwriting"))
+            {
+                Debugging.print("overwriting already existing user defined function: " + func.getName());
+                user_functions[func.getName()] = func;
+            }
+            else
+            {
+                user_functions.Add(func.getName(), func);
+            }
         }
 
         /// <summary>
@@ -343,7 +356,6 @@ namespace Parser
         /// <exception cref="AquilaControlFlowExceptions.ReturnValueException"> Exception raised to stop the <see cref="Algorithm"/> from executing any further instructions</exception>
         private static NullVar returnFunction(Expression expr) // Variable return type only for the callFunctionByName compatibility
         {
-            //TODO check the Context, if we are in a loop or not !!
             // this Exception will stop the algorithm/function from executing
             throw new AquilaControlFlowExceptions.ReturnValueException(expr.expr);
         }
@@ -355,7 +367,8 @@ namespace Parser
         /// <exception cref="AquilaControlFlowExceptions.BreakException"> Break the program flow</exception>
         private static NullVar breakFunction()
         {
-            //TODO check the Context, if we are in a loop or not !!
+            //!Debugging.assert(Context.getStatus() == (int) Context.StatusEnum.while_loop_execution || Context.getStatus() == (int) Context.StatusEnum.for_loop_execution,
+            //!    new Context.ContextException("Cannot break when not in a loop !"));
             // this function will stop the loop from executing
             throw new AquilaControlFlowExceptions.BreakException();
         }
@@ -367,6 +380,8 @@ namespace Parser
         /// <exception cref="AquilaControlFlowExceptions.ContinueException"> Continue in the program flow</exception>
         private static NullVar continueFunction()
         {
+            //!Debugging.assert(Context.getStatus() == (int) Context.StatusEnum.while_loop_execution || Context.getStatus() == (int) Context.StatusEnum.for_loop_execution,
+            //!    new Context.ContextException("Cannot continue when not in a loop !"));
             // this function will stop the current loop iteration and pass to the next, if there is any
             throw new AquilaControlFlowExceptions.ContinueException();
         }
