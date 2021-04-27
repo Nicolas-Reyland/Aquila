@@ -198,10 +198,12 @@ namespace Parser
                     catch (KeyNotFoundException)
                     {
                         Debugging.print($"Setting {setting_key} does not exist.");
+                        throw new AquilaExceptions.SyntaxExceptions.SyntaxError($"Unrecognized setting key \"{setting_key}\"");
                     }
                     catch (ArgumentException)
                     {
                         Debugging.print("invalid boolean value: " + setting_value);
+                        throw new AquilaExceptions.SyntaxExceptions.SyntaxError($"Unknown setting value \"{setting_value}\".\nPossible values are [1, 0, true, false, True, False, TRUE, FALSE]");
                     }
 
                     break;

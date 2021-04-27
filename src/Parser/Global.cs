@@ -39,7 +39,7 @@ namespace Parser
         /// <summary>
         /// All the reserved keywords
         /// </summary>
-        public static readonly string[] reserved_keywords = new string[] {
+        public static readonly string[] reserved_keywords = {
             "if", "else", "end-if",
             "for","end-for",
             "while", "end-while",
