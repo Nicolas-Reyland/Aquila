@@ -7,6 +7,7 @@ If you want to develop in Aquila, there are two syntax-highlighting extensions o
  * https://atom.io/packages/aquila-for-atom
  * https://marketplace.visualstudio.com/items?itemName=NicolasReyland.aquila-for-vscode
 
+
 To compile the Interpreter:
 
 On Windows (never tested):
@@ -49,3 +50,5 @@ On Linux:
 ```
 mono interactive.exe interactive
 ```
+
+You have to have **mono** and **dotnet** (core v3.1 is fine) installed.
