@@ -69,31 +69,17 @@ namespace Parser
         /// </summary>
         /// <param name="lines"> list of lines</param>
         /// <returns> List of purged lines</returns>
-        public static List<string> purgeLines(List<string> lines)
-        {
-            List<string> new_lines = new List<string>();
-            foreach (string line in lines)
-            {
-                string new_line = normalizeWhiteSpaces(line);
-
-                // if the line has content, add it
-                if (new_line != "")
-                {
-                    new_lines.Add(new_line);
-                }
-            }
-
-            return new_lines;
-        }
+        public static List<string> normalizeWhiteSpacesInStrings(IEnumerable<string> lines) => lines
+            .Select(normalizeWhiteSpaces).Where(new_line => !string.IsNullOrEmpty(new_line)).ToList();
 
         /// <summary>
-        /// Same as <see cref="purgeLines(System.Collections.Generic.List{string})"/>, and keeps the keys.
+        /// Same as <see cref="normalizeWhiteSpacesInStrings(System.Collections.Generic.IEnumerable{string})"/>, and keeps the keys.
         /// </summary>
         /// <param name="lines"> dict, values must be the lines to normalize</param>
         /// <returns> normalized dict</returns>
-        public static Dictionary<int, string> purgeLines(Dictionary<int, string> lines)
+        public static Dictionary<int, string> normalizeWhiteSpacesInStrings(Dictionary<int, string> lines)
         {
-            Dictionary<int, string> new_lines = new Dictionary<int, string>();
+            var new_lines = new Dictionary<int, string>();
             foreach (var pair in lines)
             {
                 string new_line = normalizeWhiteSpaces(pair.Value);
@@ -211,6 +197,94 @@ namespace Parser
 
             return filtered;
         }
+
+        /// <summary>
+        /// Refactor once with a certain opening and closing char tuple. Refactoring is simply
+        /// removing new-line chars when expressions and such are written on multiple lines
+        /// to ease code reading
+        /// </summary>
+        /// <param name="src_code"> src code to refactor</param>
+        /// <param name="opening"> opening char (e.g. '{')</param>
+        /// <param name="closing"> closing char (e.g. '}')</param>
+        /// <returns> Refactored code</returns>
+        private static Dictionary<int, string> refactorCodeShortcut(Dictionary<int, string> src_code, char opening, char closing)
+        {
+            // setup variables
+            var new_src_code = new Dictionary<int, string>();
+            string refactored_buffer = "";
+            int refactor_start_index = -1;
+            bool refactoring = false;
+            int depth = 0;
+            // refactor
+            foreach (var pair in src_code)
+            {
+                // extract pair
+                int line_index = pair.Key;
+                string line = pair.Value;
+                // tag depths
+                depth += countMatchingDelimiters(line, opening, closing);
+                // nothing to be refactored
+                if (!refactoring && depth == 0)
+                {
+                    Parser.print($"Adding normal line: {line_index} -> \"{line}\"");
+                    new_src_code.Add(line_index, line);
+                    continue;
+                }
+                // basic error case (too much closing tags)
+                if (refactoring && depth < 0) // previous_depth + current_depth < 0
+                {
+                    Parser.print($"Error in matching tags found at line: {line_index} -> \"{line}\" with tag \"{opening}/{closing}\"");
+                    return src_code;
+                }
+                // nothing to do here; just go on
+                if (refactoring && depth > 0) goto EndLoopLabel;
+                // starting ?
+                if (!refactoring && depth > 0)
+                {
+                    refactoring = true;
+                    Parser.print($"Starting refactoring for \"{line}\"");
+                    // setting new index
+                    if (refactor_start_index == -1) refactor_start_index = line_index;
+                    refactored_buffer = line + " ";
+                    continue;
+                }
+                // ending ?
+                if (refactoring && depth == 0)
+                {
+                    refactoring = false;
+                    refactored_buffer += " " + line;
+                    Parser.print($"Adding refactored: {refactored_buffer}");
+                    new_src_code.Add(refactor_start_index, normalizeWhiteSpaces(refactored_buffer));
+                    refactored_buffer = "";
+                    refactor_start_index = -1;
+                    continue;
+                }
+                
+                // add the current line to the buffer & continue
+                EndLoopLabel:
+                Parser.print($"E|Adding to refactored buffer: {line}");
+                refactored_buffer += line + " ";
+                Parser.print($"E|New buffer value: {refactored_buffer}");
+            }
+
+            return new_src_code;
+        }
+        
+        /// <summary>
+        /// Refactor code shortcuts. Examples of supported shortcuts (look at the doc src code itself):
+        /// <para/>$l = [1,
+        /// <para/>     2,
+        /// <para/>     3]
+        /// <para/>to
+        /// <para/>$l = [1, 2, 3]
+        /// </summary>
+        /// <param name="src_code"> src code dict (line index, line str)</param>
+        /// <param name="refactored_tags"> refactored tags (e.g. ('(', ')'), ('[', ']'))</param>
+        /// <returns> refactored src code</returns>
+        public static Dictionary<int, string> refactorCodeShortcuts(Dictionary<int, string> src_code,
+                IEnumerable<(char opening, char closing)> refactored_tags) =>
+            refactored_tags.Aggregate(new Dictionary<int, string>(src_code),
+            (current, tag) => refactorCodeShortcut(current, tag.opening, tag.closing));
 
         /// <summary>
         /// Find the corresponding char to an opening and closing char.
@@ -349,7 +423,17 @@ namespace Parser
         /// <param name="opening"> opening char</param>
         /// <param name="closing"> closing char</param>
         /// <returns> true if the integrity has been kept. false if corrupted expression</returns>
-        public static bool checkMatchingDelimiters(string s, char opening, char closing)
+        public static bool checkMatchingDelimiters(string s, char opening, char closing) => countMatchingDelimiters(s, opening, closing) == 0;
+        
+        /// <summary>
+        /// Check if the expression ( 's' ) structure integrity has been kept.
+        /// This is known by checking if every opening char has a corresponding closing char.
+        /// </summary>
+        /// <param name="s"> string expresion</param>
+        /// <param name="opening"> opening char</param>
+        /// <param name="closing"> closing char</param>
+        /// <returns> true if the integrity has been kept. false if corrupted expression</returns>
+        private static int countMatchingDelimiters(string s, char opening, char closing)
         {
             int depth = 0;
             foreach (char c in s)
@@ -364,7 +448,7 @@ namespace Parser
                 }
             }
 
-            return depth == 0;
+            return depth;
         }
 
         /// <summary>
@@ -401,7 +485,7 @@ namespace Parser
         public static Variable variableFromString(string s)
         {
             Debugging.assert(s.Length > 4);
-            Debugging.assert(s.StartsWith("$"));
+            Debugging.assert(s.StartsWith(StringConstants.Other.VARIABLE_PREFIX));
             s = s.Substring(1);
             s = s.Replace(" ", "");
             return Global.variableFromName(s);
@@ -562,28 +646,57 @@ namespace Parser
         /// <returns> corresponding string</returns>
         public static string dynamic2Str(dynamic value)
         {
-            if (value is dynamic[])
+            // typical case
+            // ReSharper disable once UsePatternMatching
+            var objects = value as dynamic[];
+            if (objects != null)
             {
                 string s = "// {";
-                value = value as Array;
+                value = objects;
                 for (int i = 0; i < value.Length; i++)
                 {
                     s += dynamic2Str(value[i]) + (i == value.Length - 1 ? "" : ", ");
                 }
                 return s + "} //";
             }
-            if (value == null) return "null";
+            // trivial cases
+            if (value == null) return StringConstants.Types.NULL_TYPE;
             if (!value.ToString().Contains("System.")) return value.ToString();
             if (value is List<Variable>) return varList2String(value);
             if (value is Variable) return value.ToString();
             try
             {
-                return "// " + Variable.fromRawValue(value as List<dynamic>) + " //";
+                return "// " + Variable.fromRawValue((List<dynamic>) value) + " //";
             }
             catch
             {
-                return value.ToString();
+                // ignored
             }
+
+            // non-trivial cases
+            try
+            {
+                // ReSharper disable once AssignNullToNotNullAttribute
+                if (!((IEnumerable<string>) value).Any()) return "{ }";
+                return "{ " + ((IEnumerable<string>) value).Aggregate((i, j) => i + ", " + j) + " }";
+            }
+            catch
+            {
+                // ignored
+            }
+
+            try
+            {
+                // ReSharper disable once AssignNullToNotNullAttribute
+                if (!((IEnumerable<dynamic>) value).Any()) return "{ }";
+                return "{ " + ((IEnumerable<dynamic>) value).Aggregate((i, j) => i + ", " + j) + " }";
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return value.ToString();
         }
 
         /// <summary>
@@ -625,7 +738,7 @@ namespace Parser
         private static MethodBase _last_method;
 
         /// <summary>
-        /// Used in <see cref="Debugging.print"/> &amp; <see cref="Tracer.printTrace"/>.
+        /// Used in <see cref="Debugging.print"/> &amp; <see cref="Tracer.printTrace"/> &amp; <see cref="Parser.print"/>.
         /// Nicely outputs debugging information to the default stdout
         /// </summary>
         /// <param name="max_call_name_length"> number of chars before printing the args (function name + call stack depth + spaces)</param>
@@ -647,17 +760,17 @@ namespace Parser
             
             // extract current method
             StackTrace stack_trace = new StackTrace();
-            StackFrame current_stack_frame = stack_trace.GetFrame(2); // skip one frame bc this method is already called from Debugging.print or Tracer.printTrace (normally: GetFrame(1))
+            StackFrame current_stack_frame = stack_trace.GetFrame(2); // skip one frame bc this method is already called from Debugging.print, Tracer.printTrace or Parser.print (normally: GetFrame(1))
             MethodBase current_method = current_stack_frame.GetMethod();
             int current_native_offset = current_stack_frame.GetNativeOffset();
             string call_name = current_method.Name;
             int num_frames = stack_trace.GetFrames().Length - 2; // remove two frames : this one and debugging function
-            string space_separator = new String(' ', num_frames * num_function_depth_chars);
+            string space_separator = new string(' ', num_frames * num_function_depth_chars);
             
             // new method call ?
             if (current_native_offset < _last_native_offset || current_method != _last_method)
             { // (current_native_offset < _last_native_offset) means that 1. new function call or 2. same function called again (recursive)
-                string delim = new String('=', num_new_method_separators);
+                string delim = new string('=', num_new_method_separators);
                 Global.stdoutWrite(prefix + space_separator + delim);
                 Global.stdoutWrite(" " + call_name + " (" + num_frames + ") ");
                 Global.stdoutWriteLine(delim);
@@ -670,7 +783,7 @@ namespace Parser
 
             // debugging mode is on
             Global.stdoutWrite(prefix  + " [" + Global.current_line_index + "]" + space_separator + call_name + "(" + Context.getStatus() + ")");
-            Global.stdoutWrite(new String(' ', missing_spaces));
+            Global.stdoutWrite(new string(' ', missing_spaces));
 
             Global.stdoutWrite(" : ");
             foreach (dynamic arg in args)
@@ -678,6 +791,54 @@ namespace Parser
                 Global.stdoutWrite(arg == null ? "(.net null)" : arg.ToString());
             }
             Global.stdoutWriteLine();
+        }
+
+        /// <summary>
+        /// Purge an <see cref="IEnumerable{T}"/> of any doubles or empty strings
+        /// </summary>
+        /// <param name="values"> input values</param>
+        /// <returns> enumerable of unique non null-or-empty string values</returns>
+        public static IEnumerable<string> uniquifyStringEnumerable(IEnumerable<string> values)
+        {
+            var new_values = new List<string>();
+            foreach (string src_var in values)
+            {
+                if (string.IsNullOrEmpty(src_var) || new_values.Contains(src_var)) continue;
+                new_values.Add(src_var);
+            }
+            
+            return new_values;
+        }
+
+        /// <summary>
+        /// Transforms a string into a <see cref="DynamicList"/> object.
+        /// The string should be formatted as follows: "[a,b,c,d]" where
+        /// a,b,c and d are either <see cref="Integer"/>s or other <see cref="DynamicList"/>s.
+        /// <para/> All the spaces will be removed. They are therefore tolerated anywhere in the input
+        /// <para/> Values are separated by commas: ','
+        /// <para/> The string starts with an opening bracket and ends with a closing one
+        /// </summary>
+        /// <param name="list_expr"> string that describes a dynamic list</param>
+        /// <returns> The <see cref="DynamicList"/> described by the given string</returns>
+        /// <exception cref="AquilaExceptions.SyntaxExceptions.InvalidListExpressionError"> Invalid list expression</exception>
+        public static DynamicList parseListExpression(string list_expr)
+        {
+            list_expr = list_expr.Replace(" ", "");
+            // ReSharper disable once UseIndexFromEndExpression
+            if (list_expr[0] != 91 || list_expr[list_expr.Length - 1] != 93) return null;
+            
+            // integrity
+            Debugging.assert(checkMatchingDelimiters(list_expr, '[', ']'),
+                new AquilaExceptions.SyntaxExceptions.UnclosedTagError($"Unclosed tag in \"{list_expr}\""));
+
+            // trivial case
+            if (list_expr == "[]") return new DynamicList();
+
+            // remove '[' & ']' at the start & end
+            list_expr = list_expr.Substring(1, list_expr.Length - 2);
+            List<string> splitted = splitStringKeepingStructureIntegrity(list_expr, ',', Global.base_delimiters);
+
+            return new DynamicList(splitted.Select(Expression.parse).ToList(), true);;
         }
     }
 }

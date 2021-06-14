@@ -60,15 +60,16 @@ namespace Parser
             building_raw_instructions,  // 3
             building_instructions,      // 4
             instruction_main_loop,      // 5
-            trace_execution,            // 6
-            while_loop_execution,       // 7
-            for_loop_execution,         // 8
-            if_execution,               // 9
-            declaration_execution,      // 10
-            assignment_execution,       // 11
-            predefined_function_call,   // 12
-            user_function_call,         // 13
-            instruction_main_finished   // 14
+            multi_instructions,         // 6
+            trace_execution,            // 7
+            while_loop_execution,       // 8
+            for_loop_execution,         // 9
+            if_execution,               // 10
+            declaration_execution,      // 11
+            assignment_execution,       // 12
+            predefined_function_call,   // 13
+            user_function_call,         // 14
+            instruction_main_finished   // 15
         }
         // status
         /// <summary>

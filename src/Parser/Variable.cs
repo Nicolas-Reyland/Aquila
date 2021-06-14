@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 
@@ -103,8 +104,8 @@ namespace Parser
         /// <summary>
         /// explicit naming
         /// </summary>
-        /// <param name="other_value"> new Value for the class</param>
-        public abstract void setValue(Variable other_value);
+        /// <param name="other"> new Value for the class</param>
+        public abstract void setValue(Variable other);
         /// <summary>
         /// Force the variable to get a new value. Disables tracing for this step
         /// </summary>
@@ -214,8 +215,8 @@ namespace Parser
         /// <summary>
         /// Should never be called on a <see cref="NullVar"/>
         /// </summary>
-        /// <param name="other_value"> Other value</param>
-        public override void setValue(Variable other_value) => throw new AquilaExceptions.InvalidUsageException("Cannot use the null var this way"); // RuntimeError (never supposed to happen whatsoever)
+        /// <param name="other"> Other value</param>
+        public override void setValue(Variable other) => throw new AquilaExceptions.InvalidUsageException("Cannot use the null var this way"); // RuntimeError (never supposed to happen whatsoever)
 
         /// <summary>
         /// Should never be called on a <see cref="NullVar"/>
@@ -235,7 +236,7 @@ namespace Parser
         /// Returns "null"
         /// </summary>
         /// <returns> "null"</returns>
-        public override string getTypeString() => "null"; // RuntimeError (never supposed to happen whatsoever)
+        public override string getTypeString() => StringConstants.Types.NULL_TYPE; // RuntimeError (never supposed to happen whatsoever)
 
         /// <summary>
         /// Returns "none"
@@ -294,11 +295,11 @@ namespace Parser
 
         public override dynamic getValue() => assigned ? _bool_value : throw new AquilaExceptions.InvalidUsageException("Unassigned variable");
 
-        public override void setValue(Variable other_value)
+        public override void setValue(Variable other)
         {
             if (!assigned) assign();
-            _bool_value = other_value.getValue();
-            trace("setValue", new dynamic[] { other_value.getValue() });
+            _bool_value = other.getValue();
+            trace("setValue", new dynamic[] { other.getValue() });
         }
 
         public override void forceSetValue(dynamic value) => _bool_value = (bool) value;
@@ -313,160 +314,186 @@ namespace Parser
 
         public override int compare(Variable other) => other.getValue() == _bool_value ? 0 : -1;
 
-        public override string getTypeString() => "bool";
+        public override string getTypeString() => StringConstants.Types.BOOl_TYPE;
     }
 
-    public sealed class Integer : Variable
+    public abstract class NumericalValue : Variable
     {
-        private int _int_value;
+        protected dynamic numeric_value;
+        private readonly Type _val_type;
+        /// <summary>
+        /// For test mode only. Tracks the variables that were arithmetically implicated
+        /// to create this variable.
+        /// </summary>
+        public Dictionary<string, NumericalValue> source_vars;
 
-        public Integer(int val, bool is_const = false)
+        protected NumericalValue(dynamic numeric_value, Dictionary<string, NumericalValue> source_vars)
         {
-            assigned = true;
-            _int_value = val;
-            this.is_const = is_const;
+            this.numeric_value = numeric_value;
+            this.source_vars = source_vars ?? new Dictionary<string, NumericalValue>();
+            Debugging.print($"source_vars count: {this.source_vars.Count}");
+            // ReSharper disable once ConvertIfStatementToSwitchExpression
+            if (this.numeric_value is int) _val_type = typeof(Integer);
+            if (this.numeric_value is float) _val_type = typeof(FloatVar);
+        }
+        
+        public override dynamic getValue() => assigned ? numeric_value : throw new AquilaExceptions.InvalidUsageException("Unassigned variable");
+        
+        public override void setValue(Variable other)
+        {
+            if (!assigned) assign();
+            dynamic other_value = other.getValue();
+            numeric_value = other_value;
+            trace("setValue", new dynamic[] { other_value });
         }
 
-        public override Variable cloneTypeToVal(dynamic value)=>  new Integer(value);
+        public override void forceSetValue(dynamic value) => numeric_value = value;
 
-        public override dynamic getValue() => assigned ? _int_value : throw new AquilaExceptions.InvalidUsageException("Unassigned variable"); // AssignmentError
+        public NumericalValue getTracedSource() =>
+            source_vars.Where(pair => pair.Value?.isTraced() ?? false).Select(pair => pair.Value).FirstOrDefault();
+
+        protected static Dictionary<string, NumericalValue> mergeDictionaries(Dictionary<string, NumericalValue> dict1,
+            Dictionary<string, NumericalValue> dict2)
+        {
+            var dict3 = new Dictionary<string, NumericalValue>();
+            // this.source_vars
+            foreach (var pair in dict1.Where(pair => !string.IsNullOrEmpty(pair.Key) && !dict3.ContainsKey(pair.Key)))
+            {
+                dict3.Add(pair.Key, pair.Value);
+            }
+            // other.source_vars
+            foreach (var pair in dict2.Where(pair => !string.IsNullOrEmpty(pair.Key) && !dict3.ContainsKey(pair.Key)))
+            {
+                dict3.Add(pair.Key, pair.Value);
+            }
+
+            return dict3;
+        }
+        
+        public NumericalValue addition(NumericalValue other)
+        {
+            assertAssignment();
+            //
+            dynamic result_raw_value = numeric_value + other.getValue();
+            bool result_is_const = is_const && other.isConst();
+            // source variables
+            var source_variables = new Dictionary<string, NumericalValue>();
+            if (!string.IsNullOrEmpty(getName())) source_variables.Add(getName(), this);
+            if (!string.IsNullOrEmpty(other.getName()) && other.getName() != getName()) source_variables.Add(other.getName(), other);
+            source_variables = mergeDictionaries(source_variables, other.source_vars);
+            //
+            NumericalValue result = Activator.CreateInstance(_val_type, result_raw_value, result_is_const, source_variables);// as NumericalValue;
+            return result;
+        }
+
+        public NumericalValue subtraction(NumericalValue other)
+        {
+            assertAssignment();
+            //
+            dynamic result_raw_value = numeric_value - other.getValue();
+            bool result_is_const = is_const && other.isConst();
+            // source variables
+            var source_variables = new Dictionary<string, NumericalValue>();
+            if (!string.IsNullOrEmpty(getName())) source_variables.Add(getName(), this);
+            if (!string.IsNullOrEmpty(other.getName()) && other.getName() != getName()) source_variables.Add(other.getName(), other);
+            source_variables = mergeDictionaries(source_variables, other.source_vars);
+            //
+            NumericalValue result = Activator.CreateInstance(_val_type, result_raw_value, result_is_const, source_variables) as NumericalValue;
+            return result;
+        }
+
+        public NumericalValue mult(NumericalValue other)
+        {
+            assertAssignment();
+            //
+            dynamic result_raw_value = numeric_value * other.getValue();
+            bool result_is_const = is_const && other.isConst();
+            // source variables
+            var source_variables = new Dictionary<string, NumericalValue>();
+            if (!string.IsNullOrEmpty(getName())) source_variables.Add(getName(), this);
+            if (!string.IsNullOrEmpty(other.getName()) && other.getName() != getName()) source_variables.Add(other.getName(), other);
+            source_variables = mergeDictionaries(source_variables, other.source_vars);
+            //
+            NumericalValue result = Activator.CreateInstance(_val_type, result_raw_value, result_is_const, source_variables) as NumericalValue;
+            return result;
+        }
+
+        public NumericalValue division(NumericalValue other)
+        {
+            assertAssignment();
+            //
+            dynamic other_value = other.getValue();
+            Debugging.assert(other_value != 0, new AquilaExceptions.ZeroDivisionException($"{numeric_value} / {other_value}"));
+            dynamic result_raw_value = numeric_value / other_value;
+            bool result_is_const = is_const && other.isConst();
+            // source variables
+            var source_variables = new Dictionary<string, NumericalValue>();
+            if (!string.IsNullOrEmpty(getName())) source_variables.Add(getName(), this);
+            if (!string.IsNullOrEmpty(other.getName()) && other.getName() != getName()) source_variables.Add(other.getName(), other);
+            source_variables = mergeDictionaries(source_variables, other.source_vars);
+            //
+            NumericalValue result = Activator.CreateInstance(_val_type, result_raw_value, result_is_const, source_variables) as NumericalValue;
+            return result;
+        }
+        
+        public override int compare(Variable other)
+        {
+            Debugging.assert(hasSameParent(other));
+            trace("compare", new []{other.getValue()});
+            dynamic other_value = other.getValue();
+            if (numeric_value == other_value) return 0;
+            if (numeric_value > other_value) return 1;
+            return -1;
+        }
+        
+        public override Variable cloneTypeToVal(dynamic value) => Activator.CreateInstance(_val_type, value);
+        
+        public override bool hasSameParent(Variable other) => other.GetType() == _val_type || other is NullVar;
+    }
+
+    public sealed class Integer : NumericalValue
+    {
+        public Integer(int val, bool is_const = false, Dictionary<string, NumericalValue> src_vars = null) : base(val, src_vars)
+        {
+            assigned = true;
+            this.is_const = is_const;
+        }
 
         public Integer modulo(Integer other)
         {
             assertAssignment();
-            int int_result = _int_value % other.getValue();
-            return new Integer(int_result, is_const && other.is_const);
+            int int_result = numeric_value % other.getValue();
+            // source variables
+            var source_variables = new Dictionary<string, NumericalValue>();
+            if (!string.IsNullOrEmpty(getName())) source_variables.Add(getName(), this);
+            if (!string.IsNullOrEmpty(other.getName()) && other.getName() != getName()) source_variables.Add(other.getName(), other);
+            source_variables = mergeDictionaries(source_variables, other.source_vars);
+            return new Integer(int_result, is_const && other.is_const, source_variables);
         }
-
-        public Integer addition(Integer other)
-        {
-            assertAssignment();
-            return new Integer(_int_value + other.getValue(), is_const && other.is_const);
-        }
-
-        public Integer subtraction(Integer other)
-        {
-            assertAssignment();
-            return new Integer(_int_value - other.getValue(), is_const && other.is_const);
-        }
-
-        public Integer division(Integer other)
-        {
-            assertAssignment();
-            int other_value = other.getValue();
-            Debugging.assert(other_value != 0, new AquilaExceptions.ZeroDivisionException($"{_int_value} / {other_value}"));
-            return new Integer(_int_value / other.getValue(), is_const && other.is_const);
-        }
-
-        public Integer mult(Integer other)
-        {
-            assertAssignment();
-            return new Integer(_int_value * other.getValue(), is_const && other.is_const);
-        }
-
-        public override int compare(Variable n1)
-        {
-            Debugging.assert(hasSameParent(n1));
-            assertAssignment();
-            if (_int_value > n1.getValue())
-            {
-                return 1;
-            }
-
-            if (n1.getValue() == _int_value)
-            {
-                return 0;
-            }
-
-            return -1;
-        }
-
-        public override void setValue(Variable other_value)
-        {
-            if (!assigned) assign();
-            _int_value = other_value.getValue();
-            trace("setValue", new dynamic[] { other_value.getValue() });
-        }
-
-        public override void forceSetValue(dynamic value) => _int_value = (int) value;
 
         public override string ToString()
         {
-            if (Global.getSetting("debug") || Global.getSetting("trace debug")) return "Integer (" + _int_value + ")";
-            return _int_value.ToString();
+            if (Global.getSetting("debug") || Global.getSetting("trace debug")) return "Integer (" + numeric_value + ")";
+            return numeric_value.ToString();
         }
 
-        public override bool hasSameParent(Variable other_value) => other_value is Integer || other_value is NullVar;
-
-        public override string getTypeString() => "int";
+        public override string getTypeString() => StringConstants.Types.INT_TYPE;
     }
 
-    public sealed class FloatVar : Variable
+    public sealed class FloatVar : NumericalValue
     {
-        private float _float_value;
-        public FloatVar(float val, bool is_const = false)
+        public FloatVar(float val, bool is_const = false, Dictionary<string, NumericalValue> src_vars = null) : base(val, src_vars)
         {
-            _float_value = val;
             assigned = true;
             this.is_const = is_const;
         }
 
-        public override Variable cloneTypeToVal(dynamic value) => new FloatVar(value);
-
-        public override dynamic getValue() => assigned ? _float_value : throw new AquilaExceptions.InvalidUsageException("Unassigned variable");
-
-        public override void setValue(Variable other_value)
-        {
-            if (!assigned) assign();
-            _float_value = other_value.getValue();
-            trace("setValue", new dynamic[] { other_value.getValue() });
-        }
-
-        public override void forceSetValue(dynamic value) => _float_value = (float) value;
-
-        public override bool hasSameParent(Variable other_value) => other_value is FloatVar;
-
-        public override string getTypeString() => "float";
-
-
-        public override int compare(Variable other)
-        {
-            Debugging.assert(hasSameParent(other));
-            if (_float_value > other.getValue()) return 1;
-            if (_float_value == other.getValue()) return 0;
-            return -1;
-        }
-
-        public Variable addition(FloatVar other)
-        {
-            assertAssignment();
-            return new FloatVar(_float_value + other.getValue(), is_const && other.is_const);
-        }
-
-        public Variable subtraction(FloatVar other)
-        {
-            assertAssignment();
-            return new FloatVar(_float_value  - other.getValue(), is_const && other.is_const);
-        }
-
-        public Variable mult(FloatVar other)
-        {
-            assertAssignment();
-            return new FloatVar(_float_value * other.getValue(), is_const && other.is_const);
-        }
-
-        public Variable division(FloatVar other)
-        {
-            assertAssignment();
-            float other_value = other.getValue();
-            Debugging.assert(other_value != 0, new AquilaExceptions.ZeroDivisionException($"{_float_value} / {other_value}"));
-            return new FloatVar(_float_value / other_value, is_const && other.is_const);
-        }
+        public override string getTypeString() => StringConstants.Types.FLOAT_TYPE;
 
         public override string ToString()
         {
-            if (Global.getSetting("debug") || Global.getSetting("trace debug")) return "Float (" + _float_value + ")";
-            return _float_value.ToString(CultureInfo.InvariantCulture);
+            if (Global.getSetting("debug") || Global.getSetting("trace debug")) return "Float (" + numeric_value + ")";
+            return numeric_value.ToString(CultureInfo.InvariantCulture);
         }
     }
 
@@ -557,11 +584,11 @@ namespace Parser
             trace("removeValue", new dynamic[] { index.getRawValue() });
         }
 
-        public override void setValue(Variable other_value)
+        public override void setValue(Variable other)
         {
             if (!assigned) assign();
-            _list = other_value.getValue();
-            trace("setValue", new dynamic[] { other_value.getRawValue() });
+            _list = other.getValue();
+            trace("setValue", new dynamic[] { other.getRawValue() });
         }
 
         public override void forceSetValue(dynamic value)
@@ -619,7 +646,7 @@ namespace Parser
             return 0;
         }
 
-        public override string getTypeString() => "list";
+        public override string getTypeString() => StringConstants.Types.LIST_TYPE;
     }
 
     public class FunctionCall : Variable
@@ -672,7 +699,7 @@ namespace Parser
 
         public override dynamic getValue() => callFunction().getValue();
 
-        public override void setValue(Variable other_value) =>
+        public override void setValue(Variable other) =>
             throw new AquilaExceptions.InvalidUsageException("Cannot use a function this way");
 
         public override void forceSetValue(dynamic value) => throw new AquilaExceptions.InvalidUsageException("Cannot use a function this way");

@@ -82,9 +82,8 @@ namespace Parser
         /// Should be called BEFORE executing the <see cref="Function"/>.
         /// Initializes a new Main Context Stack, as well as a new Local Context Stack with the given variables
         /// </summary>
-        /// <param name="args"> Given variables. Accessible in the Context Stack</param>
         /// <exception cref="Context.ContextException"> If not a recursive function, already executing this very function</exception>
-        private void initialize(Dictionary<string, Variable> args)
+        private void initialize()
         {
             _call_depth++;
             Debugging.print("calling function with depth: ", _call_depth);
@@ -92,7 +91,7 @@ namespace Parser
             if (!_rec_function && _in_function_scope) throw new Context.ContextException("Already in function scope. Missing \"recursive\" keyword ?");// recursive ?
 
             // new local context scope using custom function args
-            Global.newLocalContextScope(args);
+            // Global.newLocalContextScope(args);
 
             _in_function_scope = true;
         }
@@ -104,7 +103,7 @@ namespace Parser
         /// <returns> The return value of the function</returns>
         public Variable callFunction(Dictionary<string, Variable> args)
         {
-            initialize(args);
+            initialize();
 
             Debugging.assert(_in_function_scope);
             foreach (Instruction instruction in _instructions)
@@ -121,14 +120,14 @@ namespace Parser
                     Expression return_value_expression = new Expression(return_value_string);
                     Variable return_value = return_value_expression.evaluate();
 
-                    if (_type != "auto" && _type != "null") Debugging.assert(return_value.getTypeString() == _type);
+                    if (_type != StringConstants.Types.AUTO_TYPE && _type != StringConstants.Types.NULL_TYPE) Debugging.assert(return_value.getTypeString() == _type);
                     restore();
                     return return_value;
                 }
             }
             Debugging.print("no ReturnValueException thrown. returning NullVar");
 
-            if (_type != "auto") Debugging.assert(_type == "null");
+            if (_type != StringConstants.Types.AUTO_TYPE) Debugging.assert(_type == StringConstants.Types.NULL_TYPE);
             restore();
             return new NullVar();
         }
@@ -143,7 +142,7 @@ namespace Parser
             if (!_rec_function && !_in_function_scope) throw new Exception("Not in function scope.");//" Missing \"recursive\" keyword ?");
             // Debugging.assert(Global.getSetting("flame mode") || Context.isFrozen());
 
-            Global.resetLocalContextScope();
+            // Global.resetLocalContextScope();
 
             _in_function_scope = false;
         }
@@ -182,7 +181,7 @@ namespace Parser
                 resp = true; // REPLACE WITH "rec-function", "end-rec-function"
             }
             Debugging.assert(decl.Count == 3); // function type name(args)
-            Debugging.assert(decl[0] == "function");
+            Debugging.assert(decl[0] == StringConstants.Keywords.FUNCTION_KEYWORD);
             // type
             string type_str = decl[1];
             // name
@@ -282,19 +281,45 @@ namespace Parser
             Debugging.assert(list_var is DynamicList); // TypeError
             DynamicList list = list_var as DynamicList;
             // extract index
-            Variable index_var = index_list_expr.evaluate();
-            Debugging.assert(index_var is DynamicList); // TypeError
-            DynamicList index_list = index_var as DynamicList;
-            // access at index
-            if (list_var.isTraced())
+            Variable index_list_var = index_list_expr.evaluate();
+            Debugging.assert(index_list_var is DynamicList); // TypeError
+            DynamicList index_list = index_list_var as DynamicList;
+            // test run ?
+            if (Global.getSetting("test mode"))
             {
-                Tracer.printTrace("list_at last event: " + list_var.tracer.peekEvent());
-                handleValueFunctionTracing("list_at", list,
-                    new dynamic[] {index_list.getValue()});
-                Tracer.printTrace("list_at last event: " + list_var.tracer.peekEvent());
+                // function to add to index dict
+                void addToIndexList(string var_name)
+                {
+                    if (var_name == "") return;
+                    var index_var_name_list = (List<string>) Global.test_values["index values"];
+                    // variable name already in index dict ?
+                    if (index_var_name_list.Contains(var_name)) return;
+                    // add to index dict
+                    index_var_name_list.Add(var_name);
+                }
+            }
+            // access at index
+            Variable result = list.atIndexList(index_list);
+            // trace list
+            if (!list_var.isTraced()) return result;
+            Tracer.printTrace("list_at last event: " + list_var.tracer.peekEvent());
+            handleValueFunctionTracing("list_at", list,
+                new dynamic[] {index_list.getValue()});
+            // trace index
+            foreach (Variable index_var in index_list_var.getValue())
+            {
+                var numeric_index = (NumericalValue) index_var;
+                NumericalValue source = numeric_index.getTracedSource();
+                if (source == null) continue;
+
+                Tracer.printTrace("Traced source var: " + source.getName());
+                numeric_index.setName("- composed -");
+                list.tracer.update(new Event(new Alteration("tmp_list_at", numeric_index,
+                numeric_index.getValue(), new[] {list.getName(), index_list.getValue()},
+                    mode:"index")));
             }
 
-            return list.atIndexList(index_list);
+            return result;
         }
 
         /// <summary>
@@ -648,11 +673,11 @@ namespace Parser
             Tracer.printTrace($"Tracing \"{var_expr.expr}\" with mode \"{mode_expr.expr}\"");
             // get the variable
             Variable var = var_expr.evaluate();
+            // change the tracing mode (using in Alteration.mode)
+            var.trace_mode = mode_expr.expr;
             // trace it if not already traced
             if (!var.isTraced()) var.startTracing();
 
-            // change the tracing mode (using in Alteration.mode)
-            var.trace_mode = mode_expr.expr;
 
             return new NullVar();
         }
@@ -663,29 +688,29 @@ namespace Parser
         public static readonly Dictionary<string, Delegate> functions_dict = new Dictionary<string, Delegate>
         {
             // Value functions
-            {"length", new Func<Expression, Variable>(lengthFunction)},
-            {"list_at", new Func<Expression, Expression, Variable>(listAtFunction)},
-            {"copy_list", new Func<Expression, Variable>(copyListFunction)},
-            {"float2int", new Func<Expression, Variable>(float2intFunction)},
-            {"int2float", new Func<Expression, Variable>(int2floatFunction)},
-            {"random", new Func<Variable>(randomNumber)},
-            {"sqrt", new Func<Expression, Variable>(sqrtFunction)},
+            {StringConstants.PredefinedFunctions.LENGTH_FUNCTION_NAME, new Func<Expression, Variable>(lengthFunction)},
+            {StringConstants.PredefinedFunctions.LIST_AT_FUNCTION_NAME, new Func<Expression, Expression, Variable>(listAtFunction)},
+            {StringConstants.PredefinedFunctions.COPY_LIST_FUNCTION_NAME, new Func<Expression, Variable>(copyListFunction)},
+            {StringConstants.PredefinedFunctions.FLOAT2INT_FUNCTION_NAME, new Func<Expression, Variable>(float2intFunction)},
+            {StringConstants.PredefinedFunctions.INT2FLOAT_FUNCTION_NAME, new Func<Expression, Variable>(int2floatFunction)},
+            {StringConstants.PredefinedFunctions.RANDOM_FUNCTION_NAME, new Func<Variable>(randomNumber)},
+            {StringConstants.PredefinedFunctions.SQRT_FUNCTION_NAME, new Func<Expression, Variable>(sqrtFunction)},
             // Void functions
-            {"return", new Func<Expression, NullVar>(returnFunction)}, // NullVar is equivalent to void, null or none
-            {"break", new Func<NullVar>(breakFunction)},
-            {"continue", new Func<NullVar>(continueFunction)},
-            {"interactive_call", new Func<Expression, NullVar>(interactiveCallFunction)},
-            {"print_value", new Func<Expression, NullVar>(printValFunction)},
-            {"print_value_endl", new Func<Expression, NullVar>(printValEndlFunction)},
-            {"print_str", new Func<Expression, NullVar>(printStrFunction)},
-            {"print_str_endl", new Func<Expression, NullVar>(printStrEndlFunction)},
-            {"print_endl", new Func<NullVar>(printEndlFunction)},
-            {"delete_var", new Func<Expression, NullVar>(deleteVarFunction)},
-            {"delete_value_at", new Func<Expression, Expression, NullVar>(deleteValueAt)},
-            {"insert_value_at", new Func<Expression, Expression, Expression, NullVar>(insertValueAt)},
-            {"append_value", new Func<Expression, Expression, NullVar>(appendValue)},
-            {"swap", new Func<Expression, Expression, Expression, NullVar>(swapFunction)},
-            {"trace_mode", new Func<Expression, Expression, NullVar>(traceModeFunction)},
+            {StringConstants.Keywords.RETURN_KEYWORD, new Func<Expression, NullVar>(returnFunction)}, // NullVar is equivalent to void, null or none
+            {StringConstants.Keywords.BREAK_KEYWORD, new Func<NullVar>(breakFunction)},
+            {StringConstants.Keywords.CONTINUE_KEYWORD, new Func<NullVar>(continueFunction)},
+            {StringConstants.PredefinedFunctions.INTERACTIVE_CALL_FUNCTION_NAME, new Func<Expression, NullVar>(interactiveCallFunction)},
+            {StringConstants.PredefinedFunctions.PRINT_VALUE_FUNCTION_NAME, new Func<Expression, NullVar>(printValFunction)},
+            {StringConstants.PredefinedFunctions.PRINT_VALUE_ENDL_FUNCTION_NAME, new Func<Expression, NullVar>(printValEndlFunction)},
+            {StringConstants.PredefinedFunctions.PRINT_STR_FUNCTION_NAME, new Func<Expression, NullVar>(printStrFunction)},
+            {StringConstants.PredefinedFunctions.PRINT_STR_ENDL_FUNCTION_NAME, new Func<Expression, NullVar>(printStrEndlFunction)},
+            {StringConstants.PredefinedFunctions.PRINT_ENDL_FUNCTION_NAME, new Func<NullVar>(printEndlFunction)},
+            {StringConstants.PredefinedFunctions.DELETE_VAR_FUNCTION_NAME, new Func<Expression, NullVar>(deleteVarFunction)},
+            {StringConstants.PredefinedFunctions.DELETE_VALUE_AT_FUNCTION_NAME, new Func<Expression, Expression, NullVar>(deleteValueAt)},
+            {StringConstants.PredefinedFunctions.INSERT_VALUE_AT_FUNCTION_NAME, new Func<Expression, Expression, Expression, NullVar>(insertValueAt)},
+            {StringConstants.PredefinedFunctions.APPEND_VALUE_FUNCTION_NAME, new Func<Expression, Expression, NullVar>(appendValue)},
+            {StringConstants.PredefinedFunctions.SWAP_FUNCTION_NAME, new Func<Expression, Expression, Expression, NullVar>(swapFunction)},
+            {StringConstants.PredefinedFunctions.TRACE_MODE_FUNCTION_NAME, new Func<Expression, Expression, NullVar>(traceModeFunction)},
         };
 
         /// <summary>

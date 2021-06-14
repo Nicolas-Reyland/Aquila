@@ -63,13 +63,39 @@ namespace Parser
     internal static class Parser
     {
         /// <summary>
+        /// This function is used to read a raw Aquila source code text-based file and
+        /// purge the code (remove comments and all unnecessary spaces and tabs)
+        /// </summary>
+        /// <param name="path"> lib_path to your source code file</param>
+        /// <returns> list of lines containing your purged code</returns>
+        internal static Dictionary<int, string> readSourceCode(string path)
+        {
+            Dictionary<int, string> lines = readLines(path);
+            print(lines.Count + " lines read");
+            lines = StringUtils.normalizeWhiteSpacesInStrings(lines);
+            print($"lines normalized. remaining: {lines.Count}");
+            foreach (var pair in lines)
+            {
+                Global.stdoutWriteLine($"{pair.Key}: {pair.Value}");
+            }
+            lines = StringUtils.refactorCodeShortcuts(lines, new []{('[', ']'), ('(', ')')});
+            print($"lines refactored. remaining: {lines.Count}");
+            foreach (var pair in lines)
+            {
+                Global.stdoutWriteLine($"{pair.Key}: {pair.Value}");
+            }
+
+            return lines;
+        }
+        
+        /// <summary>
         /// Read a text-based pseudo-code file. Removes all the comments using
         /// the strings in <see cref="Global"/>: <see cref="Global.single_line_comment_string"/>, <see cref="Global.multiple_lines_comment_string"/>.
         /// The multiple-line comment closing tag is the calculated mirror of the <see cref="Global.multiple_lines_comment_string"/> string.
         /// </summary>
         /// <param name="path"> relative or full path to file</param>
         /// <returns> List of the lines, without the '\n' char or comments</returns>
-        public static Dictionary<int, string> readLines(string path)
+        private static Dictionary<int, string> readLines(string path)
         {
             // read file to end
             StreamReader file = new StreamReader(path);
@@ -87,52 +113,6 @@ namespace Parser
             }
 
             return lines;
-        }
-
-        /// <summary>
-        /// Transforms a string into a <see cref="DynamicList"/> object.
-        /// The string should be formatted as follows: "[a,b,c,d]" where
-        /// a,b,c and d are either <see cref="Integer"/>s or other <see cref="DynamicList"/>s.
-        /// <para/> All the spaces will be removed. They are therefore tolerated anywhere in the input
-        /// <para/> Values are separated by commas: ','
-        /// <para/> The string starts with an opening bracket and ends with a closing one
-        /// </summary>
-        /// <param name="s"> string that describes a dynamic list</param>
-        /// <returns> The <see cref="DynamicList"/> described by the given string</returns>
-        /// <exception cref="AquilaExceptions.SyntaxExceptions.InvalidListExpressionError"> Invalid list expression</exception>
-        public static DynamicList string2DynamicList(string s)
-        {
-            s = s.Replace(" ", "");
-            // ReSharper disable once UseIndexFromEndExpression
-            if (s[0] != 91 || s[s.Length - 1] != 93)
-            {
-                throw new AquilaExceptions.SyntaxExceptions.UnclosedTagError($"Unclosed tag in \"{s}\"");
-            }
-
-            if (s == "[]")
-            {
-                return new DynamicList();
-            }
-
-            s = s.Substring(1, s.Length - 2);
-
-            List<string> splitted = StringUtils.splitStringKeepingStructureIntegrity(s, ',', Global.base_delimiters);
-            DynamicList list = new DynamicList(is_const:true);
-
-            foreach (string split in splitted)
-            {
-                if (split[0] == 91)
-                {
-                    // ReSharper disable once UseIndexFromEndExpression
-                    if (split[split.Length - 1] != 93)
-                    {
-                        throw new AquilaExceptions.SyntaxExceptions.InvalidListExpressionError($"List expression: \"{s}\" is invalid");
-                    }
-                }
-                list.addValue(Expression.parse(split));
-            }
-
-            return list;
         }
 
         /// <summary>
@@ -198,12 +178,10 @@ namespace Parser
                     catch (KeyNotFoundException)
                     {
                         Debugging.print($"Setting {setting_key} does not exist.");
-                        throw new AquilaExceptions.SyntaxExceptions.SyntaxError($"Unrecognized setting key \"{setting_key}\"");
                     }
                     catch (ArgumentException)
                     {
                         Debugging.print("invalid boolean value: " + setting_value);
-                        throw new AquilaExceptions.SyntaxExceptions.SyntaxError($"Unknown setting value \"{setting_value}\".\nPossible values are [1, 0, true, false, True, False, TRUE, FALSE]");
                     }
 
                     break;
@@ -255,6 +233,28 @@ namespace Parser
                     throw new AquilaExceptions.UnknownMacroError($"Macro keyword \"{key}\" is unknown");
             }
         }
+
+        /// <summary>
+        /// Outputs the args to the stdout stream if <see cref="Global.settings"/>["debug"] is set to true
+        /// </summary>
+        /// <param name="args"> consecutive calls of the ".ToString()" method of these will be printed</param>
+        public static void print(params object[] args)
+        {
+            // if not in debugging mode, return
+            if (!Global.getSetting("parse debug")) return;
+
+            // default settings
+            int max_call_name_length = 30;
+            int num_new_method_separators = 25;
+            bool enable_function_depth = true;
+            int num_function_depth_chars = 4;
+            string prefix = "* PARSE";
+
+            // print the args nicely
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalse
+            StringUtils.nicePrintFunction(max_call_name_length, num_new_method_separators, enable_function_depth,
+                num_function_depth_chars, prefix, args);
+        }
     }
 
     internal static class Program
@@ -268,20 +268,33 @@ namespace Parser
             Global.initVariables();
             //Global.setStdout(new StreamWriter("log.log"));
             // Global.tracer_update_handler_function = test;
+            /*string stdin_path = @"C:\Documents\stdin.txt";
+            FileStream in_stream = File.Open(stdin_path, FileMode.OpenOrCreate, FileAccess.Read, FileShare.ReadWrite);
+            StreamReader reader = new StreamReader(in_stream);
+            Global.setStdin(reader);
+            string stdout_path = @"C:\Documents\stdout.txt";
+            FileStream out_stream =
+                File.Open(stdout_path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
+            StreamWriter writer = new StreamWriter(out_stream);
+            Global.setStdout(writer);*/
 
-            string std_lib_path = @"..\..\..\aquila standard lib.aq";
-            if (false && File.Exists(std_lib_path))
+            // ReSharper disable once CommentTypo
+            /*string std_lib_path = @"..\..\..\aquila standard lib.aq";
+            if (File.Exists(std_lib_path))
             {
                 //Parser.handleMacro("load", std_lib_path);
-            }
-            
+            }*/
+
             Global.setSetting("interactive", true);
+            Global.setSetting("parse debug", true);
             Global.setSetting("debug", false);
             Global.setSetting("trace debug", false);
             Global.setSetting("allow tracing in frozen context", false);
             Global.setSetting("flame mode", false); // can set to false bc "allow tracing in frozen context" is set to true. but to be sure: true
             Global.setSetting("implicit declaration in assignment", true);
             Global.setSetting("auto trace", true);
+
+            bool test_run = false;
             
             // ReSharper disable ConditionIsAlwaysTrueOrFalse
 
@@ -290,12 +303,17 @@ namespace Parser
 
             if (args.Length > 0) Global.setSetting("interactive", false); // for Atom running!
 
-            List<string> exec_lines = new List<string>()
+            List<string> exec_lines = new List<string>
             {
-                "while (true)",
-                "print_str_endl(test)",
-                "break",
-                "end-while",
+                "#setting debug false",
+                "function null test()",
+                "interactive_call(scope_info)",
+                "if (true)",
+                "if (true)",
+                "interactive_call(scope_info)",
+                "end-if",
+                "end-if",
+                "end-function",
             };
 
             if (Global.getSetting("interactive") || args.Length > 0 && args[0] == "interactive")
@@ -306,13 +324,29 @@ namespace Parser
 
             Global.stdoutWriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : @"bubble sort.aq";//"merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
-            bool interactive_after_execution = false;//args.Length == 0;
+            string src_code = args.Length == 1 ? args[0] : "test.aq";//"merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            bool interactive_after_execution = args.Length == 0;
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);
             try
             {
-                Variable return_value = Interpreter.runAlgorithm(algo);
+                //
+                if (test_run)
+                {
+                    Global.stdoutWriteLine("Starting test run...");
+                    algo.testRun();
+                    foreach (var pair in Global.test_values)
+                    {
+                        Global.stdoutWriteLine($"{pair.Key} : {StringUtils.dynamic2Str(pair.Value)}");
+                    }
+                }
+                else
+                {
+                    Global.stdoutWriteLine("Skipped test run");
+                }
+                
+                Global.stdoutWriteLine(" - Main Run -");
+                Variable return_value = algo.run();
                 Global.stdoutWriteLine("returned value: " + return_value);
 
                 if (interactive_after_execution)
@@ -327,11 +361,12 @@ namespace Parser
                 Global.stdoutWriteLine("Error caught. Interactive interpreter instance given for debugging.");
                 Global.setSetting("debug", true);
                 Global.setSetting("trace debug", true);
+                Global.setSetting("parse debug", true);
                 Interpreter.interactiveMode(exec_lines, false);
             }
 
-            var tree = new DataTree();
-            tree.repr();
+            // var tree = new DataTree();
+            // tree.repr();
 
             // ReSharper restore HeuristicUnreachableCode
             // ReSharper restore ConditionIsAlwaysTrueOrFalse

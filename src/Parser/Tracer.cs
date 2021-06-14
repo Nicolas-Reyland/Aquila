@@ -37,7 +37,7 @@ namespace Parser
             _info = Context.getInfo();
             this.alter = alter;
         }
-        
+
         // Getters
         /// <summary>
         /// explicit naming
@@ -118,7 +118,7 @@ namespace Parser
         /// <returns> $"name: {name} var_name: {affected.getName()}main_value: {StringUtils.dynamic2Str(main_value)} minor values (num): {minor_values.Length}"</returns>
         public override string ToString()
         {
-            return $"name: {name} var_name: {affected.getName()}main_value: {StringUtils.dynamic2Str(main_value)} minor values (num): {minor_values.Length}";
+            return $"name: {name} | var_name: {affected.getName()} | main_value: {StringUtils.dynamic2Str(main_value)} | minor values (num): {minor_values.Length} | mode: {mode}";
         }
     }
 
@@ -219,7 +219,7 @@ namespace Parser
             // check for new usable variables
             foreach (var pair in Global.getCurrentDict().Where(pair => !Global.usable_variables.Contains(pair.Key)))
             {
-                printTrace("checking potential var ", pair.Value is NullVar ? "null" : pair.Value.getName());
+                printTrace("checking potential var ", pair.Value is NullVar ? StringConstants.Types.NULL_TYPE : pair.Value.getName());
                 if (pair.Value is NullVar || !pair.Value.assigned) continue;
                 // new usable variable !
                 printTrace("var ", pair.Value.getName(), " is usable (non-null & assigned)");
@@ -255,7 +255,7 @@ namespace Parser
                     tracer.update(tracer._awaiting_events.Pop());
                 }
             }
-            
+
             // update data_tree
             printTrace("Updating Global.data_tree");
             // ReSharper disable once InvertIf
@@ -394,8 +394,9 @@ namespace Parser
         public VarTracer(Variable traced) : base(traced)
         {
             _traced_var = traced;
+            printTrace(("trace type: " + traced.trace_mode));
             var creation_event =
-                new Event(new Alteration("creation", _traced_var, _traced_var.getRawValue(), new dynamic[] { }));
+                new Event(new Alteration("creation", _traced_var, _traced_var.getRawValue(), new dynamic[] { }, traced.trace_mode));
             events.Push(creation_event); // tracer creation event
             last_stack_count = 1;
             callUpdateHandler(creation_event.alter);
@@ -422,7 +423,7 @@ namespace Parser
             // update
             events.Push(event_);
             printTrace("updated (value: " + StringUtils.dynamic2Str(peekValue()) + ")");
-            
+
             // handle
             callUpdateHandler(event_.alter);
         }

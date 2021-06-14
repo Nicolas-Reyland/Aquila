@@ -63,28 +63,28 @@ namespace Parser
              * function call
              * variable access (e.g. $name or in list by index)
              */
-            
+
             // clean expression
             expr_string = StringUtils.normalizeWhiteSpaces(expr_string);
+            Exception invalid_expr_exception =
+                new AquilaExceptions.SyntaxExceptions.SyntaxError($"The sentence \"{expr_string}\" is not understood");
 
             Debugging.print("input expression: " + expr_string);
 
             // matching parentheses & brackets
-            Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '(', ')'), new AquilaExceptions.SyntaxExceptions.UnclosedTagError("Unclosed parenthesis"));
-            Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '[', ']'), new AquilaExceptions.SyntaxExceptions.UnclosedTagError("Unclosed backet"));
+            Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '(', ')'),
+                new AquilaExceptions.SyntaxExceptions.UnclosedTagError("Unclosed parenthesis"));
+            Debugging.assert(StringUtils.checkMatchingDelimiters(expr_string, '[', ']'),
+                new AquilaExceptions.SyntaxExceptions.UnclosedTagError("Unclosed bracket"));
             expr_string = StringUtils.removeRedundantMatchingDelimiters(expr_string, '(', ')');
 
             Debugging.print("dynamic list ?");
             // dynamic list
-            try
             {
-                return Parser.string2DynamicList(expr_string);
+                DynamicList list = StringUtils.parseListExpression(expr_string);
+                if (list != null) return list;
             }
-            catch
-            {
-                //
-            }
-            
+
             // now that lists are over, check for redundant brackets
             expr_string = StringUtils.removeRedundantMatchingDelimiters(expr_string, '[', ']');
 
@@ -94,7 +94,7 @@ namespace Parser
 
             Debugging.print("int ?");
             // try evaluating expression as an integer
-            if (Int32.TryParse(expr_string, out int int_value))
+            if (int.TryParse(expr_string, out int int_value))
             {
                 return new Integer(int_value, true);
             }
@@ -105,36 +105,43 @@ namespace Parser
             {
                 return new BooleanVar(true, true);
             }
+
             if (expr_string == "false")
             {
                 return new BooleanVar(false, true);
             }
-            
+
             Debugging.print("float ?");
             // try evaluating expression as float
-            if (float.TryParse(expr_string, out float float_value))
+            if (!expr_string.Contains(' '))
             {
-                Debugging.print("french/classic float");
-                return new FloatVar(float_value, true);
+                if (float.TryParse(expr_string, out float float_value))
+                {
+                    Debugging.print("french/classic float");
+                    return new FloatVar(float_value, true);
+                }
+
+                if (float.TryParse(expr_string.Replace('.', ','), out float_value))
+                {
+                    Debugging.print("normalized float");
+                    return new FloatVar(float_value, true);
+                }
+
+                if (expr_string.EndsWith("f") &&
+                    float.TryParse(expr_string.Substring(0, expr_string.Length - 1), out float_value))
+                {
+                    Debugging.print("f-float");
+                    return new FloatVar(float_value, true);
+                }
+
+                if (expr_string.EndsWith("f") &&
+                    float.TryParse(expr_string.Replace('.', ',').Substring(0, expr_string.Length - 1), out float_value))
+                {
+                    Debugging.print("f-float");
+                    return new FloatVar(float_value, true);
+                }
             }
-            if (float.TryParse(expr_string.Replace('.', ','), out float_value))
-            {
-                Debugging.print("normalized float");
-                return new FloatVar(float_value, true);
-            }
-            if (expr_string.EndsWith("f") &&
-                float.TryParse(expr_string.Substring(0, expr_string.Length - 1), out float_value))
-            {
-                Debugging.print("f-float");
-                return new FloatVar(float_value, true);
-            }
-            if (expr_string.EndsWith("f") &&
-                float.TryParse(expr_string.Replace('.', ',').Substring(0, expr_string.Length - 1), out float_value))
-            {
-                Debugging.print("f-float");
-                return new FloatVar(float_value, true);
-            }
-            
+
             Debugging.print("checking for negative expression");
             // special step: check for -(expr)
             if (expr_string.StartsWith("-"))
@@ -143,24 +150,11 @@ namespace Parser
                 string opposite_sign_expr = expr_string.Substring(1); // take away the "-"
                 Variable opposite_sign_var = parse(opposite_sign_expr);
                 Debugging.print("evaluated expression without the \"-\" symbol is of type ", opposite_sign_var.getTypeString(), " and value ", opposite_sign_var.getValue());
-                /*switch (opposite_sign_var)
-                {
-                    case Integer _:
-                    {
-                        int signed_value = -1 * opposite_sign_var.getValue();
-                        return new Integer(signed_value);
-                    }
-                    case FloatVar _:
-                    {
-                        float signed_value = -1 * opposite_sign_var.getValue();
-                        return new FloatVar(signed_value);
-                    }
-                    default:
-                        throw new AquilaExceptions.InvalidTypeError($"Cannot cast \"-\" on a {opposite_sign_var.getTypeString()} variable");
-                }*/
-		if (opposite_sign_var is Integer) return new Integer(-opposite_sign_var.getValue());
-		else if (opposite_sign_var is FloatVar) return new FloatVar(-opposite_sign_var.getValue());
-		else throw new AquilaExceptions.InvalidTypeError($"Cannot cast \"-\" on a {opposite_sign_var.getTypeString()} variable");
+
+                // ReSharper disable once ConvertIfStatementToSwitchExpression
+                if (opposite_sign_var is Integer) return new Integer(-opposite_sign_var.getValue());
+                if (opposite_sign_var is FloatVar) return new FloatVar(-opposite_sign_var.getValue());
+                throw new AquilaExceptions.InvalidTypeError($"Cannot cast \"-\" on a {opposite_sign_var.getTypeString()} variable");
             }
 
             Debugging.print("AL operations ?");
@@ -261,7 +255,7 @@ namespace Parser
             }
 
             // function call without parenthesis -> no parameters either
-            if (!expr_string.StartsWith("$"))
+            if (!expr_string.StartsWith(StringConstants.Other.VARIABLE_PREFIX) && !expr_string.Contains(' '))
             {
                 Debugging.print($"Call the function \"{expr_string}\" with no parameters");
                 var func_call = new FunctionCall(expr_string, new List<Expression>());
@@ -272,15 +266,15 @@ namespace Parser
             // variable access
 
             // since it is the last possibility for the parse call to return something, assert it is a variable
-            Debugging.assert(expr_string.StartsWith("$")); // SyntaxError
+            Debugging.assert(expr_string.StartsWith(StringConstants.Other.VARIABLE_PREFIX), invalid_expr_exception);
             Debugging.print("list access ?");
             // ReSharper disable once PossibleNullReferenceException
             if (expr_string.Contains("["))
             {
                 // brackets
-                Debugging.assert(expr_string.EndsWith("]")); // cannot be "$l[0] + 5" bc AL_operations have already been processed
+                Debugging.assert(expr_string.EndsWith("]"), invalid_expr_exception); // cannot be "$l[0] + 5" bc AL_operations have already been processed
                 int bracket_start_index = expr_string.IndexOf('[');
-                Debugging.assert(bracket_start_index > 1); // "$[$i - 4]" is not valid
+                Debugging.assert(bracket_start_index > 1, invalid_expr_exception); // "$[$i - 4]" is not valid
                 // variable
                 Expression var_name_expr = new Expression(expr_string.Substring(0, bracket_start_index));
                 Debugging.print("list name: " + var_name_expr.expr);
@@ -304,13 +298,13 @@ namespace Parser
 
         /// <summary>
         /// Get the <see cref="Variable"/> from the current variable Dictionary.
-        /// You an give the variable name with or without the "$" prefix
+        /// You an give the variable name with or without the "$" (<see cref="StringConstants.Other.VARIABLE_PREFIX"/>) prefix
         /// </summary>
-        /// <param name="var_name"> The variable name (with or without the "$" as a prefix)</param>
+        /// <param name="var_name"> The variable name (with or without the prefix)</param>
         /// <returns> the corresponding <see cref="Variable"/></returns>
         private static Variable variableFromName(string var_name)
         {
-            if (var_name.StartsWith("$")) var_name = var_name.Substring(1);
+            if (var_name.StartsWith(StringConstants.Other.VARIABLE_PREFIX)) var_name = var_name.Substring(1);
             Debugging.print("Variable access: ", var_name);
             //Interpreter.processInterpreterInput("vars");
             Debugging.assert(Global.variableExistsInCurrentScope(var_name),
@@ -353,52 +347,36 @@ namespace Parser
             {
                 // arithmetic
                 case '+':
-                    if (v1 is Integer integer)
+                    if (v1 is NumericalValue)
                     {
-                        return integer.addition(v2 as Integer);
-                    }
-                    else if (v1 is FloatVar)
-                    {
-                        return ((FloatVar) v1).addition(v2 as FloatVar);
+                        return ((NumericalValue) v1).addition((NumericalValue) v2);
                     }
                     else
                     {
                         throw new AquilaExceptions.InvalidTypeError($"Invalid type \"{v1.getTypeString()}\" with operator \"{op}\"");
-                    }   
-                case '-':
-                    if (v1 is Integer)
-                    {
-                        return ((Integer) v1).subtraction(v2 as Integer);
                     }
-                    else if (v1 is FloatVar)
+                case '-':
+                    if (v1 is NumericalValue)
                     {
-                        return ((FloatVar) v1).subtraction(v2 as FloatVar);
+                        return ((NumericalValue) v1).subtraction((NumericalValue) v2);
                     }
                     else
                     {
                         throw new AquilaExceptions.InvalidTypeError($"Invalid type \"{v1.getTypeString()}\" with operator \"{op}\"");
                     }
                 case '/':
-                    if (v1 is Integer)
+                    if (v1 is NumericalValue)
                     {
-                        return ((Integer) v1).division(v2 as Integer);
-                    }
-                    else if (v1 is FloatVar)
-                    {
-                        return ((FloatVar) v1).division(v2 as FloatVar);
+                        return ((NumericalValue) v1).division((NumericalValue) v2);
                     }
                     else
                     {
                         throw new AquilaExceptions.InvalidTypeError($"Invalid type \"{v1.getTypeString()}\" with operator \"{op}\"");
                     }
                 case '*':
-                    if (v1 is Integer)
+                    if (v1 is NumericalValue)
                     {
-                        return ((Integer) v1).mult(v2 as Integer);
-                    }
-                    else if (v1 is FloatVar)
-                    {
-                        return ((FloatVar) v1).mult(v2 as FloatVar);
+                        return ((NumericalValue) v1).mult((NumericalValue) v2);
                     }
                     else
                     {
@@ -407,7 +385,7 @@ namespace Parser
                 case '%':
                     if (v1 is Integer)
                     {
-                        return ((Integer) v1).modulo(v2 as Integer);
+                        return ((Integer) v1).modulo((Integer) v2);
                     }
                     else
                     {

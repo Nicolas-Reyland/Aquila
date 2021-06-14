@@ -39,21 +39,35 @@ namespace Parser
         /// <summary>
         /// All the reserved keywords
         /// </summary>
-        public static readonly string[] reserved_keywords = {
-            "if", "else", "end-if",
-            "for","end-for",
-            "while", "end-while",
-            "function", "end-function", "recursive",
-            "decl", "safe", "overwrite", "global", "const",
-            "trace",
-            "null", "auto", "int", "float", "bool", "list",
+        public static readonly string[] reserved_keywords = new string[]
+        {
+            StringConstants.Keywords.IF_KEYWORD, StringConstants.Keywords.ELSE_KEYWORD, StringConstants.Keywords.END_IF_KEYWORD,
+            StringConstants.Keywords.FOR_KEYWORD, StringConstants.Keywords.END_FOR_KEYWORD,
+            StringConstants.Keywords.WHILE_KEYWORD, StringConstants.Keywords.END_WHILE_KEYWORD,
+            StringConstants.Keywords.FUNCTION_KEYWORD, StringConstants.Keywords.END_FUNCTION_KEYWORD, StringConstants.Keywords.RECURSIVE_KEYWORD,
+            StringConstants.Keywords.DECLARATION_KEYWORD, StringConstants.Keywords.SAFE_DECLARATION_KEYWORD, StringConstants.Keywords.OVERWRITE_DECLARATION_KEYWORD, StringConstants.Keywords.GLOBAL_DECLARATION_KEYWORD, StringConstants.Keywords.CONST_DECLARATION_KEYWORD,
+            StringConstants.Keywords.TRACE_KEYWORD,
+            StringConstants.Types.NULL_TYPE, StringConstants.Types.AUTO_TYPE, StringConstants.Types.INT_TYPE, StringConstants.Types.FLOAT_TYPE, StringConstants.Types.BOOl_TYPE, StringConstants.Types.LIST_TYPE,
+        };
+
+        /// <summary>
+        /// Array containing the type strings
+        /// </summary>
+        public static readonly string[] type_list = new string[]
+        {
+            StringConstants.Types.INT_TYPE,
+            StringConstants.Types.FLOAT_TYPE,
+            StringConstants.Types.BOOl_TYPE,
+            StringConstants.Types.LIST_TYPE,
+            StringConstants.Types.NULL_TYPE,
+            StringConstants.Types.AUTO_TYPE,
         };
 
         /// <summary>
         /// All default available variables in Aquila
         /// </summary>
         private static readonly Dictionary<string, Variable> default_variables = new Dictionary<string, Variable>
-            {{"null", new NullVar()}};
+            {{StringConstants.Other.NULL_VARIABLE_NAME, new NullVar()}};
 
         /// <summary>
         /// The current variable stack
@@ -283,10 +297,10 @@ namespace Parser
         /// </summary>
         public static readonly Dictionary<string,string> nested_instruction_flags = new Dictionary<string, string>()
         {
-            {"for", "end-for"},
-            {"while", "end-while"},
-            {"if", "end-if"},
-            {"function", "end-function"},
+            {StringConstants.Keywords.FOR_KEYWORD, StringConstants.Keywords.END_FOR_KEYWORD},
+            {StringConstants.Keywords.WHILE_KEYWORD, StringConstants.Keywords.END_WHILE_KEYWORD},
+            {StringConstants.Keywords.IF_KEYWORD, StringConstants.Keywords.END_IF_KEYWORD},
+            {StringConstants.Keywords.FUNCTION_KEYWORD, StringConstants.Keywords.END_FUNCTION_KEYWORD},
         };
 
         /// <summary>
@@ -298,10 +312,10 @@ namespace Parser
         /// </summary>
         public static readonly Dictionary<string, dynamic> default_values_by_var_type = new Dictionary<string, dynamic>()
         {
-            {"int", new Expression("0")},
-            {"list", new Expression("[]")},
-            {"bool", new Expression("false")},
-            {"float", new Expression("0f")},
+            {StringConstants.Types.INT_TYPE, new Expression("0")},
+            {StringConstants.Types.FLOAT_TYPE, new Expression("0f")},
+            {StringConstants.Types.BOOl_TYPE, new Expression("false")},
+            {StringConstants.Types.LIST_TYPE, new Expression("[]")},
         };
 
         /// <summary>
@@ -332,8 +346,23 @@ namespace Parser
         /// <para/>* '}' is "&gt;="
         /// <para/>* '{' is "&lt;="
         /// </summary>
-        public static readonly char[] al_operations = { '&', '^', '|', ':', '~', '}', '{', '>', '<', '-', '+', '/', '*', '%'};//, '<', '>', '{', '}', '~', ':', '|', '&', '^' }; // '!' missing. special case
-        // real priority order: { '&', '^', '|', ':', '~', '}', '{', '>', '<', '%', '*', '/', '+', '-' };
+        public static readonly char[] al_operations =
+        {
+            '&',
+            '^',
+            '|',
+            ':',
+            '~',
+            '}',
+            '{',
+            '>',
+            '<',
+            '-',
+            '+',
+            '/',
+            '*',
+            '%',
+        };
 
         /// <summary>
         /// List of all the variable tracers
@@ -365,6 +394,13 @@ namespace Parser
             usable_variables.Clear();
             Context.resetContext();
         }
+
+        /// <summary>
+        /// Dictionary of dynamic values used in the <see cref="Algorithm"/> test run to gather info about the
+        /// current Algorithm.
+        /// </summary>
+        public static readonly Dictionary<string, dynamic> test_values = new Dictionary<string, dynamic>();
+        public static int instruction_count = 0;
         
         /// <summary>
         /// List of parameters that exist & that could be tweaked. Some combinations will break everything.
@@ -373,6 +409,7 @@ namespace Parser
 	    private static readonly Dictionary<string, bool> settings = new Dictionary<string, bool>
 	    { // These parameters default values should be set to work with the Graphics & Animation part
 		    {"interactive", false},                             // get interactive interpreter on run
+            {"parse debug", false},                             // enable parsing debugging
 		    {"debug", false},                                   // enable debugging
 		    {"trace debug", false},                             // enable tracing debugging
 	        {"translator debug", false},			            // enable translator debugging
@@ -383,10 +420,12 @@ namespace Parser
             {"permafrost", false},                              // freeze Context permanently
             {"flame mode", false},                              // disables Context freezing completely
             {"implicit declaration in assignment", true},       // enable implicit declaration in assignment
-            {"redirect debug stout & stderr", false},           // redirect stdout and stderr to a log file of all debugging
+            {"redirect debug stout & stderr", false},           // redirect stdout and stderr to a log file
+            {"redirect stdin", false},                          // redirect stdin to read from a file
             {"auto trace", false},                              // automatically trace all variables
             {"update data tree", false},                        // update the data tree at each tracer update
             {"user function overwriting", false},               // enable user function overwriting
+            {"test mode", false},                               // enable test mode
 	    };
 
         /// <summary>
@@ -425,6 +464,11 @@ namespace Parser
         private static StreamWriter _stdout;
 
         /// <summary>
+        /// Custom stdin stream to read from if enabled (see <see cref="settings"/>)
+        /// </summary>
+        private static StreamReader _stdin;
+
+        /// <summary>
         /// Setup the new custom stdout stream
         /// </summary>
         /// <param name="new_stdout"> Stdout stream</param>
@@ -444,6 +488,30 @@ namespace Parser
             setSetting("redirect debug stout & stderr", false);
         }
 
+        public static void setStdin(StreamReader new_stdin)
+        {
+            _stdin = new_stdin;
+            setSetting("redirect stdin", true);
+        }
+
+        public static void closeStdin()
+        {
+            _stdin.Close();
+            setSetting("redirect stdin", false);
+        }
+
+        public static string stdinReadLine()
+        {
+            if (!getSetting("redirect stdin")) return Console.ReadLine();
+
+            string input;
+            while ((input = _stdin.ReadLine()) == null)
+            {
+            }
+
+            return input;
+        }
+
         /// <summary>
         /// Default function to write anything to the default stdout (even to the default Console)
         /// </summary>
@@ -453,13 +521,14 @@ namespace Parser
             if (getSetting("redirect debug stout & stderr"))
             {
                 _stdout.Write(obj);
+                _stdout.Flush();
             }
             else
             {
                 Console.Write(obj);
             }
         }
-        
+
         /// <summary>
         /// Writes the '\n' newline char to the default stdout
         /// </summary>
@@ -468,6 +537,7 @@ namespace Parser
             if (getSetting("redirect debug stout & stderr"))
             {
                 _stdout.WriteLine();
+                _stdout.Flush();
             }
             else
             {
@@ -484,6 +554,7 @@ namespace Parser
             if (getSetting("redirect debug stout & stderr"))
             {
                 _stdout.WriteLine(obj);
+                _stdout.Flush();
             }
             else
             {

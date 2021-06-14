@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 // ReSharper disable SuggestVarOrType_SimpleTypes
@@ -19,6 +20,9 @@ namespace Parser
     /// <para/>* <see cref="_instr"/> : string
     /// <para/>* <see cref="_is_nested"/> : bool
     /// <para/>* <see cref="_sub_instr_list"/> : List(RawInstruction)
+    /// <para/>List of methods:
+    /// <para/>* Call <see cref="buildInstructions"/> on the generated raw instructions
+    /// <para/>...
     /// </summary>
     public class RawInstruction
     {
@@ -61,7 +65,7 @@ namespace Parser
         public void prettyPrint(uint depth = 0)
         {
             for (uint i = 0; i < depth; i++) { Global.stdoutWrite("\t"); }
-            Global.stdoutWriteLine(this._instr);
+            Global.stdoutWriteLine(_instr);
             
             if (!_is_nested) return;
             foreach (RawInstruction sub_instr in _sub_instr_list)
@@ -89,7 +93,7 @@ namespace Parser
             {
                 string line = lines.Values.ElementAt(line_index);
                 int real_line_index = lines.Keys.ElementAt(line_index);
-                Debugging.print("doing line ", line);
+                Parser.print("doing line ", line);
                 if (line.StartsWith("#")) // macro preprocessor line
                 {
                     line_index++;
@@ -100,7 +104,7 @@ namespace Parser
 
                 foreach (var pair in Global.nested_instruction_flags.Where(flag => line.StartsWith(flag.Key + " ")))
                 {
-                    Debugging.print("FOUND " + pair.Key);
+                    Parser.print("FOUND " + pair.Key);
                     instr._is_nested = true;
                     int end_index =
                         StringUtils.findCorrespondingElementIndex(lines.Select(pair_ => pair_.Value).ToList(), line_index + 1, pair.Key, pair.Value);
@@ -114,13 +118,29 @@ namespace Parser
                     }
 
                     instr._sub_instr_list = code2RawInstructions(sub_lines);
-                    Debugging.print(line_index, " - ", end_index);
+                    Parser.print(line_index, " - ", end_index);
                     line_index = end_index;
                 }
 
                 instructions.Add(instr);
                 line_index++;
             }
+
+            Context.reset();
+            return instructions;
+        }
+
+        /// <summary>
+        /// Build <see cref="Instruction"/>s from <see cref="RawInstruction"/>s
+        /// </summary>
+        /// <param name="raw_instructions"> list of <see cref="RawInstruction"/>s</param>
+        /// <returns> list of corresponding <see cref="Instruction"/>s</returns>
+        public static List<Instruction> buildInstructions(IReadOnlyCollection<RawInstruction> raw_instructions)
+        {
+            Context.setStatus(Context.StatusEnum.building_instructions);
+            Context.setInfo(raw_instructions);
+
+            List<Instruction> instructions = raw_instructions.Select(raw_instruction => raw_instruction.toInstr()).ToList();
 
             Context.reset();
             return instructions;
@@ -162,17 +182,17 @@ namespace Parser
              * void function call
              */
             
-            Debugging.print("from raw instr to instr: \"", raw_instr._instr, "\"");
+            Parser.print("from raw instr to instr: \"", raw_instr._instr, "\"");
 
             // split instruction
             List<string> instr = StringUtils.splitStringKeepingStructureIntegrity(raw_instr._instr, ' ', Global.base_delimiters);
 
-            Debugging.print("trace ?");
+            Parser.print("trace ?");
             // variable tracing
-            if (instr[0] == "trace")
+            if (instr[0] == StringConstants.Keywords.TRACE_KEYWORD)
             {
                 if (Global.getSetting("auto trace"))
-                    Debugging.print("\"trace\" instruction, but \"trace all\" is set to true ?");
+                    Parser.print("\"trace\" instruction, but \"auto trace\" is set to true ?");
                 
                 List<Expression> traced_vars = new List<Expression>();
                 for (int i = 1; i < instr.Count; i++)
@@ -183,40 +203,35 @@ namespace Parser
                 return new Tracing(line_index, traced_vars);
             }
 
-            Debugging.print("decl ?");
+            Parser.print("decl ?");
             // variable declaration
-            if (instr.Contains("decl"))
+            if (instr.Contains(StringConstants.Keywords.DECLARATION_KEYWORD))
             {
-                // "decl type name" or "global safe const decl type name value"
-                if (instr.Count < 3 || instr.Count > 7)
-                {
-                    throw new AquilaExceptions.SyntaxExceptions.SyntaxError($"Word count mismatch in \"{raw_instr._instr}\" for declaration");
-                }
                 
                 // declaration modes
                 bool safe_mode = false,
                     overwrite = false,
                     constant = false,
                     global = false;
-                while (instr[0] != "decl")
+                while (instr[0] != StringConstants.Keywords.DECLARATION_KEYWORD)
                 {
                     switch (instr[0])
                     {
-                        case "safe":
+                        case StringConstants.Keywords.SAFE_DECLARATION_KEYWORD:
                             safe_mode = true;
-                            Debugging.print("safe mode !");
+                            Parser.print("safe mode !");
                             break;
-                        case "overwrite":
+                        case StringConstants.Keywords.OVERWRITE_DECLARATION_KEYWORD:
                             overwrite = true;
-                            Debugging.print("overwrite !");
+                            Parser.print("overwrite !");
                             break;
-                        case "const":
+                        case StringConstants.Keywords.CONST_DECLARATION_KEYWORD:
                             constant = true;
-                            Debugging.print("const !");
+                            Parser.print("const !");
                             break;
-                        case "global":
+                        case StringConstants.Keywords.GLOBAL_DECLARATION_KEYWORD:
                             global = true;
-                            Debugging.print("global !");
+                            Parser.print("global !");
                             break;
                         default:
                             throw new AquilaExceptions.UnknownKeywordError($"Unknown keyword in declaration: \"{instr[0]}\"");
@@ -224,41 +239,100 @@ namespace Parser
 
                     instr.RemoveAt(0);
                 }
-
-                Debugging.assert(instr.Count < 5,
-                    new AquilaExceptions.SyntaxExceptions.SyntaxError($"The possible values after the \"decl\" are the type, name and value"));
                 
-                // all types1
-                string[] type_list = {"int", "float", "bool", "list"};
-                if (instr[1] == "auto") instr.RemoveAt(1);
-
-                // decl type name value
-                if (instr.Count == 4) Debugging.assert(type_list.Contains(instr[1]), new AquilaExceptions.UnknownTypeError($"The type \"{instr[1]}\" is not recognized"));
-                else if (instr[1] == "auto") throw new AquilaExceptions.InvalidTypeError("You cannot declare an empty variable using type \"auto\""); // cannot "decl auto var_name"
+                // remove the "decl"
+                instr.RemoveAt(0);
                 
-                // if instr[1] is type
-                if (type_list.Contains(instr[1]))
+                // define the type
+                string type = StringConstants.Types.AUTO_TYPE;
+                if (Global.type_list.Contains(instr[0]))
                 {
-                    Expression default_value = Global.default_values_by_var_type[instr[1]];
-                    return new Declaration(line_index,
-                            instr[2],
-                            instr.Count < 4 ? default_value : new Expression(instr[3]),
-                            instr[1],
-                            instr.Count > 3,
+                    type = instr[0];
+                    instr.RemoveAt(0);
+                    Debugging.assert(type != StringConstants.Types.NULL_TYPE,
+                        new AquilaExceptions.InvalidTypeError($"Cannot declare a variable with type: \"{StringConstants.Types.NULL_TYPE}\""));
+                }
+                
+                Parser.print("instr: ", instr);
+
+                Expression default_value = Global.default_values_by_var_type[type];
+                var variable_declaration_buffer = new List<string>();
+                var declarations = new List<Instruction>();
+
+                foreach (string s in instr)
+                {
+                    Parser.print("Doing ", s, " with buffer ", StringUtils.dynamic2Str(variable_declaration_buffer));
+                    // buffer should be "$var" "="
+                        Parser.print(variable_declaration_buffer.Count);
+                    if (variable_declaration_buffer.Count == 2)
+                    {
+                        Parser.print("adding with assignment", StringUtils.dynamic2Str(variable_declaration_buffer));
+                        Debugging.assert(variable_declaration_buffer[1] == "=",
+                            new AquilaExceptions.SyntaxExceptions.SyntaxError($"Invalid declaration syntax at token: {s}"));
+                        declarations.Add(new Declaration(line_index,
+                            variable_declaration_buffer[0].Substring(1),
+                            new Expression(s),
+                            type,
+                            true,
                             safe_mode,
                             overwrite,
                             constant,
-                            global);
+                            global));
+                        variable_declaration_buffer.Clear();
+                        continue;
+                    }
+                    if (s.StartsWith(StringConstants.Other.VARIABLE_PREFIX))
+                    {
+                        if (variable_declaration_buffer.Any())
+                        {
+                            // add the (empty) declaration
+                            Parser.print("adding empty ", StringUtils.dynamic2Str(variable_declaration_buffer));
+                            declarations.Add(new Declaration(line_index,
+                                variable_declaration_buffer[0].Substring(1),
+                                default_value,
+                                type,
+                                false,
+                                safe_mode,
+                                overwrite,
+                                constant,
+                                global));
+                            // clear the buffer & restart
+                            variable_declaration_buffer.Clear();
+                            variable_declaration_buffer.Add(s);
+                        }
+                        else
+                        {
+                            // add variable to the buffer (start of buffer)
+                            variable_declaration_buffer.Add(s);
+                            Debugging.assert(variable_declaration_buffer.Count < 3,
+                                new AquilaExceptions.SyntaxExceptions.SyntaxError($"Invalid declaration syntax (buffer count > 3): {s}"));
+                        }
+
+                        continue;
+                    }
+
+                    
+                    
+                    // must be "="
+                    Debugging.assert(s == "=",
+                        new AquilaExceptions.SyntaxExceptions.SyntaxError($"Cannot declare a value: {s}"));
+                    variable_declaration_buffer.Add(s);
+                }
+                
+                // trailing variable ?
+                if (variable_declaration_buffer.Any())
+                {
+                    Parser.print("Trailing var decl buffer: ", variable_declaration_buffer);
+                    Debugging.assert(variable_declaration_buffer.Count == 1,
+                        new AquilaExceptions.SyntaxExceptions.SyntaxError($"Invalid trailing declarations: {StringUtils.dynamic2Str(variable_declaration_buffer)}"));
+                    declarations.Add(new Declaration(line_index, variable_declaration_buffer[0].Substring(1), default_value,
+                        type, false, safe_mode, overwrite, constant, global));
                 }
 
-                // case is: "decl var_name value"
-                string var_name = instr[1];
-                string var_value = instr[2];
-
-                return new Declaration(line_index, var_name, new Expression(var_value), "auto", true, safe_mode, overwrite, constant, global);
+                return new MultiInstruction(declarations.ToArray());
             }
 
-            Debugging.print("assignment ?");
+            Parser.print("assignment ?");
             // variable assignment
             if (instr.Count > 1 && instr[1].EndsWith("=") && (instr[0][0] == '$' || instr[0].Contains("(")))
             {
@@ -272,7 +346,7 @@ namespace Parser
                 // custom operator in assignment
                 if (equal_sign.Length != 1)
                 {
-                    Debugging.print("Custom operator detected: ", equal_sign);
+                    Parser.print("Custom operator detected: ", equal_sign);
                     Debugging.assert(equal_sign.Length == 2);
                     assignment_string = $"{var_designation} {equal_sign[0]} ({assignment_string})";
                 }
@@ -283,12 +357,12 @@ namespace Parser
             // increment || decrement
             if (instr.Count == 2 && (instr[1] == "++" || instr[1] == "--"))
             {
-                Debugging.print("Increment or Decrement detected");
+                Parser.print("Increment or Decrement detected");
                 return new Assignment(line_index, instr[0], new Expression($"{instr[0]} {instr[1][0]} 1"));
             }
 
-            Debugging.print("function definition ?");
-            if (instr[0] == "function") {
+            Parser.print("function definition ?");
+            if (instr[0] == StringConstants.Keywords.FUNCTION_KEYWORD) {
                 Debugging.assert(raw_instr._is_nested); // syntax???
                 Debugging.assert(instr.Count == 3 || instr.Count == 4); // "function" "type" ("keyword"?) "name(args)"
 
@@ -296,16 +370,16 @@ namespace Parser
                 return new FunctionDef(line_index, func);
             }
             
-            Debugging.print("for loop ?");
+            Parser.print("for loop ?");
             // for loop
-            if (instr[0] == "for")
+            if (instr[0] == StringConstants.Keywords.FOR_KEYWORD)
             {
                 Debugging.assert(raw_instr._is_nested); // syntax???
                 Debugging.assert(instr[1].StartsWith("(") && instr[1].EndsWith(")")); // syntax
                 List<string> sub_instr =
                     StringUtils.splitStringKeepingStructureIntegrity(instr[1].Substring(1, instr[1].Length - 2), ';', Global.base_delimiters);
-                sub_instr = StringUtils.purgeLines(sub_instr);
-                Debugging.print(sub_instr);
+                sub_instr = StringUtils.normalizeWhiteSpacesInStrings(sub_instr);
+                Parser.print(sub_instr);
                 Debugging.assert(sub_instr.Count == 3); // syntax
 
                 // start
@@ -329,9 +403,9 @@ namespace Parser
 
             }
 
-            Debugging.print("while loop ?");
+            Parser.print("while loop ?");
             // while loop
-            if (instr[0] == "while")
+            if (instr[0] == StringConstants.Keywords.WHILE_KEYWORD)
             {
                 // syntax check
                 Debugging.assert(instr.Count == 2); // syntax
@@ -350,9 +424,9 @@ namespace Parser
                 return new WhileLoop(line_index, condition, loop_instructions);
             }
             
-            Debugging.print("if statement ?");
+            Parser.print("if statement ?");
             // if statement
-            if (instr[0] == "if")
+            if (instr[0] == StringConstants.Keywords.IF_KEYWORD)
             {
                 // syntax check
                 Debugging.assert(instr.Count == 2); // syntax
@@ -370,7 +444,7 @@ namespace Parser
                     add_index++;
                     if (if_section)
                     {
-                        if (loop_instr._instr == "else")
+                        if (loop_instr._instr == StringConstants.Keywords.ELSE_KEYWORD)
                         {
                             if_section = false;
                             continue;
@@ -386,11 +460,11 @@ namespace Parser
                 return new IfCondition(line_index, condition, if_instructions, else_instructions);
             }
 
-            Debugging.print("function call ?");
+            Parser.print("function call ?");
             // function call with spaces between function name and parenthesis
             if (instr.Count == 2 && instr[1].StartsWith("("))
             {
-                Debugging.print("function call with space between name and first parenthesis. Merging ", instr[0], " and ", instr[1]);
+                Parser.print("function call with space between name and first parenthesis. Merging ", instr[0], " and ", instr[1]);
                 instr[0] += instr[1];
                 instr.RemoveAt(1);
             }
@@ -404,7 +478,7 @@ namespace Parser
                 // function name
                 string function_name = instr[0].Split('(')[0]; // extract function name
                 if (Global.getSetting("check function existence before runtime")) Functions.assertFunctionExists(function_name); // assert function exists
-                Debugging.print("expr_string for function call ", instr[0]);
+                Parser.print("expr_string for function call ", instr[0]);
                 // extract args
                 string exprs = instr[0].Substring(function_name.Length + 1); // + 1 : '('
                 exprs = exprs.Substring(0, exprs.Length - 1); // ')'
@@ -425,11 +499,11 @@ namespace Parser
             // try using this as a function ?
             if (instr.Count == 1 && Functions.functionExists(instr[0]))
             {
-                Debugging.print($"Call the function \"{instr[0]}\" with no parameters");
+                Parser.print($"Call the function \"{instr[0]}\" with no parameters");
                 return new VoidFunctionCall(line_index, instr[0]);
             }
 
-            Debugging.print("unrecognized line: \"", raw_instr._instr, "\"");
+            Parser.print("unrecognized line: \"", raw_instr._instr, "\"");
             throw new AquilaExceptions.SyntaxExceptions.SyntaxError($"Unknown syntax \"{raw_instr._instr}\"");
         }
     }

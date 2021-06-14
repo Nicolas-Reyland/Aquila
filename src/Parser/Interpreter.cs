@@ -12,47 +12,14 @@ namespace Parser
     /// <summary>
     /// The <see cref="Interpreter"/> class is used to interpret and run your code.
     /// For example, to run source code from a source file, follow the following steps:
-    /// <para/>* Call <see cref="readSourceCode"/> to get a purged code
+    /// <para/>* Call <see cref="Parser.readSourceCode"/> to get a purged code
     /// <para/>* Call <see cref="RawInstruction.code2RawInstructions"/> on the purged code
-    /// <para/>* Call <see cref="buildInstructions"/> on the generated raw instructions
     /// <para/>* Create an <see cref="Algorithm"/> using the generated instructions
-    /// <para/>* Call the <see cref="runAlgorithm"/> function on the generated <see cref="Algorithm"/>
-    /// You an also use the <see cref="algorithmFromSrcCode"/>, then call the <see cref="runAlgorithm"/> on it
+    /// <para/>* Call the <see cref="Algorithm.run"/> function on the generated <see cref="Algorithm"/>
+    /// You an also use the <see cref="algorithmFromSrcCode"/>, then call the <see cref="Algorithm.run"/> on it
     /// </summary>
     public static class Interpreter
     {
-        /// <summary>
-        /// This function is used to read a raw Aquila source code text-based file and
-        /// purge the code (remove comments and all unnecessary spaces and tabs)
-        /// </summary>
-        /// <param name="path"> lib_path to your source code file</param>
-        /// <returns> list of lines containing your purged code</returns>
-        private static Dictionary<int, string> readSourceCode(string path)
-        {
-            Dictionary<int, string> lines = Parser.readLines(path);
-            Debugging.print(lines.Count + " lines read");
-            lines = StringUtils.purgeLines(lines); // same as "lines = StringUtils.purgeLines(lines);"
-            Debugging.print("lines purged. remaining: " + lines.Count);
-
-            return lines;
-        }
-
-        /// <summary>
-        /// Build <see cref="Instruction"/>s from <see cref="RawInstruction"/>s
-        /// </summary>
-        /// <param name="raw_instructions"> list of <see cref="RawInstruction"/>s</param>
-        /// <returns> list of corresponding <see cref="Instruction"/>s</returns>
-        private static List<Instruction> buildInstructions(List<RawInstruction> raw_instructions)
-        {
-            Context.setStatus(Context.StatusEnum.building_instructions);
-            Context.setInfo(raw_instructions);
-
-            List<Instruction> instructions = raw_instructions.Select(raw_instruction => raw_instruction.toInstr()).ToList();
-
-            Context.reset();
-            return instructions;
-        }
-        
         /// <summary>
         /// Take source code and generates the corresponding <see cref="Algorithm"/>
         /// </summary>
@@ -66,7 +33,7 @@ namespace Parser
             // read code
             Context.setStatus(Context.StatusEnum.read_purge);
             Context.setInfo(path);
-            Dictionary<int, string> lines = readSourceCode(path);
+            Dictionary<int, string> lines = Parser.readSourceCode(path);
             Context.reset();
 
             if (print_src) StringUtils.printStringList(lines.Select(pair => pair.Value).ToList(), true);
@@ -85,7 +52,7 @@ namespace Parser
 
             // Parse code into RawInstructions
             List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(lines);
-            Debugging.print("raw_instructions done");
+            Parser.print("raw_instructions done");
             
             // Pretty-printTrace code
             foreach (RawInstruction instruction in raw_instructions)
@@ -94,7 +61,7 @@ namespace Parser
             }
 
             // Build instructions from the RawInstructions
-            List<Instruction> instructions = buildInstructions(raw_instructions);
+            List<Instruction> instructions = RawInstruction.buildInstructions(raw_instructions);
 
             string algo_name = default_name;
             Algorithm algo = new Algorithm(algo_name, instructions);
@@ -123,17 +90,6 @@ namespace Parser
             }
 
             Debugging.print("finished loading lib: " + lib_path);
-        }
-
-        /// <summary>
-        /// Run an <see cref="Algorithm"/> and return ints return value (if none is given: <see cref="NullVar"/>
-        /// </summary>
-        /// <param name="algo"> input <see cref="Algorithm"/></param>
-        /// <returns> return value of the <see cref="Algorithm"/></returns>
-        public static Variable runAlgorithm(Algorithm algo)
-        {
-            Variable return_value = algo.run();
-            return return_value;
         }
 
         /// <summary>
@@ -179,12 +135,21 @@ namespace Parser
         /// <returns> command input prefix</returns>
         private static string getInteractivePrefix()
         {
-	    bool debug = Global.getSetting("debug");
-	    bool trace_debug = Global.getSetting("trace debug");
-            if (debug && trace_debug) return " (debug | trace)";
-            if (debug) return " (debug)";
-            if (trace_debug) return " (trace)";
-            return " ";
+            string prefix = " ";
+            // debugs
+	        bool debug = Global.getSetting("debug");
+	        bool trace_debug = Global.getSetting("trace debug");
+            bool parse_debug = Global.getSetting("parse debug");
+            // any ?
+            int debug_count = (debug ? 1 : 0) + (trace_debug ? 1 : 0) + (parse_debug ? 1 : 0);
+            if (debug_count == 0) return prefix;
+            // some debug is enabled
+            prefix += "(";
+            if (debug) prefix += "debug | ";
+            if (trace_debug) prefix += "trace | ";
+            if (parse_debug) prefix += "parse | ";
+
+            return prefix.Substring(0, prefix.Length - 3) + ")";
         }
 
         /// <summary>
@@ -215,7 +180,7 @@ namespace Parser
             {
                 if (new_line) Global.stdoutWrite(getInteractivePrefix() + " > ");
                 else Global.stdoutWrite(getInteractivePrefix() + " - ");
-                string input = Console.ReadLine();
+                string input = Global.stdinReadLine();
                 if (StringUtils.normalizeWhiteSpaces(input) == "") continue;
                 if (StringUtils.normalizeWhiteSpaces(input) == "") continue;
                 input = StringUtils.removeComments(input);
@@ -283,7 +248,7 @@ namespace Parser
             {
                 int temp_i = 0;
                 List<RawInstruction> raw_instructions = RawInstruction.code2RawInstructions(lines.ToDictionary(_ => temp_i++, x => x));
-                List<Instruction> instructions = buildInstructions(raw_instructions);
+                List<Instruction> instructions = RawInstruction.buildInstructions(raw_instructions);
                 foreach (Instruction instr in instructions)
                 {
                     instr.execute();
@@ -316,7 +281,7 @@ namespace Parser
                     {
                         "help", "exit", "reset_env", "clear", // base interactive-mode
                         "exec", "exec_info", // exec
-                        "debug", "trace_debug", // debugging (enable/disable)
+                        "debug", "trace_debug", "parse_debug", // debugging (enable/disable)
                         "eval %expr", // expr
                         "var %var_name", "vars", "$%var_name", // variables
                         // ReSharper disable once StringLiteralTypo
@@ -333,14 +298,14 @@ namespace Parser
                     return false;
                 }
                 case "clear":
-                    Console.Clear();
+                    if (!Global.getSetting("redirect debug stout & stderr")) Console.Clear();
                     return false;
                 case "vars":
                 {
                     Global.stdoutWriteLine("Global Variables:");
                     foreach (var pair in Global.getGlobalVariables())
                     {
-                        Global.stdoutWriteLine("\t" + pair.Key + " : " + pair.Value.ToString());
+                        Global.stdoutWriteLine("\t" + pair.Key + " : " + pair.Value);
                     }
                     int i = 0;
                     Global.stdoutWriteLine("Local Scope Variables:");
@@ -382,6 +347,9 @@ namespace Parser
                     return false;
                 case "trace_debug":
                     Global.setSetting("trace debug", !Global.getSetting("trace debug"));
+                    return false;
+                case "parse_debug":
+                    Global.setSetting("parse debug", !Global.getSetting("parse debug"));
                     return false;
                 case "trace_info":
                 {
@@ -458,7 +426,7 @@ namespace Parser
 
             if (input.StartsWith("set_status "))
             {
-                int status = Int32.Parse(input.Substring(11));
+                int status = int.Parse(input.Substring(11));
                 Context.setStatus((Context.StatusEnum) status);
                 
                 return false;
@@ -475,17 +443,16 @@ namespace Parser
             {
                 string var_name = input.Substring(4);
                 var_name = StringUtils.normalizeWhiteSpaces(var_name);
-                if (var_name != "")
-                {
-                    Variable var_ = Global.variableFromName(var_name);
-                    Global.stdoutWriteLine("name     : " + var_.getName());
-                    Global.stdoutWriteLine("type     : " + var_.getTypeString());
-                    Global.stdoutWriteLine("const    : " + var_.isConst());
-                    Global.stdoutWriteLine("assigned : " + var_.assigned);
-                    Global.stdoutWriteLine("value    : " + var_);
-                    Global.stdoutWriteLine("traced   : " + var_.isTraced());
-                    Global.stdoutWriteLine("^ mode   : " + var_.trace_mode);
-                }
+                if (var_name == "") return false;
+                Variable var_ = Global.variableFromName(var_name);
+                Global.stdoutWriteLine("name     : " + var_.getName());
+                Global.stdoutWriteLine("type     : " + var_.getTypeString());
+                Global.stdoutWriteLine("const    : " + var_.isConst());
+                Global.stdoutWriteLine("assigned : " + var_.assigned);
+                Global.stdoutWriteLine("value    : " + var_);
+                Global.stdoutWriteLine("traced   : " + var_.isTraced());
+                Global.stdoutWriteLine("^ mode   : " + var_.trace_mode);
+                if (var_ is NumericalValue value) Global.stdoutWriteLine("*source  : " + StringUtils.dynamic2Str(value.source_vars));
                 return false;
             }
 
@@ -494,7 +461,7 @@ namespace Parser
                 string[] splitted = input.Split(' ');
                 if (splitted.Length == 3)
                 {
-                    if (!Int32.TryParse(splitted[1], out int n))
+                    if (!int.TryParse(splitted[1], out int n))
                     {
                         Global.stdoutWriteLine("cannot read n");
                         return false;
