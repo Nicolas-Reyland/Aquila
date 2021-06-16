@@ -4,6 +4,10 @@ decl l [4, 1, 6, 0, 2]
 
 trace $l
 
-swap($l, 0, 3)
+$l[3] = 2
+
+insert_value_at($l, 2, [1, 2])
+
+$l[2][1] = 3
 
 return($l)

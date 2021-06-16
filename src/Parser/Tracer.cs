@@ -277,7 +277,9 @@ namespace Parser
             if (Global.tracer_update_handler_function != null)
             {
                 printTrace("Calling graphical function");
-                Global.tracer_update_handler_function(alter);
+                float sleep_time_sec = Global.tracer_update_handler_function(alter);
+                int sleep_time_ms = (int) (1000 * sleep_time_sec);
+                System.Threading.Thread.Sleep(sleep_time_ms);
             }
             else
             {

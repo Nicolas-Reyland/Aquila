@@ -1,21 +1,20 @@
 #name Leigniz-Gregory forumla
 
-decl PI 4f
-decl n -1f
-decl d 3f
-decl num_iter 15
+decl $PI = 4f
+decl $n = -1f
+decl $d = 3f
+decl $num_iter = 15
 
-decl bool print_steps true
+decl bool $print_steps = true
 
 trace $PI
 
-for (decl i 0; $i < $num_iter; $i ++)
+for ($i = 0; $i < $num_iter; $i ++)
 	$PI = $PI + $n * (4f / $d)
 	$d = $d + 2f
 	$n = $n * (-1f)
 	if ($print_steps)
-		print($PI)
-		print_endl()
+		print_value_endl($PI)
 	end-if
 end-for
 

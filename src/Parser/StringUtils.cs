@@ -104,6 +104,10 @@ namespace Parser
         {
             //! instead of using SubString everywhere, work with a (one or more) string(s) and modify the chars at each iteration (or an array of chars)
             
+            // this is needed because this edge-case is not handled internally and removes he line that comes AFTER the '//\n' ...
+            // ... so adding a char dodges the edge-case
+            source_code = source_code.Replace("//\n", "//_\n");
+            
             // get the comment strings
             string sl_flag = Global.single_line_comment_string; // single line comment string
             string ml_open_flag = Global.multiple_lines_comment_string; // multiple lines opening comment string

@@ -285,7 +285,7 @@ namespace Parser
                 //Parser.handleMacro("load", std_lib_path);
             }*/
 
-            Global.setSetting("interactive", true);
+            Global.setSetting("interactive", false);
             Global.setSetting("parse debug", true);
             Global.setSetting("debug", false);
             Global.setSetting("trace debug", false);
@@ -305,14 +305,10 @@ namespace Parser
 
             List<string> exec_lines = new List<string>
             {
-                "#setting debug false",
-                "function null test()",
-                "interactive_call(scope_info)",
-                "if (true)",
-                "if (true)",
-                "interactive_call(scope_info)",
-                "end-if",
-                "end-if",
+                "#setting debug true",
+                "#setting (parse debug) true",
+                "function auto test(a, b)",
+                "interactive_call(vars)",
                 "end-function",
             };
 
@@ -324,7 +320,7 @@ namespace Parser
 
             Global.stdoutWriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : "test.aq";//"merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            string src_code = args.Length == 1 ? args[0] : "rule 110.aq";//"merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
             bool interactive_after_execution = args.Length == 0;
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);

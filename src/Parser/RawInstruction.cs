@@ -182,7 +182,7 @@ namespace Parser
              * void function call
              */
             
-            Parser.print("from raw instr to instr: \"", raw_instr._instr, "\"");
+            Parser.print($"from raw instr to instr: \"{raw_instr._instr}\" at line {line_index}");
 
             // split instruction
             List<string> instr = StringUtils.splitStringKeepingStructureIntegrity(raw_instr._instr, ' ', Global.base_delimiters);
@@ -255,7 +255,16 @@ namespace Parser
                 
                 Parser.print("instr: ", instr);
 
-                Expression default_value = Global.default_values_by_var_type[type];
+                Expression default_value;
+                bool valid_default_value;
+                if (type != StringConstants.Types.AUTO_TYPE)
+                {
+                    default_value = Global.default_values_by_var_type[type];
+                    valid_default_value = true;
+                } else {
+                    default_value = null;
+                    valid_default_value = false;
+                }
                 var variable_declaration_buffer = new List<string>();
                 var declarations = new List<Instruction>();
 
@@ -285,6 +294,8 @@ namespace Parser
                     {
                         if (variable_declaration_buffer.Any())
                         {
+                            Debugging.assert(valid_default_value,
+                                new AquilaExceptions.InvalidTypeError($"Invalid variable type without assignment {StringConstants.Types.AUTO_TYPE}"));
                             // add the (empty) declaration
                             Parser.print("adding empty ", StringUtils.dynamic2Str(variable_declaration_buffer));
                             declarations.Add(new Declaration(line_index,
@@ -311,8 +322,6 @@ namespace Parser
                         continue;
                     }
 
-                    
-                    
                     // must be "="
                     Debugging.assert(s == "=",
                         new AquilaExceptions.SyntaxExceptions.SyntaxError($"Cannot declare a value: {s}"));

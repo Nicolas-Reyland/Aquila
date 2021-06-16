@@ -83,7 +83,7 @@ namespace Parser
         /// Initializes a new Main Context Stack, as well as a new Local Context Stack with the given variables
         /// </summary>
         /// <exception cref="Context.ContextException"> If not a recursive function, already executing this very function</exception>
-        private void initialize()
+        private void initialize(Dictionary<string, Variable> args)
         {
             _call_depth++;
             Debugging.print("calling function with depth: ", _call_depth);
@@ -91,7 +91,7 @@ namespace Parser
             if (!_rec_function && _in_function_scope) throw new Context.ContextException("Already in function scope. Missing \"recursive\" keyword ?");// recursive ?
 
             // new local context scope using custom function args
-            // Global.newLocalContextScope(args);
+            Global.newLocalContextScope(args);
 
             _in_function_scope = true;
         }
@@ -103,7 +103,7 @@ namespace Parser
         /// <returns> The return value of the function</returns>
         public Variable callFunction(Dictionary<string, Variable> args)
         {
-            initialize();
+            initialize(args);
 
             Debugging.assert(_in_function_scope);
             foreach (Instruction instruction in _instructions)
@@ -175,7 +175,7 @@ namespace Parser
             if (decl.Count == 4)
             {
                 // function KEYWORD type name(args)
-                Debugging.print("special function. definition with count 4: " + decl[1]);
+                Parser.print("special function. definition with count 4: " + decl[1]);
                 Debugging.assert(decl[1] == "recursive"); // hardcoded.
                 decl.RemoveAt(1);
                 resp = true; // REPLACE WITH "rec-function", "end-rec-function"
@@ -195,8 +195,8 @@ namespace Parser
             // args
             string function_args_str = decl[2].Substring(name_sep_index + 1);
             function_args_str = function_args_str.Substring(0, function_args_str.Length - 1);
-            Debugging.print("name: " + function_name);
-            Debugging.print("args: " + function_args_str);
+            Parser.print("name: " + function_name);
+            Parser.print("args: " + StringUtils.dynamic2Str(function_args_str));
             List<string> function_args = function_args_str.Split(',').ToList();
             for (int i = 0; i < function_args.Count; i++)
             {
@@ -205,7 +205,7 @@ namespace Parser
 
             if (function_args.Count == 1 && function_args[0] == "") function_args.Clear();
 
-            Debugging.print("args args: " + function_args);
+            Parser.print("args: " + StringUtils.dynamic2Str(function_args));
 
             // Instructions
             List<Instruction> instr_list = function_declaration.Select(raw_instruction => raw_instruction.toInstr()).ToList();
@@ -284,7 +284,7 @@ namespace Parser
             Variable index_list_var = index_list_expr.evaluate();
             Debugging.assert(index_list_var is DynamicList); // TypeError
             DynamicList index_list = index_list_var as DynamicList;
-            // test run ?
+            /*// test run ?
             if (Global.getSetting("test mode"))
             {
                 // function to add to index dict
@@ -297,7 +297,7 @@ namespace Parser
                     // add to index dict
                     index_var_name_list.Add(var_name);
                 }
-            }
+            }*/
             // access at index
             Variable result = list.atIndexList(index_list);
             // trace list
@@ -306,18 +306,29 @@ namespace Parser
             handleValueFunctionTracing("list_at", list,
                 new dynamic[] {index_list.getValue()});
             // trace index
-            foreach (Variable index_var in index_list_var.getValue())
+            //Tracer.printTrace("tmp list at ", index_list.toString());
+            /*var index_list_var_value = index_list_var.getValue();
+            for (int i = 0; i < index_list_var_value.Count; i++)
             {
+                Variable index_var = index_list_var_value[i];
                 var numeric_index = (NumericalValue) index_var;
                 NumericalValue source = numeric_index.getTracedSource();
-                if (source == null) continue;
+                if (source == null)
+                {
+                    Tracer.printTrace("tmp index without source var");
+                    numeric_index.setName($"comp /{i}/");
+                    list.tracer.update(new Event(new Alteration("tmp_list_at", numeric_index,
+                        numeric_index.getValue(), new[] {list.getName(), index_list.getValue()},
+                        mode:"index")));
+                    continue;
+                }
 
                 Tracer.printTrace("Traced source var: " + source.getName());
-                numeric_index.setName("- composed -");
+                numeric_index.setName($"comp /{i}/");
                 list.tracer.update(new Event(new Alteration("tmp_list_at", numeric_index,
                 numeric_index.getValue(), new[] {list.getName(), index_list.getValue()},
                     mode:"index")));
-            }
+            }*/
 
             return result;
         }
