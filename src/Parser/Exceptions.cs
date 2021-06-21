@@ -6,6 +6,21 @@
 
 namespace Parser
 {
+    public class StopInterpreterException : Exception
+    {
+        public StopInterpreterException() : base()
+        {
+        }
+
+        public StopInterpreterException(string message) : base(message)
+        {
+        }
+
+        public StopInterpreterException(string message, Exception inner) : base(message, inner)
+        {
+        }
+    }
+    
     internal static class AquilaControlFlowExceptions
     {
         /// <summary>

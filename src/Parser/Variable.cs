@@ -331,7 +331,7 @@ namespace Parser
         {
             this.numeric_value = numeric_value;
             this.source_vars = source_vars ?? new Dictionary<string, NumericalValue>();
-            Debugging.print($"source_vars count: {this.source_vars.Count}");
+            //Debugging.print($"source_vars count: {this.source_vars.Count}");
             // ReSharper disable once ConvertIfStatementToSwitchExpression
             if (this.numeric_value is int) _val_type = typeof(Integer);
             if (this.numeric_value is float) _val_type = typeof(FloatVar);
@@ -439,8 +439,8 @@ namespace Parser
         public override int compare(Variable other)
         {
             Debugging.assert(hasSameParent(other));
-            trace("compare", new []{other.getValue()});
             dynamic other_value = other.getValue();
+            trace("compare", new []{other_value});
             if (numeric_value == other_value) return 0;
             if (numeric_value > other_value) return 1;
             return -1;

@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Parser
 {
-    
+
 
     /// <summary> All the global variables are stored here. Global variables are the ones that should be accessible every, by everyone in the <see cref="Parser"/> program.
     /// <see cref="Global"/> is a static class. All it's attributes and methods are static too.
@@ -19,7 +19,7 @@ namespace Parser
     ///
     ///
     ///
-    /// 
+    ///
     /// <para/>* <see cref="usable_variables"/> : List(string)
     /// <para/>* <see cref="single_line_comment_string"/> : string
     /// <para/>* <see cref="multiple_lines_comment_string"/>
@@ -29,7 +29,7 @@ namespace Parser
     /// <para/>* <see cref="base_delimiters"/> : Dictionary(char, char)
     /// <para/>* <see cref="al_operations"/> : char[]
     ///
-    /// 
+    ///
     /// <para/>* <see cref="var_tracers"/> : List(VarTracer)
     /// <para/>* <see cref="func_tracers"/> : List(FuncTracer)
     /// <para/>* <see cref="resetEnv"/> : () -> void
@@ -39,8 +39,7 @@ namespace Parser
         /// <summary>
         /// All the reserved keywords
         /// </summary>
-        public static readonly string[] reserved_keywords = new string[]
-        {
+        public static readonly string[] reserved_keywords = new string[] {
             StringConstants.Keywords.IF_KEYWORD, StringConstants.Keywords.ELSE_KEYWORD, StringConstants.Keywords.END_IF_KEYWORD,
             StringConstants.Keywords.FOR_KEYWORD, StringConstants.Keywords.END_FOR_KEYWORD,
             StringConstants.Keywords.WHILE_KEYWORD, StringConstants.Keywords.END_WHILE_KEYWORD,
@@ -122,7 +121,7 @@ namespace Parser
         /// </summary>
         /// <returns> local context scope depth</returns>
         public static int getLocalScopeDepth() => _variable_stack.Peek().Count;
-        
+
         /// <summary>
         /// Add a new layer to the variable stack
         /// </summary>
@@ -158,7 +157,7 @@ namespace Parser
                 pair.Value.tracer.update(new Event(new Alteration("delete_var", pair.Value,
                     pair.Value.getRawValue(), Array.Empty<dynamic>())));
             }
-            
+
             removeVariableStackLayer();
             Debugging.print("new main scope depth: " + getMainScopeDepth());
         }
@@ -168,7 +167,7 @@ namespace Parser
         /// </summary>
         /// <returns> list in the stack (head)</returns>
         public static List<Dictionary<string, Variable>> getCurrentDictList() => _variable_stack.Peek();
-        
+
         /// <summary>
         /// explicit naming
         /// </summary>
@@ -188,7 +187,7 @@ namespace Parser
         /// </summary>
         private static void removeVariableStackElement() =>
             _variable_stack.Peek().Remove(getCurrentDict()); // last element index
-        
+
         /// <summary>
         /// Add a new local context scope variable dict.
         /// This is called when entering a nested instruction
@@ -379,7 +378,7 @@ namespace Parser
         /// </summary>
 #pragma warning disable 649
         // ReSharper disable once UnassignedField.Global
-        public static Func<Alteration, float> tracer_update_handler_function; // example: new Func<Alteration, bool>(graphicalFunction)
+        public static Func<Alteration, bool> tracer_update_handler_function; // example: new Func<Alteration, bool>(graphicalFunction)
 #pragma warning restore 649
 
         /// <summary>
@@ -401,7 +400,7 @@ namespace Parser
         /// </summary>
         public static readonly Dictionary<string, dynamic> test_values = new Dictionary<string, dynamic>();
         public static int instruction_count = 0;
-        
+
         /// <summary>
         /// List of parameters that exist & that could be tweaked. Some combinations will break everything.
         /// Please read their description in the source code
@@ -452,7 +451,7 @@ namespace Parser
         /// </summary>
         /// <returns> Copy of the settings</returns>
         public static Dictionary<string, bool> getSettings() => new Dictionary<string, bool>(settings);
-        
+
         /// <summary>
         /// DataTree of the current Program state
         /// </summary>
@@ -561,5 +560,38 @@ namespace Parser
                 Console.WriteLine(obj);
             }
         }
+
+        public static readonly RunStatement run_statement = new RunStatement();
+
+        internal static void waitForRun(bool disable = false)
+        {
+            lock(run_statement)
+              if (run_statement.do_crash)
+                throw new StopInterpreterException();
+
+            if (disable)
+                lock (run_statement)
+                    run_statement.disable();
+
+            while (true)
+                lock (run_statement)
+                    if (run_statement.status)
+                        break;
+
+            lock(run_statement)
+              if (run_statement.do_crash)
+                throw new StopInterpreterException();
+        }
+
+        public static string error_flag = "";
+    }
+
+    public class RunStatement
+    {
+        public bool do_crash = false;
+        public bool status { get; private set; } = true;
+        public void enable() => status = true;
+        public void disable() => status = false;
+        public void stop() => do_crash = true;
     }
 }

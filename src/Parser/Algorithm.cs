@@ -21,12 +21,12 @@ namespace Parser
         /// Algorithm/Function name
         /// </summary>
         private readonly string _name;
-        
+
         /// <summary>
         /// List of <see cref="Instruction"/>s. This is the basic definition of an algorithm.
         /// </summary>
         private readonly List<Instruction> _instructions;
-        
+
         /// <summary>
         /// Expression of the return value of the Algorithm/Function
         /// </summary>
@@ -103,7 +103,9 @@ namespace Parser
                         AquilaControlFlowExceptions.ReturnValueException exception =
                             (AquilaControlFlowExceptions.ReturnValueException) out_exception.InnerException;
 
-                        if (exception == null) throw new AquilaExceptions.RuntimeError("The inner ReturnValueException in the TargetInvocationException is null"); // something went wrong
+                        if (exception == null)
+                            throw new AquilaExceptions.RuntimeError(
+                                "The inner ReturnValueException in the TargetInvocationException is null"); // something went wrong
 
                         _return_value = new Expression(exception.getExprStr());
                         Context.reset();
@@ -115,6 +117,13 @@ namespace Parser
                 setEndContext();
 
                 return new NullVar(); // NoReturnCallWarning
+            }
+            catch (StopInterpreterException)
+            {
+                Global.stdoutWriteLine("Stopped Interpreter");
+                Global.resetEnv();
+
+                return new NullVar();
             }
             catch (Exception e)
             {

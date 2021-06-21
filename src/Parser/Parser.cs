@@ -285,9 +285,40 @@ namespace Parser
                 //Parser.handleMacro("load", std_lib_path);
             }*/
 
-            Global.setSetting("interactive", false);
-            Global.setSetting("parse debug", true);
-            Global.setSetting("debug", false);
+	    if (args.Length == 3 && args[0] == "interactive") // interactive path1 path2
+	    {
+		    Console.WriteLine("Entering cmd-arg mode");
+		    // stdin & stdout
+		    string stdout_path = args[1], stdin_path = args[2];
+		    // settings
+		    Global.setSetting("interactive", true);
+		    Global.setSetting("debug", false);
+		    Global.setSetting("trace debug", false);
+		    Global.setSetting("parse debug", false);
+		    Global.setSetting("auto trace", true);
+		    // redirect stdin/stdout
+		    Console.WriteLine("Redirecting outputs & inputs");
+		    FileStream in_stream = File.Open(stdin_path, FileMode.OpenOrCreate, FileAccess.Read, FileShare.ReadWrite);
+		    StreamReader reader = new StreamReader(in_stream);
+		    Global.setStdin(reader);
+		    FileStream out_stream = File.Open(stdout_path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
+		    StreamWriter writer = new StreamWriter(out_stream);
+		    Global.setStdout(writer);
+		    // start the interpreter
+		    Console.WriteLine("Starting interpreter ...");
+		    Interpreter.interactiveMode(rescue_mode:true);
+		    // purge & quit
+		    Console.WriteLine("Purging & Quitting");
+		    File.Delete(stdout_path);
+		    File.Delete(stdin_path);
+		    Environment.Exit(0);
+		    Console.WriteLine("Failed to exit (System.Environment.Exit(0);)");
+		    return;
+	    }
+
+            Global.setSetting("interactive", true);
+            Global.setSetting("parse debug", false);
+            Global.setSetting("debug", true);
             Global.setSetting("trace debug", false);
             Global.setSetting("allow tracing in frozen context", false);
             Global.setSetting("flame mode", false); // can set to false bc "allow tracing in frozen context" is set to true. but to be sure: true
@@ -305,11 +336,11 @@ namespace Parser
 
             List<string> exec_lines = new List<string>
             {
-                "#setting debug true",
-                "#setting (parse debug) true",
-                "function auto test(a, b)",
+                "for ($i = 0; $i < 1; $i ++)",
+                "$min = $i",
+                "$j = 4",
                 "interactive_call(vars)",
-                "end-function",
+                "end-for"
             };
 
             if (Global.getSetting("interactive") || args.Length > 0 && args[0] == "interactive")
@@ -320,7 +351,7 @@ namespace Parser
 
             Global.stdoutWriteLine(args.Length > 0 ? args[0] : "");
 
-            string src_code = args.Length == 1 ? args[0] : "rule 110.aq";//"merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
+            string src_code = args.Length == 1 ? args[0] : "merge sort.aq";//"merge sort.aq"; // "Leibniz-Gregory PI approximation.aq" // "test.aq" // "bubble sort.aq" // "rule 110.aq";
             bool interactive_after_execution = args.Length == 0;
 
             Algorithm algo = Interpreter.algorithmFromSrcCode(src_code);

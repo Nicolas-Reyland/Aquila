@@ -25,19 +25,19 @@ namespace Parser
         public MultiInstruction(Instruction[] instructions)
         {
             _instructions = instructions;
+            Debugging.print("num multiple instructions: ", _instructions.Length);
         }
         
         public override void execute()
         {
             setContext();
-            int context_integrity_check = Context.getStatusStackCount();
 
             foreach (Instruction instruction in _instructions)
             {
+                Debugging.print("multiple instruction: ", instruction);
                 instruction.execute();
             }
             
-            Context.resetUntilCountReached(context_integrity_check);
             Context.reset();
         }
 
@@ -122,7 +122,6 @@ namespace Parser
                 int local_context_stack_count = Global.getLocalScopeDepth();
                 foreach (Instruction instr in instructions)
                 {
-                    Global.newLocalContextScope();
                     try
                     {
                         instr.execute();
@@ -150,7 +149,6 @@ namespace Parser
                         // just pass to the next while-loop iteration
                         break;
                     }
-                    Global.resetLocalContextScope();
                 }
                 
                 Global.resetLocalScopeUntilDepthReached(local_context_stack_count);
@@ -196,7 +194,6 @@ namespace Parser
                 
                 foreach (Instruction instr in instructions)
                 {
-                    Global.newLocalContextScope();
                     try
                     {
                         instr.execute();
@@ -224,8 +221,6 @@ namespace Parser
                         // just pass to the next for-loop iteration
                         break;
                     }
-
-                    Global.resetLocalContextScope();
                 }
 
                 Global.resetLocalScopeUntilDepthReached(local_context_stack_count);
@@ -361,7 +356,6 @@ namespace Parser
         public override void execute()
         {
             setContext();
-            int context_integrity_check = Context.getStatusStackCount();
 
             // get variable value
             Variable variable_value = _var_expr.evaluate();
@@ -402,6 +396,7 @@ namespace Parser
             else
             {
                 Global.getCurrentDict()[_var_name] = variable; // overwriting is mandatory
+                Debugging.print("variable exists ", Global.variableExistsInCurrentScope(_var_name));
                 if (_assignment) variable.assign(); // should not need this, but doing anyway
                 else variable.assigned = false;
             }
@@ -421,8 +416,6 @@ namespace Parser
             Tracer.updateTracers();
 
             // reset Context
-            // Smooth Context
-            Context.resetUntilCountReached(context_integrity_check);
             Context.reset();
         }
         

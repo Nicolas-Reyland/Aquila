@@ -213,6 +213,7 @@ namespace Parser
         /// <param name="add_call_info"> stands for "additional calling information". If it has any value, it will be printed by the <see cref="Debugging.print"/> function for debugging</param>
         public static void updateTracers(string add_call_info = "")
         {
+            if (Global.getSetting("test mode")) return;
             printTrace("updating tracers");
             // printTrace alter info about the call if needed
             if (add_call_info != "") printTrace(add_call_info);
@@ -274,12 +275,11 @@ namespace Parser
         /// <param name="alter"> Alteration you want to animate</param>
         protected static void callUpdateHandler(Alteration alter)
         {
+            if (Global.getSetting("test mode")) return;
             if (Global.tracer_update_handler_function != null)
             {
                 printTrace("Calling graphical function");
-                float sleep_time_sec = Global.tracer_update_handler_function(alter);
-                int sleep_time_ms = (int) (1000 * sleep_time_sec);
-                System.Threading.Thread.Sleep(sleep_time_ms);
+                if (Global.tracer_update_handler_function(alter)) Global.waitForRun(true);
             }
             else
             {

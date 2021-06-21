@@ -156,7 +156,7 @@ namespace Parser
         /// The interactive mode gives you a shell-like environment in which
         /// you can code in Aquila.
         /// </summary>
-        public static void interactiveMode(List<string> exec_lines = null, bool greeting = true)
+        public static void interactiveMode(List<string> exec_lines = null, bool greeting = true, bool rescue_mode = false)
         {
             Global.setSetting("fail on context assertions", false); // disable context checks
             bool new_line = true;
@@ -167,6 +167,7 @@ namespace Parser
 
             if (greeting)
             {
+		if (rescue_mode) System.Console.WriteLine("interactive mode greeting");
                 Global.stdoutWriteLine(" [ - Aquila Interactive Interpreter - ]");
                 Global.stdoutWriteLine(" [?] Type \"help\" to get a list of all the interactive-mode-only commands");
                 Global.stdoutWriteLine(" [?] See https://github.com/Nicolas-Reyland/Aquila/blob/main/Aquila_Documentation_unfinished.pdf for some unfinished documentation about Aquila itself");
@@ -180,7 +181,13 @@ namespace Parser
             {
                 if (new_line) Global.stdoutWrite(getInteractivePrefix() + " > ");
                 else Global.stdoutWrite(getInteractivePrefix() + " - ");
+		if (rescue_mode) System.Console.WriteLine("asking for input...");
                 string input = Global.stdinReadLine();
+		if (rescue_mode)
+		{
+			System.Console.WriteLine("got input: " + input);
+			Global.stdoutWriteLine(input);
+		}
                 if (StringUtils.normalizeWhiteSpaces(input) == "") continue;
                 if (StringUtils.normalizeWhiteSpaces(input) == "") continue;
                 input = StringUtils.removeComments(input);
@@ -286,7 +293,7 @@ namespace Parser
                         "var %var_name", "vars", "$%var_name", // variables
                         // ReSharper disable once StringLiteralTypo
                         "funcs", "df_funcs", "type", // functions
-                        "trace_info", "trace_uniq_stacks", "rewind %n %var_name", "peek_event $%traced_value", // trace
+                        "trace_info", "trace_uniq_stacks", "rewind %n %var_name", "peek_trace $%traced_value", // trace
                         "get_context", "set_status", "set_info_null", "reset_context", // context
                         "scope_info", // scope
                         "show-settings", // settings
