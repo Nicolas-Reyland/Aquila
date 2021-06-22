@@ -128,7 +128,6 @@ namespace Parser
             catch (Exception e)
             {
                 Global.stdoutWriteLine(e.ToString());
-                Global.closeStdout();
 
                 return new NullVar();
             }

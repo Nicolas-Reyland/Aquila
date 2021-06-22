@@ -170,7 +170,7 @@ namespace Parser
 		if (rescue_mode) System.Console.WriteLine("interactive mode greeting");
                 Global.stdoutWriteLine(" [ - Aquila Interactive Interpreter - ]");
                 Global.stdoutWriteLine(" [?] Type \"help\" to get a list of all the interactive-mode-only commands");
-                Global.stdoutWriteLine(" [?] See https://github.com/Nicolas-Reyland/Aquila/blob/main/Aquila_Documentation_unfinished.pdf for some unfinished documentation about Aquila itself");
+                Global.stdoutWriteLine(" [?] See https://github.com/Nicolas-Reyland/Aquila/blob/main/Aquila_Documentation.pdf for some unfinished documentation about Aquila itself");
                 if (exec_mode) Global.stdoutWriteLine(" [!] Exec mode enabled. There are executables lines saved. Use the \"exec\" command to run them");
             }
 
@@ -292,7 +292,8 @@ namespace Parser
                         "eval %expr", // expr
                         "var %var_name", "vars", "$%var_name", // variables
                         // ReSharper disable once StringLiteralTypo
-                        "funcs", "df_funcs", "type", // functions
+                        "funcs", "df_funcs", // functions
+                        "type", // ?
                         "trace_info", "trace_uniq_stacks", "rewind %n %var_name", "peek_trace $%traced_value", // trace
                         "get_context", "set_status", "set_info_null", "reset_context", // context
                         "scope_info", // scope

@@ -89,6 +89,7 @@ namespace Parser
         protected override void updateTestModeValues()
         {
             Global.instruction_count++;
+            Debugging.print("instruction count incrementation");
             if (!Global.getSetting("test mode")) return;
             Algorithm.testModeInstructionUpdate();
         }
@@ -293,6 +294,7 @@ namespace Parser
         protected override void updateTestModeValues()
         {
             Global.instruction_count++;
+            Debugging.print("instruction count incrementation");
             if (!Global.getSetting("test mode")) return;
             Algorithm.testModeInstructionUpdate();
         }
@@ -412,8 +414,8 @@ namespace Parser
                 tracing_instr.execute();
             }
 
-            // update all tracers
-            Tracer.updateTracers();
+            // update things 'n stuff
+            Global.onElementaryInstruction();
 
             // reset Context
             Context.reset();
@@ -422,6 +424,7 @@ namespace Parser
         protected override void updateTestModeValues()
         {
             Global.instruction_count++;
+            Debugging.print("instruction count incrementation");
             if (!Global.getSetting("test mode")) return;
             Algorithm.testModeInstructionUpdate();
             Global.test_values["variable names"].Add(_var_name);
@@ -473,8 +476,8 @@ namespace Parser
                 Declaration decl = new Declaration(line_index, _var_name.Substring(1), _var_value); // in the Assignment constructor: already check if _var_name != ""
                 decl.execute();
 
-                // update all tracers
-                Tracer.updateTracers();
+                // update things 'n stuff
+                Global.onElementaryInstruction();
 
                 // reset Context
                 // Smooth Context
@@ -499,8 +502,8 @@ namespace Parser
                 throw new AquilaExceptions.InvalidTypeError("You cannot change the type of your variables (" + variable.getTypeString() + " -> " + val.getTypeString() + "). This will never be supported because it would be considered bad style.");
             }
 
-            // update all tracers
-            Tracer.updateTracers();
+            // update things 'n stuff
+            Global.onElementaryInstruction();
 
             // reset Context
             // Smooth Context
@@ -511,6 +514,7 @@ namespace Parser
         protected override void updateTestModeValues()
         {
             Global.instruction_count++;
+            Debugging.print("instruction count incrementation");
             if (!Global.getSetting("test mode")) return;
             Algorithm.testModeInstructionUpdate();
         }
@@ -546,8 +550,8 @@ namespace Parser
 
             _called = true;
             Functions.callFunctionByName(_function_name, _args);
-            // update all tracers
-            Tracer.updateTracers();
+            // update things 'n stuff
+            Global.onElementaryInstruction();
 
             Context.reset();
         }
@@ -559,6 +563,7 @@ namespace Parser
         protected override void updateTestModeValues()
         {
             Global.instruction_count++;
+            Debugging.print("instruction count incrementation");
             if (!Global.getSetting("test mode")) return;
             Algorithm.testModeInstructionUpdate();
         }
@@ -596,6 +601,7 @@ namespace Parser
         protected override void updateTestModeValues()
         {
             Global.instruction_count++;
+            Debugging.print("instruction count incrementation");
             if (!Global.getSetting("test mode")) return;
             Algorithm.testModeInstructionUpdate();
         }
@@ -646,6 +652,7 @@ namespace Parser
         protected override void updateTestModeValues()
         {
             Global.instruction_count++;
+            Debugging.print("instruction count incrementation");
             if (!Global.getSetting("test mode")) return;
             Algorithm.testModeInstructionUpdate();
         }

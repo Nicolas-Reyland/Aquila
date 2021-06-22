@@ -336,11 +336,11 @@ namespace Parser
 
             List<string> exec_lines = new List<string>
             {
-                "for ($i = 0; $i < 1; $i ++)",
-                "$min = $i",
-                "$j = 4",
-                "interactive_call(vars)",
-                "end-for"
+                "$l = [1,2]",
+                "trace $l",
+                "while (true)",
+                "swap($l,0,1)",
+                "end-while",
             };
 
             if (Global.getSetting("interactive") || args.Length > 0 && args[0] == "interactive")

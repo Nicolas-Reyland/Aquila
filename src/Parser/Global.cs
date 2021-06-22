@@ -224,7 +224,7 @@ namespace Parser
         public static void resetLocalScopeUntilDepthReached(int wanted_depth)
         {
             int current_scope = getLocalScopeDepth();
-            if (current_scope < wanted_depth) throw new AquilaControlFlowExceptions.InvalidScopeResetError();
+            if (current_scope < wanted_depth) throw new AquilaControlFlowExceptions.InvalidScopeResetError($"Scope level dismatch: {current_scope} < {wanted_depth}");
 
             for (int i = wanted_depth; i++ < current_scope;) resetLocalContextScope();
         }
@@ -392,6 +392,7 @@ namespace Parser
             func_tracers.Clear();
             usable_variables.Clear();
             Context.resetContext();
+            instruction_count = 0;
         }
 
         /// <summary>
@@ -565,10 +566,6 @@ namespace Parser
 
         internal static void waitForRun(bool disable = false)
         {
-            lock(run_statement)
-              if (run_statement.do_crash)
-                throw new StopInterpreterException();
-
             if (disable)
                 lock (run_statement)
                     run_statement.disable();
@@ -577,13 +574,23 @@ namespace Parser
                 lock (run_statement)
                     if (run_statement.status)
                         break;
-
-            lock(run_statement)
-              if (run_statement.do_crash)
-                throw new StopInterpreterException();
         }
 
         public static string error_flag = "";
+
+        public static void onElementaryInstruction()
+        {
+            lock (run_statement)
+            {
+                if (run_statement.do_crash)
+                {
+                    run_statement.do_crash = false;
+                    throw new StopInterpreterException();
+                }
+            }
+
+            Tracer.updateTracers();
+        }
     }
 
     public class RunStatement
