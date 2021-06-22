@@ -4,7 +4,7 @@
 #setting (auto trace) false
 
 /** Constants **/
-global decl int $MATH_NUM_ITER = 15
+global const decl int $MATH_NUM_ITER = 15
 global const decl float $PI = 3.141592653589793
 global const decl float $HALF_PI = 1.570796326794896
 global const decl float $TWO_PI = 6.283185307179586
