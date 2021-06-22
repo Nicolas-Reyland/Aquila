@@ -4,11 +4,11 @@
 #setting (auto trace) false
 
 /** Constants **/
-global decl int MATH_NUM_ITER 15
-global const decl float PI 3.141592653589793
-global const decl float HALF_PI 1.570796326794896
-global const decl float TWO_PI 6.283185307179586
-global const decl float EXP 2.718281828459045
+global decl int $MATH_NUM_ITER = 15
+global const decl float $PI = 3.141592653589793
+global const decl float $HALF_PI = 1.570796326794896
+global const decl float $TWO_PI = 6.283185307179586
+global const decl float $EXP = 2.718281828459045
 
 /** Mathematical Functions **/
 // square
@@ -18,8 +18,8 @@ end-function
 
 // power
 function recursive auto pow(_x, _n)
-  decl auto x $_x
-  decl int n $_n
+  decl auto $x = $_x
+  decl int $n = $_n
   // Invalid Math domain
   if ($n < 0)
     raise_error() // raise_error
@@ -38,9 +38,9 @@ function recursive auto pow(_x, _n)
 end-function
 
 // float modulo
-function float floatmod(_x, _y)
-  decl float x $_x
-  decl bool neg false
+function float fmod(_x, _y)
+  decl float $x = $_x
+  decl bool $neg = false
   if ($x < 0)
     $x *= -1
     $neg = true
@@ -60,11 +60,11 @@ end-function
 
 // exp
 function float exp(_x)
-  decl float x $_x
-  decl float r 1f
-  decl int div 1
+  decl float $x = $_x
+  decl float $r = 1f
+  decl int $div = 1
   // skip one iteration (caught in the return call)
-  for (decl int i 1; $i < $MATH_NUM_ITER; $i ++)
+  for (decl int $i = 1; $i < $MATH_NUM_ITER; $i ++)
     $r += $x / int2float($div)
     $x *= $_x
     $div *= $i + 1
@@ -74,13 +74,13 @@ end-function
 
 // natural log
 function float ln(_x)
-  decl float x ($_x - 1)
+  decl float $x = ($_x - 1)
   // Invalid Math domain
   if ($x < 0)
     raise_error() // raise_error
   end-if
-  decl float r $x
-  decl float sign 1f
+  decl float $r = $x
+  decl float $sign = 1f
   for ($i = 0; $i < $MATH_NUM_ITER; $i ++)
     $x *= $_x
     $sign *= -1
@@ -91,12 +91,12 @@ end-function
 
 // sin
 function float sin(_x)
-  decl float x $_x
-  decl float r $_x
-  decl float sign 1f
-  decl int div 1
-  decl int counter 2
-  for (decl int i 0; $i < $MATH_NUM_ITER; $i ++)
+  decl float $x = $_x
+  decl float $r = $_x
+  decl float $sign = 1f
+  decl int $div = 1
+  decl int $counter = 2
+  for (decl int $i = 0; $i < $MATH_NUM_ITER; $i ++)
     $x *= $_x * $_x
     $div *= $counter * ($counter + 1)
     $counter += 2
@@ -145,18 +145,18 @@ end-function
 /** List utilities **/
 // index
 function int index_of(l, value)
-  decl int len length($l)
+  decl int $len = length($l)
   for ($i = 0; $i < $len; $i ++)
     if ($l[$i] ~ $value)
-      return($i)
+      return $i
     end-if
   end-for
-  return(-1)
+  return -1
 end-function
 
 // delete element
 function auto delete_value(l, value)
-  decl int index index_of($l, $value)
+  decl int $index = index_of($l, $value)
   if ($index < 0)
     return
   end-if
@@ -165,12 +165,12 @@ end-function
 
 // sum of the elements in a one-dimensional list
 function list sum(l)
-  decl int len length($l)
+  decl int $len = length($l)
   if ($len ~ 0)
     raise_error()
   end-if
-  decl auto total $l[0]
-  for (decl int i 1; $i < $len; $i ++)
+  decl auto $total = $l[0]
+  for (decl int $i = 1; $i < $len; $i ++)
     $total += $l[$i]
   end-for
   return($total)
@@ -183,8 +183,8 @@ end-function
 
 // range
 function list range(start, stop, step)
-	decl list l []
-	for (decl i $start; $i < $stop; $i += $step)
+	decl list $l = []
+	for (decl $i = $start; $i < $stop; $i += $step)
 		append_value($l, $i)
 	end-for
 	return($l)
@@ -192,7 +192,7 @@ end-function
 
 // slice a list
 function list slice_list(l, start, stop, step)
-	decl list spliced_list []
+	decl list $spliced_list = []
 	for ($i = $start; $i < $stop; $i += $step)
 		append_value($spliced_list, list_at($l, $i))
 	end-for
@@ -201,8 +201,8 @@ end-function
 
 // fill a list
 function list fill_list(n, value)
-  decl list l []
-  for (decl int i 0; $i < $n; $i ++)
+  decl list $l = []
+  for (decl int $i = 0; $i < $n; $i ++)
     appen_value($l, $value)
   end-for
   return($l)
