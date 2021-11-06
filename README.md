@@ -1,7 +1,7 @@
 # Aquila
 Aquila is a programming language designed to make algorithms easier to understand, whether by humans or by computers. The [Code Vultus project](https://github.com/Nicolas-Reyland/Code-Vultus) is a good example use-case of the Aquila programming language.
 
-You can find an interpreter here. It is still in development. Come back in June 2021 to have a final product!
+You can find an interpreter here. It is still in development, altough in a state of pause for now.
 The documentation is unfinished, but you can stil peak into it :^) !
 If you want to develop in Aquila, there are two syntax-highlighting extensions out there: [aquila-for-atom](https://github.com/Nicolas-Reyland/aquila-for-atom) for the Atom editor and [aquila-for-vscode](https://github.com/Nicolas-Reyland/aquila-for-vscode) for the VS Code Editor. You can install them both from their editor's package manager or using those links:
  * https://atom.io/packages/aquila-for-atom
