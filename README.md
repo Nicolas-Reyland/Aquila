@@ -10,7 +10,7 @@ If you want to develop in Aquila, there are two syntax-highlighting extensions o
 
 To compile the Interpreter:
 
-On Windows (never tested):
+On Windows :
 ```
 cd src
 dotnet build
